@@ -57,23 +57,28 @@ Three public Kaggle datasets, joined on skill name:
 
 | # | Dataset | Role | Distinct skills |
 |---|---------|------|-----------------|
-| D1 | [Skill Scarcity Index](https://www.kaggle.com/datasets/datamatastudios/skill-scarcity-index) ("Hardest Tech Skills to Hire For") | Scarcity: `scarcity_score`, `salary_premium_pct`, `median_days_open` + demand | 139 |
-| D2 | [Skill Demand Index](https://www.kaggle.com/datasets/datamatastudios/skill-demand-index) | Demand: `demand_pct`, `required_count`, `skill_group` | 147 |
+| D1 | [Skill Scarcity Index](https://www.kaggle.com/datasets/datamatastudios/skill-scarcity-index) ("Hardest Tech Skills to Hire For") | Scarcity: `scarcity_score`, `salary_premium_pct`, `median_days_open` + demand | 141 |
+| D2 | [Skill Demand Index](https://www.kaggle.com/datasets/datamatastudios/skill-demand-index) | Demand: `demand_pct`, `required_count`, `skill_group` | 148 |
 | D3 | [Most In-Demand Job Skills 2026](https://www.kaggle.com/datasets/alpha21/most-in-demand-job-skills-2026) (360k+ postings) | Demand corroboration + **per-role skill profiles** (`skills-2026-by-role.csv`: 15 roles × top 30 skills) | 250 |
+
+*Re-validated against the raw CSVs on 2026-07-22 — D1+D2 core is 141 (not the earlier 139) and
+D2's own distinct-skill count is 148 (not 147); both are now locked in as passing, enforced
+assertions in `tests/test_data_invariants.py`.*
 
 ### The join strategy (validated)
 
 A three-way join was tested by normalizing skill names (case, punctuation, whitespace):
 
-- **D1 ∩ D2 = 139** — a near-perfect join (same publisher, same taxonomy). This is the
-  **core**: every skill carries both demand and scarcity signal.
+- **D1 ∩ D2 = 141** — a near-perfect join (same publisher, same taxonomy). This is the
+  **core**: every skill carries both demand and scarcity signal. (D2 has 7 skills D1 lacks:
+  `duckdb`, `qlik`, `r`, `ray`, `streamlit`, `supabase`, `talend`.)
 - **Three-way ∩ = 58** — D3 uses a coarser, lowercase, single-token vocabulary
   (`ai`, `cloud`, `python`), so most of its 250 skills are generic soft skills or broad
   buckets absent from the tech-focused D1/D2.
 
-Rather than force a lossy three-way join (which would discard 81 good skills), Looking Glass:
+Rather than force a lossy three-way join (which would discard 83 good skills), Looking Glass:
 
-- builds its **139-skill core on D1 + D2**, and
+- builds its **141-skill core on D1 + D2**, and
 - uses **D3 as an enrichment badge** — for the 58 skills it corroborates, the UI marks demand
   as "confirmed across 360k+ postings" (higher confidence).
 
@@ -100,7 +105,7 @@ flagged *"demand only, scarcity unknown"* rather than silently dropped.
 
 The thinnest end-to-end slice that proves the core value hypothesis, in build order:
 
-1. **Ingest** the three CSVs into Supabase; resolve the D1+D2 skill join (139-skill core) and
+1. **Ingest** the three CSVs into Supabase; resolve the D1+D2 skill join (141-skill core) and
    the D3 per-role skill profiles.
 2. **Compute** a deterministic `arbitrage_score` view (demand × scarcity), with D3 confidence badges.
 3. **Role picker** — select one of the six V1 technical roles; show its skill profile on the

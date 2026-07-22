@@ -13,7 +13,7 @@ to the highest-leverage skill first. The primary flow: **pick target role → pa
 arbitrage-ranked gap list → LLM narrates the top move.**
 
 **Data invariants (verified against source CSVs — do not drift without re-validating):**
-- **D1 + D2 = 139-skill core** (skill-scarcity-index + skill-demand-index; same publisher, perfect join). Carries demand, `scarcity_score`, salary premium, days-open, skill_group.
+- **D1 + D2 = 141-skill core** (skill-scarcity-index + skill-demand-index; same publisher, perfect join). Carries demand, `scarcity_score`, salary premium, days-open, skill_group. D2's own distinct-skill count is 148 (7 skills D1 lacks: `duckdb`, `qlik`, `r`, `ray`, `streamlit`, `supabase`, `talend`). Re-validated against the raw CSVs on 2026-07-22 — corrected from the earlier 139/147; both figures are now locked in as passing, enforced assertions in `tests/test_data_invariants.py`.
 - **Three-way overlap with D3 = 58 skills** — D3 (`most-in-demand-job-skills-2026`) is a *corroboration badge* ("confirmed across 360k postings"), never a hard-join requirement.
 - **Per-role profiles** come from D3's `skills-2026-by-role.csv` (15 roles × top 30 skills).
 - **V1 ships six high-coverage technical roles**: Backend, Full Stack, Data Scientist/ML, Data Engineer, Software Engineer, DevOps/Cloud/SRE.
