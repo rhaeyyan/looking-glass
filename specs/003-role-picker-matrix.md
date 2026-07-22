@@ -59,6 +59,12 @@ split into two ≤5-file steps specifically to stay under the cap).
 framework. No charting library yet — left to Magnolia's Task 7 discretion, gated behind her own
 dependency-authorization request if needed.
 
+**Amendment (2026-07-22)**: `@types/react` and `@types/react-dom` (dev) additionally authorized —
+type-only declarations for the already-approved `react`/`react-dom` runtime deps, required for
+`tsc` to typecheck the `.tsx` files Task 4 introduces. No new runtime capability.
+`eslint.config.js` split into a new Task 3b (below) to keep Task 4 at its 5-file cap rather than
+exceeding it for a config-only file.
+
 ---
 
 ## Task 1 — Cypress: failing structural tests for the frontend read-layer migration
@@ -155,6 +161,32 @@ dependency-authorization request if needed.
 ```markdown
 [FORCES]
 1. Toolchain isolation (frontend/ as its own npm root) > minimizing directory nesting
+2. Simplicity > Pattern purity
+```
+
+## Task 3b — Redwood: eslint config (housekeeping addendum to Task 3)
+
+```markdown
+[SPEC]
+- **Objective**: Add the missing ESLint flat config so `npm run lint` actually lints instead of
+  failing gracefully with "no config found." Same config-only, no-product-logic category as Task
+  3 — split out solely to keep Task 4 at its already-exact 5-file cap.
+- **Inputs/Outputs**: N/A (config only) → `npm run lint` runs real rules against `frontend/src/`.
+- **Design Pattern**: none — simple case; tooling config.
+- **Bounded-AI boundary**: N/A — no scoring/gap/LLM logic.
+- **Intellectual Control**: reuses the already-approved eslint/typescript-eslint/jsx-a11y/
+  react-hooks/react-refresh dev deps from Task 3's list — no new dependency, purely wiring.
+- **Constraints**: flat config format (`eslint` ^9); must enable `eslint-plugin-jsx-a11y`,
+  `eslint-plugin-react-hooks`, and `eslint-plugin-react-refresh` rules (all already installed but
+  previously unconfigured/unenforced).
+- **Edge Cases**: must not lint `node_modules/`, `dist/`, `coverage/` (already gitignored, should
+  also be ignored here).
+- **Files**: `frontend/eslint.config.js`
+- **Tipping Point**: N/A — one-time tooling setup.
+```
+```markdown
+[FORCES]
+1. Lint config landing before Task 4's .tsx files exist > deferring further
 2. Simplicity > Pattern purity
 ```
 
