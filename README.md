@@ -1,22 +1,32 @@
 # Looking Glass
 
-**A High-Leverage Pivot Engine for career-changers.** Paste your resume, and Looking Glass
-shows you not a generic list of ten things to learn, but the *single highest-leverage skill
-gap to close first* — the one where the market is hiring hard **and** talent is scarcest.
+**A High-Leverage Pivot Engine for career-changers.** Pick the role you're aiming for, paste
+your resume, and Looking Glass shows you not a generic list of ten things to learn, but the
+*single highest-leverage skill gap to close first* on the path to that role — the one where the
+market is hiring hard **and** talent is scarcest.
 
 > The name: a looking glass shows you the market as it really is, and where *you* stand in it.
 
 ## The idea
 
-Every "skills gap" tool hands you a flat to-do list. Looking Glass ranks your gaps by an
-**Arbitrage Score** — a deterministic measure of where demand is high *and* the skill is hard
-to hire for. High demand + high scarcity = the path of least resistance to the highest
-leverage. Learn that first (the "snowball" method: tackle the biggest constraint first),
-then move down the ladder.
+Every "skills gap" tool hands you a flat to-do list. Looking Glass starts from **where you want
+to go** — a target role — then ranks the gaps between you and that role by an **Arbitrage
+Score**: a deterministic measure of where demand is high *and* the skill is hard to hire for.
+High demand + high scarcity = the path of least resistance to the highest leverage. Learn that
+first (the "snowball" method: tackle the biggest constraint first), then move down the ladder.
 
-For example: if both *Cloud Architecture* and *Agentic AI Tooling* are in high demand, but
-scarcity data shows agentic-AI talent is far harder to hire, Looking Glass routes you to the
-agentic-AI skill first — same demand, less competition, faster payoff.
+For example: you're aiming for **Backend Engineer**. Both *Kafka* and *Redis* show up as gaps
+in your resume and both are in demand, but scarcity data shows Kafka talent is far harder to
+hire — so Looking Glass routes you to Kafka first: same demand, less competition, faster payoff.
+
+## The primary flow
+
+1. **Pick your target role** (e.g. Backend, Data Scientist/ML, DevOps).
+2. **Paste your resume** — Looking Glass extracts the skills you already have.
+3. **See the gap** — the role's skill profile minus your skills, ranked by Arbitrage Score.
+4. **Learn the top gap first**, with a short rationale for why it's the highest-leverage move.
+
+A whole-market "explore" mode (all skills, no target role) is available as a secondary view.
 
 ### Bounded AI, by design
 
@@ -49,7 +59,7 @@ Three public Kaggle datasets, joined on skill name:
 |---|---------|------|-----------------|
 | D1 | [Skill Scarcity Index](https://www.kaggle.com/datasets/datamatastudios/skill-scarcity-index) ("Hardest Tech Skills to Hire For") | Scarcity: `scarcity_score`, `salary_premium_pct`, `median_days_open` + demand | 139 |
 | D2 | [Skill Demand Index](https://www.kaggle.com/datasets/datamatastudios/skill-demand-index) | Demand: `demand_pct`, `required_count`, `skill_group` | 147 |
-| D3 | [Most In-Demand Job Skills 2026](https://www.kaggle.com/datasets/alpha21/most-in-demand-job-skills-2026) (360k+ postings) | Demand corroboration across a large posting base | 250 |
+| D3 | [Most In-Demand Job Skills 2026](https://www.kaggle.com/datasets/alpha21/most-in-demand-job-skills-2026) (360k+ postings) | Demand corroboration + **per-role skill profiles** (`skills-2026-by-role.csv`: 15 roles × top 30 skills) | 250 |
 
 ### The join strategy (validated)
 
@@ -69,14 +79,34 @@ Rather than force a lossy three-way join (which would discard 81 good skills), L
 
 All three datasets contribute; none is thrown away.
 
+### Role coverage (why V1 is scoped to technical roles)
+
+A target role's 30 skills come from D3's coarse vocabulary, so how many of them carry a real
+Arbitrage Score varies by role. Technical/engineering roles are dense with hard skills that
+live in the D1+D2 core; softer roles are mostly generic skills the tech-focused source data
+doesn't score:
+
+| Coverage | Roles | Skills with an arbitrage score |
+|---|---|---|
+| **Strong (V1)** | Backend, Full Stack, Data Scientist/ML, Data Engineer, Software Engineer, DevOps/Cloud/SRE | 15–22 of 30 |
+| Moderate (later) | Frontend, Data Analyst/BI, Mobile | 8–9 of 30 |
+| Weak (V2+) | Security, QA, Business Analyst, Designer, Product Manager, Project/Program Mgr | 3–6 of 30 |
+
+**V1 ships the six "Strong" technical roles** — which is exactly the Pursuit career-changer-into-tech
+audience. A skill that appears in a role but has no arbitrage score still surfaces as a gap,
+flagged *"demand only, scarcity unknown"* rather than silently dropped.
+
 ## MVP scope (walking skeleton)
 
 The thinnest end-to-end slice that proves the core value hypothesis, in build order:
 
-1. **Ingest** the three CSVs into Supabase; resolve the D1+D2 skill join (139-skill core).
+1. **Ingest** the three CSVs into Supabase; resolve the D1+D2 skill join (139-skill core) and
+   the D3 per-role skill profiles.
 2. **Compute** a deterministic `arbitrage_score` view (demand × scarcity), with D3 confidence badges.
-3. **Market Map** — a static visual matrix of every skill by demand × scarcity (no auth, no resume).
-4. **Resume gap layer** — paste a resume → extract skills → highlight *your* gaps on the same matrix.
+3. **Role picker** — select one of the six V1 technical roles; show its skill profile on the
+   demand × scarcity matrix.
+4. **Resume gap layer** — paste a resume → extract skills → subtract from the role profile →
+   highlight *your* gaps on the matrix, ranked by Arbitrage Score.
 5. **Narrative** — the LLM writes a short "learn X before Y, here's why" rationale for the top gap.
 
 ### The visual matrix
@@ -89,8 +119,9 @@ Not a text list — the interface is the product:
 
 ### Explicitly out of scope for V1
 
-User accounts / saved plans, cohort aggregation, syllabus/curriculum auditing, skill-alias
-fuzzy matching (a V2 refinement that would lift D3 coverage), and any forward-looking forecast axis.
+User accounts / saved plans, cohort aggregation, syllabus/curriculum auditing, the moderate-
+and weak-coverage roles, skill-alias fuzzy matching (a V2 refinement that would lift D3
+coverage), and any forward-looking forecast axis.
 
 ## Stack
 
@@ -100,8 +131,9 @@ fuzzy matching (a V2 refinement that would lift D3 coverage), and any forward-lo
 
 ## Status
 
-Scoped and data-validated. Datasets downloaded and the join test run (results above).
-Next: implementation planning and the walking-skeleton build.
+Scoped and data-validated. Datasets downloaded, join test and per-role coverage run (results
+above). Primary flow is target-role → resume → arbitrage-ranked gaps, V1 scoped to the six
+high-coverage technical roles. Next: implementation planning and the walking-skeleton build.
 
 ---
 
