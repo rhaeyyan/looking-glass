@@ -38,6 +38,25 @@ context is non-trivial (Cedar requests a `[CONTEXT-PACKET]`), Banyan when a coup
 or refactor is flagged, or to mediate a stalled rejection loop. Use the **SPIKE path** for
 exploratory prototyping (Cypress audits *after* the walking skeleton is built).
 
+### The orchestrator (the main session)
+
+Subagents cannot invoke other subagents — every arrow in the pipeline above is the main session
+relaying a handoff block between two agents that otherwise share no context. The main session
+therefore owns, and no subagent does:
+
+- **Relaying handoffs verbatim** — pasting Cedar's `[SPEC]` into Cypress's and Redwood's prompts
+  unchanged, and passing `[COMPLIANCE-REPORT]`/`[COMPLETION-REPORT]` back the other way.
+- **Persisting the SPEC.** Write every approved `[SPEC]`/`[SPIKE]` to `specs/NNN-slug.md` before
+  dispatching it, so the contract survives context compaction and the HITL approval has a
+  durable artifact to point at.
+- **Counting the rejection loop.** Subagents are stateless between spawns; the main session is
+  the only place that can track "this is retry 2 of 2" before escalating to Banyan (Workflow
+  Rule 9).
+- **Retry via continuation, not respawn.** When Cypress fails Redwood or Magnolia, continue that
+  same agent (rather than a fresh cold start) so it keeps its own implementation context.
+- **Worktree isolation.** Rule 10's "parallel work in Git Worktrees" maps to spawning the builder
+  agent with worktree isolation for that task; Banyan still coordinates the merge to `main`.
+
 ## Team Roster (`.claude/agents/`)
 Every workflow has one definitive owner (no bystander effect). Tool restrictions are enforced by
 each agent's `tools:` frontmatter.
@@ -107,10 +126,29 @@ Every inter-agent handoff uses one of these blocks, verbatim.
 
 ### [ROUTING-DECISION] — Pine
 ### [CONTEXT-PACKET] — Birch
+(Each defines its exact block in its own `.claude/agents/*.md` file.)
+
 ### [COMPLIANCE-REPORT] — Cypress → Cedar / Redwood
+```markdown
+[COMPLIANCE-REPORT]
+- **Status**: PASS | FAIL
+- **Critical violations**: <must fix before merge; empty if PASS>
+- **Recommendations**: <non-blocking improvements>
+- **Test results**: <command run + summary of output>
+```
+
 ### [COMPLETION-REPORT] — Redwood / Magnolia → Cypress
+```markdown
+[COMPLETION-REPORT]
+- **Files changed**: <list>
+- **Spec items satisfied**: <checklist against the SPEC>
+- **Complexity justification**: <prove Jevon's Paradox was avoided; defend any lines added against bloat>
+- **Known gaps**: <anything deferred, or "none">
+- **Tipping Point progress**: <how close the implementation is to the defined Tipping Point>
+```
+
 ### [HEALING-REPORT] — Banyan
-(Each agent's `.claude/agents/*.md` file defines its exact block.)
+(Defined in `.claude/agents/banyan.md`.)
 
 ## Session Continuity
 - Start of session: read `SESSION_STATE.md` (Sprint Ledger) if present.

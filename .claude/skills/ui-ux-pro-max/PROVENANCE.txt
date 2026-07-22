@@ -1,0 +1,4 @@
+source: https://github.com/nextlevelbuilder/ui-ux-pro-max-skill
+pinned-commit: b7e3af80f6e331f6fb456667b82b12cade7c9d35
+installed: 2026-06-11
+note: community skill — verify content on upgrade

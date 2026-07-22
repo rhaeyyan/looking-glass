@@ -1,0 +1,3 @@
+source: https://github.com/anthropics/claude-code
+pinned-commit: 3a7c736101edbd00426fce4615e80b937f6467df
+installed: 2026-06-11
