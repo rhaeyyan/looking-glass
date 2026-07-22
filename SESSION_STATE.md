@@ -36,14 +36,34 @@
   clean**, and the user independently verified via the SQL Editor: `skills_core` = 141,
   `skill_role_profile` = 450, `skill_arbitrage_scores` = 141 — all exact matches. This is the
   first time either pipeline has run against a real (not mocked) database.
+- Invoked **Cedar** for MVP step 3 (role picker + demand×scarcity matrix) — the first-ever
+  frontend work in this repo (confirmed greenfield). Cedar resolved two forced decisions:
+  (1) direct-to-Supabase client-side fetching via the Publishable/anon key, no backend API tier
+  — enforced by new RLS policies, not application code; (2) a new `role_skill_arbitrage` view
+  (`skill_role_profile LEFT JOIN arbitrage_scores`) so the role→score join lives in one
+  auditable place, reusable by step 4. Both approved, along with the first-ever frontend
+  dependency set (React 19, Vite 6, TS 5, vitest/testing-library/jest-axe, eslint+a11y plugins;
+  no charting library yet — deferred to Magnolia's task). SPIKE for the frontend
+  scaffold/skeleton, standard TDD for the matrix once the data contract is frozen. 7 tasks,
+  persisted to `specs/003-role-picker-matrix.md`.
+- Dispatched **Task 1** (Cypress): failing tests for the new `0003_frontend_read_layer.sql`
+  migration (RLS policies + `role_skill_arbitrage` view) —
+  `tests/test_frontend_read_layer_migration.py`, 20 tests, RED confirmed (`FileNotFoundError`).
+  Locks in: per-table anon SELECT policies, negative guard against any anon write policy,
+  `security_invoker = true` on both the retrofitted `arbitrage_scores` view and the new view,
+  and a `LEFT JOIN` (not `INNER`) regression guard.
 
 ### Unfinished / Blocked
-- README's MVP steps 3 (role picker + matrix UI, Magnolia's domain) and 4 (resume gap layer)
-  have not been specced yet.
-- Two pre-existing long-line (`E501`) lint warnings in `tests/test_ingest_parse.py` — cosmetic,
-  not blocking, out of scope where flagged.
+- Tasks 2–7 of `specs/003-role-picker-matrix.md` not started (migration → frontend scaffold →
+  walking skeleton → characterization tests → matrix/ladder tests → Magnolia's build).
+- README.md's MVP step 4 (resume gap layer) not specced yet.
+- Two pre-existing lint items flagged but out of scope where found: long-line (`E501`) warnings
+  in `tests/test_ingest_parse.py`, unsorted imports in `tests/test_skill_core_join.py`.
 
 ### Next Steps
-- Decide between README's MVP step 3 (role picker + demand×scarcity matrix UI) or step 4
-  (resume gap layer) as the next Cedar SPEC — both backend data layers are now live-verified and
-  ready to build on top of.
+- Dispatch Task 2 to Redwood: write `supabase/migrations/0003_frontend_read_layer.sql` against
+  Task 1's exact contract, apply it to the live Supabase project, and empirically verify anon-key
+  read access.
+- Continue the sequential pipeline: Task 3 (Redwood SPIKE, frontend scaffold) → Task 4 (Redwood
+  SPIKE, walking skeleton) → Task 5 (Cypress, characterization tests) → Task 6 (Cypress, matrix/
+  ladder tests) → Task 7 (Magnolia, the actual accessible matrix + ladder build).
