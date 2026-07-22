@@ -101,15 +101,25 @@
   via `uv add --dev pytest`, not a new-dependency request since it's already the declared Stack
   tool in AGENTS.md.
 
+- Committed (`92ae96e`) and pushed to `origin/main`.
+- Dispatched **Task 2** (Redwood): implemented `src/scoring/arbitrage.py`
+  (`ArbitrageScoreRow` + `compute_arbitrage_score`), named constants for all weights/caps
+  (`SCARCITY_SCORE_WEIGHT`, `SALARY_PREMIUM_WEIGHT`, `DAYS_OPEN_WEIGHT`, `DAYS_OPEN_CAP`,
+  `SALARY_PREMIUM_CAP`). Task 1's tests now GREEN: 156 passed total (18 new), `ruff` clean.
+  Also formalized `pytest` as a tracked dev dependency (`uv add --dev pytest`) —
+  `pyproject.toml`/`uv.lock` updated.
+
 ### Unfinished / Blocked
-- `specs/002-arbitrage-score.md` and `tests/test_arbitrage_score.py` are new and uncommitted.
-- Tasks 2–5 of the arbitrage-score SPEC (formula implementation, schema/loader, docs) not started.
-- `pytest` still not a tracked dev dependency in `pyproject.toml`/`uv.lock` — next task should fix.
+- `specs/002-arbitrage-score.md`, `tests/test_arbitrage_score.py`, `src/scoring/`, and the
+  `pyproject.toml`/`uv.lock` dev-dependency change are new/modified and uncommitted.
+- Tasks 3–5 of the arbitrage-score SPEC (schema/loader tests, migration + loader wiring, docs)
+  not started.
 
 ### Next Steps
-- Dispatch Task 2 to Redwood: implement `src/scoring/arbitrage.py` against Task 1's failing
-  tests (do not modify them); also pin `pytest` as a dev dependency while there.
-- Continue the sequential pipeline: Task 3 (Cypress, schema/loader tests) → Task 4 (Redwood,
-  migration + loader + CLI) → Task 5 (Redwood, docs reconciliation).
+- Dispatch Task 3 to Cypress: failing tests for the `skill_arbitrage_scores` table +
+  `arbitrage_scores` view + loader idempotency (mocked client, no live credentials) — per
+  `specs/002-arbitrage-score.md`.
+- Continue the sequential pipeline: Task 4 (Redwood, migration + loader + CLI) → Task 5
+  (Redwood, docs reconciliation).
 - Separately, still open from the ingest SPEC: stand up a real Supabase project and smoke-test
   `python -m src.ingest` (and, once built, `python -m src.scoring`) — no live instance exists yet.
