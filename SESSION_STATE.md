@@ -118,16 +118,25 @@
   Defined the exact Task 4 contract: `upsert_arbitrage_scores(client, rows)`,
   `ARBITRAGE_SCORES_TABLE = "skill_arbitrage_scores"`, real FK to `skills_core`.
 
+- Committed (`1ef719b`) and pushed to `origin/main`.
+- Dispatched **Task 4** (Redwood): `supabase/migrations/0002_arbitrage_scores.sql`
+  (`skill_arbitrage_scores` table with a real FK to `skills_core`, `arbitrage_scores` view with
+  an explicit column list), `src/scoring/load_supabase.py` (`upsert_arbitrage_scores`),
+  `src/scoring/pipeline.py` (`run_scoring_pipeline`, composes the already-tested ingest chain),
+  `src/scoring/__main__.py` (CLI entrypoint, the one place a live client is built). Task 3's
+  tests now GREEN: 178 passed total (22 new), `ruff` clean, no regressions.
+
 ### Unfinished / Blocked
-- `tests/test_arbitrage_schema.py` and `tests/test_arbitrage_loader_idempotency.py` are new and
-  uncommitted.
-- Tasks 4–5 of the arbitrage-score SPEC (migration + loader wiring, docs) not started.
+- `supabase/migrations/0002_arbitrage_scores.sql`, `src/scoring/load_supabase.py`,
+  `src/scoring/pipeline.py`, `src/scoring/__main__.py` are new and uncommitted.
+- Task 5 of the arbitrage-score SPEC (docs reconciliation — replace README's placeholder
+  `arbitrage_score = f(demand, scarcity)` with the actual formula) not started — the last task
+  in `specs/002-arbitrage-score.md`.
 
 ### Next Steps
-- Dispatch Task 4 to Redwood: `supabase/migrations/0002_arbitrage_scores.sql` +
-  `src/scoring/load_supabase.py` + `src/scoring/pipeline.py`/`__main__.py`, against Task 3's
-  exact contract (do not modify the tests).
-- Continue the sequential pipeline: Task 5 (Redwood, docs reconciliation) — the last task in this
-  SPEC.
-- Separately, still open from the ingest SPEC: stand up a real Supabase project and smoke-test
-  `python -m src.ingest` (and, once built, `python -m src.scoring`) — no live instance exists yet.
+- Dispatch Task 5 to Redwood: update README.md's "How the score works" section per
+  `specs/002-arbitrage-score.md`'s Task 5 spec.
+- Once Task 5 lands, both SPECs (001-ingest-pipeline, 002-arbitrage-score) are fully complete —
+  README's MVP steps 1 and 2 are built and tested end-to-end.
+- Separately, still open: stand up a real Supabase project and smoke-test `python -m src.ingest`
+  then `python -m src.scoring` — no live instance exists yet.
