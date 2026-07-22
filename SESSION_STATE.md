@@ -5,145 +5,45 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-22 (Pipeline audit, doc fixes ported from seed repo, ingest SPEC built end-to-end)
+## Current Session — 2026-07-22 (Ingest + arbitrage_score SPECs built and verified live against Supabase)
 
 ### Accomplished
-- Reviewed the full repo (README, AGENTS.md, all seven `.claude/agents/*.md` files) against the
-  multi-agent orchestration pipeline it describes.
-- Found the seeding from `Documents/Pursuit_AI-Native/` was incomplete: `.claude/skills/` and
-  `.claude/hooks/` were never copied over, and two handoff schemas (`[COMPLIANCE-REPORT]`,
-  `[COMPLETION-REPORT]`) were referenced by cypress.md/redwood.md but defined nowhere.
-- Ported from the seed repo: `.claude/skills/{grill-me,web-design-guidelines,frontend-design,
-  ui-ux-pro-max,a11y-sec-2026,wrap-up}`, `.claude/hooks/{post-edit-lint.sh,
-  stop-session-state.sh}`, and an adapted `.claude/settings.json` (dropped the seed's
-  fellowship-specific `youtube_fetcher.sh` allowlist entry).
-- Filled in the missing `[COMPLIANCE-REPORT]`/`[COMPLETION-REPORT]` blocks in AGENTS.md; added an
-  "orchestrator" section documenting that the main session (not any subagent) owns handoff
-  relaying, SPEC persistence, rejection-loop counting, and worktree isolation, since subagents
-  cannot invoke other subagents.
-- Fixed birch.md's read-only-vs-"maintains SESSION_STATE.md" contradiction (Birch now audits and
-  flags drift; the orchestrator does the writing). Gave banyan.md `Write` (it only had `Edit`,
-  which can't create new files during a tree-wide refactor).
-- Committed (`26e8d74`) and pushed to `origin/main`.
-- User dropped the three real source datasets into `kaggle-datasets/` (D1/D2/D3 zips) —
-  correctly git-ignored (`.gitignore`'s `*.zip` rule).
-- Created this file and `ARCHIVED_SESSIONS.md` per the Session Continuity protocol.
-- Invoked **Birch** to extract the zips into `data/raw/` and inspect the real schemas
-  (`data/schema-notes.md`). Found real drift from AGENTS.md's documented invariants: the D1+D2
-  core measures **141** skills, not the documented 139 (D2 has 7 skills D1 lacks: `duckdb`,
-  `qlik`, `r`, `ray`, `streamlit`, `supabase`, `talend`); D2's own distinct-skill count measures
-  148, not 147. The three-way overlap (58) and the six V1 roles both check out clean.
-- Invoked **Cedar** for the Ingest `[SPEC]` (README MVP step 1). Human chose: accept 141/148 as
-  ground truth, build against them, reconcile docs later. Approved a 7-task sequential SPEC
-  (stdlib `csv`, no `pandas`; one new dependency authorized — `supabase-py`; dominant-category
-  collapse for D1/D2's grain; no live-DB credentials in any test). Persisted to
-  `specs/001-ingest-pipeline.md`.
-- **Task 1** (Cypress): failing tests for the 4 CSV parsers + `normalize_skill()` —
-  `tests/test_ingest_parse.py`, `tests/test_normalize.py`. RED confirmed (`ModuleNotFoundError`).
-  Locked in real-data edge cases (C#/C++/C distinct, CI/CD case-fold, D1 nulls, verbatim
-  `role_family` spacing); deliberately scoped out AWS/full-name alias-merging.
-- **Task 2** (Redwood): implemented `src/ingest/parse.py` + `src/ingest/normalize.py`
-  (stdlib-only). Task 1 tests GREEN: 43 passed. Added `pyproject.toml`.
-- **Task 3** (Cypress): failing tests for the join/corroboration/role-profile logic —
-  `tests/test_skill_core_join.py`, `tests/test_data_invariants.py` (integration tests that
-  `skip`, not fail, when gitignored `data/raw/` is absent). Independently re-verified 141/58/450
-  against the real CSVs. Defined the exact Task 4 contract.
-- **Task 4** (Redwood): implemented `src/ingest/join_core.py`, `corroborate.py`,
-  `role_profile.py`, `pipeline.py`. Task 3 tests GREEN: 90 passed total. 141/58 now enforced by a
-  passing test suite, not just measured.
-- **Task 7** (Redwood, docs-only, done early by explicit choice since it was small and fully
-  unblocked): updated README.md and AGENTS.md's data-invariants — 139→141, 147→148, with a
-  "re-validated 2026-07-22" provenance note. Verified no stale numbers remain outside intentional
-  historical footnotes; 58-skill and six-role figures left untouched (confirmed correct).
-- **Task 5** (Cypress): failing tests for the Supabase migration SQL + loader idempotency —
-  `tests/test_schema_constraints.py` (31 tests), `tests/test_loader_idempotency.py` (19 tests).
-  Cypress validated its own assertions by building and deleting a throwaway stub first. Judgment
-  call: classified `d3_corroborated` as `NOT NULL` (concrete `bool`, never `None`) rather than
-  the SPEC's loose "nullable d3_*" shorthand — the more precise reading of the actual dataclass.
-  Defined the exact Task 6 contract: `upsert_skill_core`/`upsert_role_profiles`, mocked client
-  only, no live credentials anywhere in the suite.
-- **Task 6** (Redwood) — the final task in this SPEC: `supabase/migrations/
-  0001_init_skills_schema.sql`, `src/ingest/load_supabase.py`, `src/ingest/__main__.py` (the one
-  place a live client is built, kept out of every test path), `.env.example`, and `supabase-py`
-  added as the one Cedar-authorized dependency. Full suite: **138 passed, 0 failed**. Caught and
-  fixed one stray stale "139" in the migration SQL's header comment (missed by Task 7, since that
-  file didn't exist yet) — fixed directly as a one-line comment correction.
-- **The ingest-pipeline SPEC is now fully complete — all 7 tasks done.** README's MVP step 1 is
-  built and tested end-to-end, pending only a live Supabase project to actually run the loader
-  against (a manual, human-run step — no live credentials belong in agent context).
+- Reviewed the full repo against the multi-agent orchestration pipeline; ported missing
+  `.claude/skills/`, `.claude/hooks/`, and two dangling handoff schemas from the seed repo;
+  documented the orchestrator's role (subagents can't invoke each other). Committed `26e8d74`.
+- Extracted the three Kaggle datasets, found real drift from documented invariants (D1+D2 core
+  is 141 not 139, D2's own count is 148 not 147; three-way 58 and six V1 roles both checked out).
+- **`specs/001-ingest-pipeline.md`** (7 tasks, all complete): parse → normalize → join/
+  corroborate/role-profile → Supabase schema (`skills_core`, `skill_role_profile`) + idempotent
+  loader → docs reconciliation (139→141, 147→148). `supabase-py` added as the one authorized
+  dependency. Committed through `4d2e323`.
+- **`specs/002-arbitrage-score.md`** (5 tasks, all complete): `compute_arbitrage_score`
+  (demand_score = `d2_demand_pct` verbatim; scarcity_index = weighted composite of
+  `scarcity_score`/`salary_premium_pct`/`median_days_open` with weight-renormalization, never
+  zero-substitution, on missing fields) → `skill_arbitrage_scores` table (real FK to
+  `skills_core`) + `arbitrage_scores` view + idempotent loader → README reconciliation. Also
+  formalized `pytest` as a tracked dev dependency. Committed through `155c2ed`.
+- **Both SPECs fully complete**: README's MVP steps 1 and 2 are built, tested (178 passed),
+  and doc-reconciled end-to-end, all pushed to `origin/main`.
+- **Live Supabase smoke test — passed.** Walked the user through: confirming free tier is
+  sufficient, creating `.env`, Supabase's API key rebrand (Publishable Key = new `anon`, not
+  needed here; Secret Keys = new `service_role`, used for `SUPABASE_SERVICE_ROLE_KEY`), applying
+  both migrations via the SQL Editor, enabling RLS on all three tables (safe no-op for the
+  loaders, which use the Secret key and bypass RLS regardless; closes the "public tables wide
+  open" gap for when the frontend eventually uses the Publishable key). Hit one real bug:
+  `PGRST125 — Invalid path specified in request URL` on the first `python -m src.ingest` run,
+  root-caused to a malformed `SUPABASE_URL` value. **Corrected the URL, both loaders then ran
+  clean**, and the user independently verified via the SQL Editor: `skills_core` = 141,
+  `skill_role_profile` = 450, `skill_arbitrage_scores` = 141 — all exact matches. This is the
+  first time either pipeline has run against a real (not mocked) database.
 
 ### Unfinished / Blocked
-- Nothing from this SPEC is committed yet: `data/schema-notes.md`, `specs/`, `src/`, `tests/`,
-  `supabase/`, `.env.example`, `pyproject.toml`, `uv.lock`, README.md, AGENTS.md are all
-  new/modified and uncommitted (not asked to yet). `data/raw/` itself stays gitignored, as
-  intended.
-- Two pre-existing long-line (`E501`) lint warnings in `tests/test_ingest_parse.py`, flagged by
-  Cypress during Task 3 but out of scope to fix there — cosmetic, not blocking.
-- The loader has never been run against a real Supabase project — none exists yet. Creating one
-  and smoke-testing `python -m src.ingest` is the natural next milestone before README's MVP
-  step 2 can start.
-
-- Committed (`4d2e323`) and pushed to `origin/main`.
-- Invoked **Cedar** for the `arbitrage_score` SPEC (README MVP step 2). Cedar flagged two
-  genuine judgment calls: demand = `d2_demand_pct` only (not blended with `d1_demand_pct`,
-  matching `join_core.py`'s own precedent against fabricated numbers), and a scarcity composite
-  (`scarcity_score` 0.6 / `salary_premium_pct` 0.2 / `median_days_open` 0.2, weight-renormalized
-  — not zero-substituted — when a field is missing, 60-day cap). Both accepted as-is. Approved a
-  5-task sequential SPEC (scoring formula → schema/loader → docs), one new migration
-  (`0002_arbitrage_scores.sql`, real FK to `skills_core` since coverage is total), no new
-  dependencies. Persisted to `specs/002-arbitrage-score.md`.
-- Dispatched **Task 1** (Cypress): failing tests for `compute_arbitrage_score`/`ArbitrageScoreRow`
-  — `tests/test_arbitrage_score.py`. RED confirmed (`ModuleNotFoundError` on `src.scoring`, which
-  doesn't exist yet). Cypress hand-verified every formula scenario (full/missing-salary/
-  missing-days/missing-both/day-cap/salary-cap/demand-source/D3-inertness/determinism) against a
-  scratch reference before finalizing. Flagged: `pytest` was never formally pinned as a
-  dependency (prior tasks ran it via ephemeral `uv run --with pytest`) — to be fixed in Task 2
-  via `uv add --dev pytest`, not a new-dependency request since it's already the declared Stack
-  tool in AGENTS.md.
-
-- Committed (`92ae96e`) and pushed to `origin/main`.
-- Dispatched **Task 2** (Redwood): implemented `src/scoring/arbitrage.py`
-  (`ArbitrageScoreRow` + `compute_arbitrage_score`), named constants for all weights/caps
-  (`SCARCITY_SCORE_WEIGHT`, `SALARY_PREMIUM_WEIGHT`, `DAYS_OPEN_WEIGHT`, `DAYS_OPEN_CAP`,
-  `SALARY_PREMIUM_CAP`). Task 1's tests now GREEN: 156 passed total (18 new), `ruff` clean.
-  Also formalized `pytest` as a tracked dev dependency (`uv add --dev pytest`) —
-  `pyproject.toml`/`uv.lock` updated.
-
-- Committed (`f67050b`) and pushed to `origin/main`.
-- Dispatched **Task 3** (Cypress): failing tests for the `skill_arbitrage_scores` table +
-  `arbitrage_scores` view + loader idempotency — `tests/test_arbitrage_schema.py`,
-  `tests/test_arbitrage_loader_idempotency.py`, mirroring the ingest SPEC's Task 5 pattern
-  exactly (regex/structural SQL assertions, mocked client, no live credentials). RED confirmed
-  (`FileNotFoundError` on the migration, `ModuleNotFoundError` on `src.scoring.load_supabase`).
-  Defined the exact Task 4 contract: `upsert_arbitrage_scores(client, rows)`,
-  `ARBITRAGE_SCORES_TABLE = "skill_arbitrage_scores"`, real FK to `skills_core`.
-
-- Committed (`1ef719b`) and pushed to `origin/main`.
-- Dispatched **Task 4** (Redwood): `supabase/migrations/0002_arbitrage_scores.sql`
-  (`skill_arbitrage_scores` table with a real FK to `skills_core`, `arbitrage_scores` view with
-  an explicit column list), `src/scoring/load_supabase.py` (`upsert_arbitrage_scores`),
-  `src/scoring/pipeline.py` (`run_scoring_pipeline`, composes the already-tested ingest chain),
-  `src/scoring/__main__.py` (CLI entrypoint, the one place a live client is built). Task 3's
-  tests now GREEN: 178 passed total (22 new), `ruff` clean, no regressions.
-
-- Committed (`94cbc44`) and pushed to `origin/main`.
-- Dispatched **Task 5** (Redwood, docs-only): replaced README's placeholder
-  `arbitrage_score = f(demand, scarcity)` with the actual formula, constants, and null-handling
-  behavior. Verified via `git diff` that the "2026 prediction axis" note, data-sources table, and
-  role coverage table were left untouched; full suite still 178 passed.
-- **`specs/002-arbitrage-score.md` is now fully complete — all 5 tasks done.** Both
-  `specs/001-ingest-pipeline.md` and `specs/002-arbitrage-score.md` are complete: README's MVP
-  steps 1 and 2 are built, tested, and doc-reconciled end-to-end.
-
-### Unfinished / Blocked
-- README.md's Task 5 edit is uncommitted.
-- No Supabase project exists yet — the ingest and scoring loaders have never been run against a
-  real instance. README's MVP step 3 (role picker + matrix UI) and step 4 (resume gap layer)
-  haven't been specced.
+- README's MVP steps 3 (role picker + matrix UI, Magnolia's domain) and 4 (resume gap layer)
+  have not been specced yet.
+- Two pre-existing long-line (`E501`) lint warnings in `tests/test_ingest_parse.py` — cosmetic,
+  not blocking, out of scope where flagged.
 
 ### Next Steps
-- Commit and push Task 5.
-- Decide the next milestone: (a) stand up a real Supabase project and smoke-test
-  `python -m src.ingest` then `python -m src.scoring` against it, or (b) go to Cedar for README's
-  MVP step 3 (role picker + demand×scarcity matrix — Magnolia's domain) or step 4 (resume gap
-  layer).
+- Decide between README's MVP step 3 (role picker + demand×scarcity matrix UI) or step 4
+  (resume gap layer) as the next Cedar SPEC — both backend data layers are now live-verified and
+  ready to build on top of.
