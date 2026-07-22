@@ -1,0 +1,29 @@
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Data (keep large source dumps out of git)
+data/raw/
+*.zip
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
