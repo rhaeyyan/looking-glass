@@ -83,9 +83,33 @@
   and smoke-testing `python -m src.ingest` is the natural next milestone before README's MVP
   step 2 can start.
 
+- Committed (`4d2e323`) and pushed to `origin/main`.
+- Invoked **Cedar** for the `arbitrage_score` SPEC (README MVP step 2). Cedar flagged two
+  genuine judgment calls: demand = `d2_demand_pct` only (not blended with `d1_demand_pct`,
+  matching `join_core.py`'s own precedent against fabricated numbers), and a scarcity composite
+  (`scarcity_score` 0.6 / `salary_premium_pct` 0.2 / `median_days_open` 0.2, weight-renormalized
+  — not zero-substituted — when a field is missing, 60-day cap). Both accepted as-is. Approved a
+  5-task sequential SPEC (scoring formula → schema/loader → docs), one new migration
+  (`0002_arbitrage_scores.sql`, real FK to `skills_core` since coverage is total), no new
+  dependencies. Persisted to `specs/002-arbitrage-score.md`.
+- Dispatched **Task 1** (Cypress): failing tests for `compute_arbitrage_score`/`ArbitrageScoreRow`
+  — `tests/test_arbitrage_score.py`. RED confirmed (`ModuleNotFoundError` on `src.scoring`, which
+  doesn't exist yet). Cypress hand-verified every formula scenario (full/missing-salary/
+  missing-days/missing-both/day-cap/salary-cap/demand-source/D3-inertness/determinism) against a
+  scratch reference before finalizing. Flagged: `pytest` was never formally pinned as a
+  dependency (prior tasks ran it via ephemeral `uv run --with pytest`) — to be fixed in Task 2
+  via `uv add --dev pytest`, not a new-dependency request since it's already the declared Stack
+  tool in AGENTS.md.
+
+### Unfinished / Blocked
+- `specs/002-arbitrage-score.md` and `tests/test_arbitrage_score.py` are new and uncommitted.
+- Tasks 2–5 of the arbitrage-score SPEC (formula implementation, schema/loader, docs) not started.
+- `pytest` still not a tracked dev dependency in `pyproject.toml`/`uv.lock` — next task should fix.
+
 ### Next Steps
-- Decide when to commit everything from this SPEC (likely now, as one clean checkpoint).
-- Continue the MVP: either (a) stand up a real Supabase project and manually smoke-test
-  `python -m src.ingest`, or (b) go straight to Cedar for the next SPEC — README's MVP step 2,
-  the deterministic `arbitrage_score` view (demand × scarcity) on top of the loaded
-  `skills_core` table.
+- Dispatch Task 2 to Redwood: implement `src/scoring/arbitrage.py` against Task 1's failing
+  tests (do not modify them); also pin `pytest` as a dev dependency while there.
+- Continue the sequential pipeline: Task 3 (Cypress, schema/loader tests) → Task 4 (Redwood,
+  migration + loader + CLI) → Task 5 (Redwood, docs reconciliation).
+- Separately, still open from the ingest SPEC: stand up a real Supabase project and smoke-test
+  `python -m src.ingest` (and, once built, `python -m src.scoring`) — no live instance exists yet.
