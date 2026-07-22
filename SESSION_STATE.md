@@ -109,17 +109,25 @@
   Also formalized `pytest` as a tracked dev dependency (`uv add --dev pytest`) —
   `pyproject.toml`/`uv.lock` updated.
 
+- Committed (`f67050b`) and pushed to `origin/main`.
+- Dispatched **Task 3** (Cypress): failing tests for the `skill_arbitrage_scores` table +
+  `arbitrage_scores` view + loader idempotency — `tests/test_arbitrage_schema.py`,
+  `tests/test_arbitrage_loader_idempotency.py`, mirroring the ingest SPEC's Task 5 pattern
+  exactly (regex/structural SQL assertions, mocked client, no live credentials). RED confirmed
+  (`FileNotFoundError` on the migration, `ModuleNotFoundError` on `src.scoring.load_supabase`).
+  Defined the exact Task 4 contract: `upsert_arbitrage_scores(client, rows)`,
+  `ARBITRAGE_SCORES_TABLE = "skill_arbitrage_scores"`, real FK to `skills_core`.
+
 ### Unfinished / Blocked
-- `specs/002-arbitrage-score.md`, `tests/test_arbitrage_score.py`, `src/scoring/`, and the
-  `pyproject.toml`/`uv.lock` dev-dependency change are new/modified and uncommitted.
-- Tasks 3–5 of the arbitrage-score SPEC (schema/loader tests, migration + loader wiring, docs)
-  not started.
+- `tests/test_arbitrage_schema.py` and `tests/test_arbitrage_loader_idempotency.py` are new and
+  uncommitted.
+- Tasks 4–5 of the arbitrage-score SPEC (migration + loader wiring, docs) not started.
 
 ### Next Steps
-- Dispatch Task 3 to Cypress: failing tests for the `skill_arbitrage_scores` table +
-  `arbitrage_scores` view + loader idempotency (mocked client, no live credentials) — per
-  `specs/002-arbitrage-score.md`.
-- Continue the sequential pipeline: Task 4 (Redwood, migration + loader + CLI) → Task 5
-  (Redwood, docs reconciliation).
+- Dispatch Task 4 to Redwood: `supabase/migrations/0002_arbitrage_scores.sql` +
+  `src/scoring/load_supabase.py` + `src/scoring/pipeline.py`/`__main__.py`, against Task 3's
+  exact contract (do not modify the tests).
+- Continue the sequential pipeline: Task 5 (Redwood, docs reconciliation) — the last task in this
+  SPEC.
 - Separately, still open from the ingest SPEC: stand up a real Supabase project and smoke-test
   `python -m src.ingest` (and, once built, `python -m src.scoring`) — no live instance exists yet.
