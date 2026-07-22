@@ -37,15 +37,31 @@ why") and to extract skills from the resume. Numbers come from data; words come 
 ## How the score works
 
 ```
-arbitrage_score = f( demand , scarcity )
+demand_score     = d2_demand_pct
+scarcity_index   = 0.6 * scarcity_score
+                 + 0.2 * min(salary_premium_pct, 100)      [if present]
+                 + 0.2 * min(median_days_open, 60) / 60 * 100  [if present]
+                   (weights renormalize — never zero-substitute — when a term is missing)
+arbitrage_score  = demand_score * scarcity_index
 ```
 
-- **Demand** — how much of the market is hiring for this skill (share of job listings).
-- **Scarcity** — how hard the skill is to fill: scarcity index, salary premium, and median
-  days a role stays open.
+- **Demand** — `demand_score` is `d2_demand_pct` verbatim, from the Skill Demand Index (D2). D1
+  also carries a demand figure, but it's kept only as a passthrough audit field, never averaged
+  in: blending two datasets' demand numbers would fabricate a figure not traceable to one real
+  source row — D2 is the one dataset actually scoped as the demand index with a documented
+  denominator.
+- **Scarcity** — `scarcity_index` is a weighted composite: `scarcity_score` (weight 0.6, always
+  present, never clipped) + salary premium (weight 0.2, clipped at 100%) + median days a role
+  stays open (weight 0.2, capped at 60 days). Salary premium and days-open are nullable for some
+  skills; when one is missing, its weight isn't zero-substituted — the remaining weights
+  renormalize proportionally, and a `scarcity_data_completeness` label (`full` /
+  `missing_salary_premium` / `missing_days_open` / `missing_both`) travels with the score so no
+  consumer mistakes a partial-data score for a complete one.
+- **D3 corroboration** — whether a skill is confirmed in D3's 360k+ postings is a separate badge
+  field (`d3_corroborated` / `d3_pct_of_all_postings`), never blended into the numeric score.
 
-Both axes come straight from the source data; the score is a pure function of them, so it is
-reproducible and auditable.
+Both axes come straight from the source data, and the formula reads each row's own fields only —
+no dataset-wide statistics — so any single score is reproducible and auditable in isolation.
 
 > **Note on the "2026 prediction" axis.** An earlier design imagined a third,
 > forward-looking axis. The source datasets are all *current snapshots*, not forecasts, so

@@ -126,17 +126,24 @@
   `src/scoring/__main__.py` (CLI entrypoint, the one place a live client is built). Task 3's
   tests now GREEN: 178 passed total (22 new), `ruff` clean, no regressions.
 
+- Committed (`94cbc44`) and pushed to `origin/main`.
+- Dispatched **Task 5** (Redwood, docs-only): replaced README's placeholder
+  `arbitrage_score = f(demand, scarcity)` with the actual formula, constants, and null-handling
+  behavior. Verified via `git diff` that the "2026 prediction axis" note, data-sources table, and
+  role coverage table were left untouched; full suite still 178 passed.
+- **`specs/002-arbitrage-score.md` is now fully complete — all 5 tasks done.** Both
+  `specs/001-ingest-pipeline.md` and `specs/002-arbitrage-score.md` are complete: README's MVP
+  steps 1 and 2 are built, tested, and doc-reconciled end-to-end.
+
 ### Unfinished / Blocked
-- `supabase/migrations/0002_arbitrage_scores.sql`, `src/scoring/load_supabase.py`,
-  `src/scoring/pipeline.py`, `src/scoring/__main__.py` are new and uncommitted.
-- Task 5 of the arbitrage-score SPEC (docs reconciliation — replace README's placeholder
-  `arbitrage_score = f(demand, scarcity)` with the actual formula) not started — the last task
-  in `specs/002-arbitrage-score.md`.
+- README.md's Task 5 edit is uncommitted.
+- No Supabase project exists yet — the ingest and scoring loaders have never been run against a
+  real instance. README's MVP step 3 (role picker + matrix UI) and step 4 (resume gap layer)
+  haven't been specced.
 
 ### Next Steps
-- Dispatch Task 5 to Redwood: update README.md's "How the score works" section per
-  `specs/002-arbitrage-score.md`'s Task 5 spec.
-- Once Task 5 lands, both SPECs (001-ingest-pipeline, 002-arbitrage-score) are fully complete —
-  README's MVP steps 1 and 2 are built and tested end-to-end.
-- Separately, still open: stand up a real Supabase project and smoke-test `python -m src.ingest`
-  then `python -m src.scoring` — no live instance exists yet.
+- Commit and push Task 5.
+- Decide the next milestone: (a) stand up a real Supabase project and smoke-test
+  `python -m src.ingest` then `python -m src.scoring` against it, or (b) go to Cedar for README's
+  MVP step 3 (role picker + demand×scarcity matrix — Magnolia's domain) or step 4 (resume gap
+  layer).
