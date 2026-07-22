@@ -4,8 +4,7 @@ Operational rules for AI agents (Claude Code, Gemini CLI) building **Looking Gla
 High-Leverage Pivot Engine. Read this before working in the repo. Product spec lives in
 [README.md](README.md).
 
-> This roster is adapted from the Pursuit AI Native fellowship's agent team. Aspen (Archivist)
-> and Willow (Tutor) are omitted — this is a build repo, not the fellowship chronicle.
+> This roster is adapted from the Pursuit AI Native fellowship's agent team.
 
 ## Project Context
 Looking Glass ranks a user's skill gaps toward a **target role** by a deterministic
