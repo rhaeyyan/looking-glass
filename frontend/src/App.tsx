@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { ROLES } from './lib/roles'
 import { fetchRoleSkillProfile, type RoleSkillRow } from './lib/supabaseClient'
+import { SkillMatrix } from './components/matrix/SkillMatrix'
+import { ArbitrageLadder } from './components/matrix/ArbitrageLadder'
 
 type Status = 'idle' | 'loading' | 'success' | 'error'
 
@@ -56,41 +58,10 @@ function App() {
       )}
 
       {status === 'success' && rows.length > 0 && (
-        <table>
-          <caption>Skill profile for {selectedRole}</caption>
-          <thead>
-            <tr>
-              <th scope="col">Skill</th>
-              <th scope="col">% of role postings</th>
-              <th scope="col">Postings with skill</th>
-              <th scope="col">Demand score</th>
-              <th scope="col">Scarcity index</th>
-              <th scope="col">Arbitrage score</th>
-              <th scope="col">D3 corroborated</th>
-              <th scope="col">Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.skill_key ?? row.skill_name_raw}>
-                <th scope="row">{row.skill_name_raw}</th>
-                <td>{row.pct_of_role}%</td>
-                <td>{row.postings_with_skill}</td>
-                <td>{row.demand_score ?? '—'}</td>
-                <td>{row.scarcity_index ?? '—'}</td>
-                <td>{row.arbitrage_score ?? '—'}</td>
-                <td>
-                  {row.d3_corroborated === null
-                    ? '—'
-                    : row.d3_corroborated
-                      ? 'Yes'
-                      : 'No'}
-                </td>
-                <td>{row.skill_key === null ? 'Demand only, scarcity unknown' : ''}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <>
+          <SkillMatrix rows={rows} />
+          <ArbitrageLadder rows={rows} />
+        </>
       )}
     </main>
   )
