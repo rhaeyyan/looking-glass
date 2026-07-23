@@ -27,3 +27,6 @@ data/raw/
 .DS_Store
 .vscode/
 .idea/
+
+# Ad-hoc manual verification captures (scratch, not repo content)
+screenshots/

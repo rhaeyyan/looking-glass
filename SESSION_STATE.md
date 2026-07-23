@@ -119,10 +119,10 @@
   of user screenshots: numbers now short and inline, no clipping. Full suite still 28/28 green.
 - User populated `frontend/.env` with real credentials. In the process, `frontend/.env.example`
   (the committed placeholder template, no real secrets) was deleted from disk — user confirmed
-  intentionally, chose to leave it deleted rather than restore from git. **Still not committed** —
-  deletion sits in the working tree; commit only if/when the user explicitly asks.
-- Ad-hoc verification screenshots landed in `screenshots/` (untracked, not gitignored) —
-  deliberately left out of commits as manual scratch artifacts, not repo content.
+  intentionally; deletion committed (`298efa3`).
+- Ad-hoc verification screenshots landed in `screenshots/` — deliberately kept out of the repo as
+  manual scratch artifacts; added `screenshots/` to `.gitignore` so this stops surfacing as
+  uncommitted-changes noise every session-end check.
 
 ### Unfinished / Blocked
 - **specs/003 fully complete and live-verified.** Next unbuilt slice is README MVP step 4 (resume
