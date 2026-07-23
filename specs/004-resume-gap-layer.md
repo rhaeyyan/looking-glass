@@ -204,20 +204,17 @@ statelessness, and Bounded-AI/Zero-Trust invariants are unchanged.
 
 ## Task 2 — Cypress: characterization tests for the edge function (SPIKE audit)
 
-**Note (post Task 1 amendment)**: the edge cases below reference `ANTHROPIC_API_KEY` and an
-`sk-ant-...` literal check, written against the original Claude-calling implementation. Per the
-Task 1 amendment above, the deployed function now sources `OPENROUTER_API_KEY` instead. When this
-task is executed/re-executed, assert against the current provider's secret name and key-pattern
-(OpenRouter keys have no fixed public prefix convention to negatively assert against — omit that
-specific check or assert generically that no `Bearer sk-` /literal secret-shaped string appears
-outside `Deno.env.get(...)`), not the stale `ANTHROPIC_API_KEY`/`sk-ant-...` text below.
+**Status: complete.** Executed against the real, post-amendment (OpenRouter) implementation, not
+the stale Claude-era prose originally written below — see the reconciled edge-case list.
+`tests/test_extract_resume_skills_function.py`, 26/26 passing, full suite 208 passed/16 skipped.
+Committed `25d561a`.
 
 ```markdown
 [SPEC]
-- **Objective**: Lock in Task 1's observed contract as a regression guard, per the SPIKE path —
-  written after the skeleton, not before. Structural/text assertions on the function source, since
-  no Deno test runner exists in this repo yet and live calls require a secret unavailable in test
-  context (Zero-Trust: no live production credentials in-agent).
+- **Objective**: Lock in the edge function's observed contract as a regression guard, per the
+  SPIKE path — written after the skeleton, not before. Structural/text assertions on the function
+  source, since no Deno test runner exists in this repo yet and live calls require a secret
+  unavailable in test context (Zero-Trust: no live production credentials in-agent).
 - **Inputs/Outputs**: `supabase/functions/extract-resume-skills/index.ts` read as text → regex/
   structural assertions (same style as `tests/test_frontend_read_layer_migration.py` from spec 003
   Task 1).
@@ -227,25 +224,34 @@ outside `Deno.env.get(...)`), not the stale `ANTHROPIC_API_KEY`/`sk-ant-...` tex
 - **Intellectual Control**: the security-critical invariants (secret sourced from `Deno.env`, never
   a hardcoded/client-visible key; no logging of resume content; no DB write) must be enforced by a
   test, not left to review, exactly like the RLS contract in spec 003 Task 1.
-- **Constraints**: pytest only, text/regex assertions, no live Supabase/Anthropic credentials
+- **Constraints**: pytest only, text/regex assertions, no live Supabase/OpenRouter credentials
   anywhere in test context.
-- **Edge Cases** (must be asserted):
-  - `Deno.env.get('ANTHROPIC_API_KEY')` present; no string literal resembling an API key
-    (`sk-ant-...` pattern) anywhere in the file.
+- **Edge Cases** (as executed, against the real OpenRouter implementation):
+  - `Deno.env.get('OPENROUTER_API_KEY')` present; no hardcoded/secret-shaped literal ever assigned
+    to a key/secret/token binding or passed directly as the `Authorization` header.
+  - `Authorization` header built via `Bearer ${apiKey}` (or equivalent) referencing the `apiKey`
+    parameter — never a literal, and never a stale `x-api-key` header (would indicate reversion to
+    the old Anthropic shape).
   - No `console.log`/`console.error`/`console.info` call includes the `resumeText` variable or the
-    raw request body (negative regex assertion).
-  - No Supabase client write call (`.insert(`/`.upsert(`/`.update(`) anywhere in the file
+    raw request/response body (negative regex assertion) — the function has zero `console.*` calls
+    at all.
+  - No Supabase client import or write call (`.insert(`/`.upsert(`/`.update(`) anywhere in the file
     (negative assertion — this function must stay stateless).
-  - A max-length check on `resumeText` exists before the Claude call.
-  - CORS header value is not the literal `'*'`.
+  - A max-length check on `resumeText` exists and executes before the upstream call.
+  - CORS header value is not the literal `'*'` anywhere in the file.
+  - OpenRouter endpoint/model targeted (Anthropic endpoint absent); OpenAI-style `tools`/
+    `tool_choice` shape; `choices[0].message.tool_calls[0].function.arguments` parsed via
+    `JSON.parse` in its own try/catch mapping to `upstream_response_unparseable`; defensive
+    `Array.isArray`/`every(typeof === 'string')` shape check; optional-chained `tool_calls?.[0]` so
+    a missing tool-call doesn't throw unhandled.
 - **Files**: `tests/test_extract_resume_skills_function.py`
-- **Tipping Point**: N/A — characterization tests; revisit only if Task 1's public contract
+- **Tipping Point**: N/A — characterization tests; revisit only if the function's public contract
   changes. Live end-to-end verification (deploy + real `functions.invoke()` call) remains a manual
-  step for the human/Redwood, documented in Task 1's README, not automatable here.
+  step for the human, documented in the function's README, not automatable here.
 ```
 ```markdown
 [FORCES]
-1. Freezing the security-critical invariants of the observed skeleton > a hypothetical future contract
+1. Freezing the security-critical invariants of the observed skeleton (as it actually exists today) > a hypothetical/stale future contract
 2. Simplicity > Pattern purity
 ```
 

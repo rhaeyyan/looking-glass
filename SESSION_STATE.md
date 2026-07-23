@@ -91,6 +91,15 @@
   - **Flagged follow-up, not yet done**: Task 2's SPEC text (in `specs/004-resume-gap-layer.md`)
     still describes asserting `ANTHROPIC_API_KEY`/`sk-ant-...` — a note was added inline flagging
     this as stale; whoever executes Task 2 must assert against `OPENROUTER_API_KEY` instead.
+- **Task 2** (Cypress, complete): characterization tests for the edge function, written against the
+  real OpenRouter implementation (not the stale spec prose) — `tests/test_extract_resume_skills_
+  function.py`, 26/26 passing (independently re-verified in the main session), full suite 208
+  passed/16 skipped. Locks in: `OPENROUTER_API_KEY` sourcing, `Authorization: Bearer ${apiKey}`
+  (never a literal or the old `x-api-key` shape), zero `console.*` calls, no Supabase writes
+  (stateless), CORS never `'*'`, max-length/empty checks before any upstream call, and the
+  OpenAI-style tool-call parsing (JSON-string `arguments`, defensive shape check, optional-chained
+  access). Spec file's Task 2 section reconciled to match reality (no more relying on the inline
+  amendment-note workaround). Committed `25d561a` + spec reconciliation.
 
 ### Unfinished / Blocked
 - **specs/003 fully complete and live-verified.**
@@ -106,13 +115,11 @@
   in `tests/test_ingest_parse.py`, unsorted imports in `tests/test_skill_core_join.py`.
 
 ### Next Steps
-- Continue `specs/004-resume-gap-layer.md`: **Task 2** (Cypress) — characterization tests locking
-  in the (now OpenRouter-based) edge-function contract (security invariants: secret sourced from
-  `Deno.env` as `OPENROUTER_API_KEY`, no logging, no DB writes, CORS not `'*'`, max-length guard).
-  Then Task 3 (Cypress, RED) → Task 4 (Redwood, GREEN: schema-validated extraction call +
-  deterministic `computeSkillGap`) → Task 5 (Cypress, RED) → Task 6 (Magnolia, GREEN: wire resume
-  input + have/gap into the matrix).
-- Task 1's edge function is still undeployed — no live secret set. Deploy + manual verification
-  steps are in `supabase/functions/extract-resume-skills/README.md` for the human to run
-  whenever ready (not blocking Task 2, which tests the function's source structurally).
+- Continue `specs/004-resume-gap-layer.md`: **Task 3** (Cypress, RED) — failing tests for the
+  frontend's Zod-gated `extractResumeSkills()` call and the deterministic `computeSkillGap`. Then
+  Task 4 (Redwood, GREEN) → Task 5 (Cypress, RED) → Task 6 (Magnolia, GREEN: wire resume input +
+  have/gap into the matrix).
+- The edge function is still undeployed — no live secret set. Deploy + manual verification steps
+  are in `supabase/functions/extract-resume-skills/README.md` for the human to run whenever ready
+  (not blocking Task 3, which is frontend-only and mocks the function call).
 - Optional cleanup someday: fix the lint hook's node/nvm PATH resolution; consider `@types/jest-axe`.
