@@ -99,9 +99,34 @@
   re-verified in the main session** (`npx vitest run`). Committed `f89fb5b`. **specs/003 is now
   fully complete.**
 
+### Session addendum — live browser verification, completed
+- Dev server started (`npx vite --port 5173`, backgrounded) to visually verify Task 7's matrix
+  against live Supabase data. Claude in Chrome extension not connected in this environment, so
+  verification was done via user-supplied screenshots (Backend and Full Stack roles) instead of
+  driven browser automation.
+- **Confirmed working**: role picker, quadrant scatter with distinct point shapes (circle/
+  triangle/square/diamond — non-color encoding holds), full skill table, and the arbitrage ladder
+  correctly ranked descending with unscored skills (`ai`, `css`, `spring boot`, etc.) pushed last
+  and flagged "Demand only, scarcity unknown."
+- **Bug found and fixed** (`f653ce4`): `.ladder-item`'s CSS grid had 3 explicit column tracks for
+  4 children (rank/name/track/score) — score wrapped to its own line instead of sitting inline at
+  the bar's end. Fixed by adding a 4th `5rem` track + right-align. Separately, raw unrounded score
+  floats (e.g. `291.323333333333`) overflowed that column and forced horizontal scroll — added
+  `frontend/src/lib/format.ts` (`formatNum`, round-to-2dp presentation transform, Bounded-AI safe)
+  used by `SkillDataTable`, `ArbitrageLadder`, and `SkillMatrix`'s point labels. Deliberately NOT
+  `toFixed(2)` — that would render `"7.30"` and break the frozen Task 5 characterization test
+  expecting `"7.3"`; used `Math.round(v*100)/100` instead to match. Re-verified via a second round
+  of user screenshots: numbers now short and inline, no clipping. Full suite still 28/28 green.
+- User populated `frontend/.env` with real credentials. In the process, `frontend/.env.example`
+  (the committed placeholder template, no real secrets) was deleted from disk — user confirmed
+  intentionally, chose to leave it deleted rather than restore from git. **Still not committed** —
+  deletion sits in the working tree; commit only if/when the user explicitly asks.
+- Ad-hoc verification screenshots landed in `screenshots/` (untracked, not gitignored) —
+  deliberately left out of commits as manual scratch artifacts, not repo content.
+
 ### Unfinished / Blocked
-- **specs/003 complete.** Next unbuilt slice is README MVP step 4 (resume gap layer) — not specced
-  yet; Cedar needs to turn it into a SPEC.
+- **specs/003 fully complete and live-verified.** Next unbuilt slice is README MVP step 4 (resume
+  gap layer) — not specced yet; Cedar needs to turn it into a SPEC.
 - Task 7's matrix currently encodes color as reinforcement only (no have/gap field on
   `RoleSkillRow` yet). Step 4's resume matching is where the have-vs-gap color+shape binary gets
   wired in.
@@ -112,15 +137,12 @@
   env issue affecting every edit.
 - Two pre-existing lint items flagged but out of scope where found: long-line (`E501`) warnings
   in `tests/test_ingest_parse.py`, unsorted imports in `tests/test_skill_core_join.py`.
-- Minor open item: `@types/jest-axe` not authorized/added — worked around with a scoped
-  `@ts-expect-error`, revisit only if it becomes annoying.
-- Nothing from `specs/003-role-picker-matrix.md`'s work is committed yet.
 
 ### Next Steps
+- Decide/commit the `frontend/.env.example` deletion (currently uncommitted, intentional per user,
+  awaiting explicit commit instruction) — do this before the next push.
 - **MVP step 4 (resume gap layer)**: route to Cedar for a `[SPEC]` — paste-resume → Claude skill
   extraction (Bounded-AI: LLM extracts, deterministic layer computes the gap) → have/gap split
   rendered on the existing matrix. This is the first LLM-in-the-loop slice, so the Bounded-AI +
   Zero-Trust (no resume PII in commits/logs) gates apply hard.
-- Live browser re-verification of the new matrix against production data (as was done for the
-  skeleton) would be worthwhile before calling step 3 shippable.
 - Optional cleanup someday: fix the lint hook's node/nvm PATH resolution; consider `@types/jest-axe`.
