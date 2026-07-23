@@ -11,7 +11,8 @@
  */
 
 .matrix-root,
-.ladder-root {
+.ladder-root,
+.narration-root {
   color-scheme: light;
   --surface-1: #fcfcfb;
   --page-plane: #f9f9f7;
@@ -41,7 +42,8 @@
 
 @media (prefers-color-scheme: dark) {
   .matrix-root,
-  .ladder-root {
+  .ladder-root,
+  .narration-root {
     color-scheme: dark;
     --surface-1: #1a1a19;
     --page-plane: #0d0d0d;
@@ -330,6 +332,29 @@
   .ladder-item {
     transition: background 120ms ease-out;
   }
+}
+
+/* ---------- Top-gap narration (spec 005) ----------
+ * A quiet, text-only surface — no chart, so no non-color-encoding channel is needed here. The
+ * accent bar reinforces "this is the one headline move" without relying on color alone: the
+ * heading text ("Your top gap: <skill>") already carries that meaning for assistive tech.
+ */
+
+.narration-root {
+  border-left: 4px solid var(--series-1);
+  padding-left: calc(1.5rem - 3px); /* offset the 4px accent so text stays optically aligned */
+}
+
+.narration-title {
+  font-size: 1rem;
+}
+
+.narration-text {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  max-width: 65ch;
 }
 
 /* ---------- Shared data table (text alternative) ---------- */

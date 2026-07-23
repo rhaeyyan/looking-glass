@@ -3,17 +3,23 @@ import { ROLES } from './lib/roles'
 import { fetchRoleSkillProfile, type RoleSkillRow } from './lib/supabaseClient'
 import { extractResumeSkills } from './lib/resumeSkills'
 import { computeSkillGap } from './lib/gap'
+import { narrateTopGap } from './lib/narrate'
 import { SkillMatrix } from './components/matrix/SkillMatrix'
 import { ArbitrageLadder } from './components/matrix/ArbitrageLadder'
+import { TopGapNarration } from './components/matrix/TopGapNarration'
 
 type Status = 'idle' | 'loading' | 'success' | 'error'
 type ExtractStatus = 'idle' | 'loading' | 'success' | 'error'
+type Narration = ReturnType<typeof narrateTopGap>
 
 // Resume text is capped client-side to the edge function's own limit (spec 004, Task 6) so an
 // oversized paste never round-trips to the server just to fail there.
 const MAX_RESUME_LENGTH = 20000
 const ROLE_REQUIRED_MESSAGE = 'Select a target role before finding your gaps.'
 const RESUME_REQUIRED_MESSAGE = 'Paste your resume text before finding your gaps.'
+// Locked verbatim (spec 005, Cypress's compliance report) — the authoritative wording, not the
+// SPEC's example text. Never re-derive or paraphrase.
+const NO_GAPS_MESSAGE = 'No gaps — you already have every skill this role needs.'
 
 function App() {
   const [selectedRole, setSelectedRole] = useState('')
@@ -26,11 +32,13 @@ function App() {
   const [extractError, setExtractError] = useState('')
   const [validationError, setValidationError] = useState('')
   const [haveSkillKeys, setHaveSkillKeys] = useState<Set<string> | undefined>(undefined)
+  const [narration, setNarration] = useState<Narration | undefined>(undefined)
 
   async function handleRoleChange(event: React.ChangeEvent<HTMLSelectElement>) {
     const role = event.target.value
     setSelectedRole(role)
     setHaveSkillKeys(undefined)
+    setNarration(undefined)
 
     if (!role) {
       setStatus('idle')
@@ -68,6 +76,7 @@ function App() {
       const skills = await extractResumeSkills(resumeText)
       const gap = computeSkillGap(rows, skills)
       setHaveSkillKeys(gap.haveSkillKeys)
+      setNarration(narrateTopGap(gap.rows, gap.haveSkillKeys))
       setExtractStatus('success')
     } catch (err) {
       setExtractError(err instanceof Error ? err.message : 'Unknown error')
@@ -131,6 +140,16 @@ function App() {
           <SkillMatrix rows={rows} haveSkillKeys={haveSkillKeys} />
           <ArbitrageLadder rows={rows} haveSkillKeys={haveSkillKeys} />
         </>
+      )}
+
+      {narration === null && <p role="status">{NO_GAPS_MESSAGE}</p>}
+
+      {narration && (
+        <TopGapNarration
+          topGap={narration.topGap}
+          runnerUpGap={narration.runnerUpGap}
+          narrative={narration.narrative}
+        />
       )}
     </main>
   )
