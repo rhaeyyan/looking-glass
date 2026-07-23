@@ -7,6 +7,9 @@ import {
   SCORED_SKILLS,
   SCORED_COUNT,
   DEMAND_ONLY_SKILL,
+  HAVE_SKILL_KEYS,
+  HAVE_SKILLS,
+  GAP_SKILLS,
 } from '../../test/fixtures/roleSkillProfile.fixture'
 
 // RED phase (Task 6 of specs/003) — Magnolia's <SkillMatrix> does NOT exist yet. Each test
@@ -157,6 +160,130 @@ describe('<SkillMatrix /> demand×scarcity scatter', () => {
   it('has zero axe violations on the fully mounted matrix', async () => {
     const SkillMatrix = await loadSkillMatrix()
     const { container } = render(<SkillMatrix rows={roleSkillProfileFixture} />)
+    expect(await axe(container)).toHaveNoViolations()
+  })
+})
+
+// RED phase (Task 5 of specs/004) — <SkillMatrix> does not accept `haveSkillKeys` yet. Task 6
+// (Magnolia) threads it through the scatter points AND the wrapped <SkillDataTable>.
+//
+// Component contract Magnolia MUST honor (see [COMPLIANCE-REPORT]):
+//   - additive optional prop `haveSkillKeys?: Set<string>` on SkillMatrix (and SkillDataTable,
+//     which SkillMatrix renders internally and must forward the prop to).
+//   - identifier scheme: a row's have/gap status is looked up via
+//     `row.skill_key ?? normalizeSkillName(row.skill_name_raw)` against the Set — the SAME
+//     identifier `computeSkillGap` (frontend/src/lib/gap.ts) produces.
+//   - when `haveSkillKeys` is OMITTED (undefined): rendering is BYTE-IDENTICAL to today (no
+//     `data-have` attribute, no glyph, no accessible-name suffix) — this is what keeps every test
+//     above passing unmodified.
+//   - when `haveSkillKeys` IS provided, each scatter point additionally carries:
+//       - `data-have="true"` (skill key is in the set) or `data-have="false"` (not in the set) —
+//         a non-color attribute differentiator, layered on top of the existing per-skill
+//         `data-shape` encoding (never replacing it).
+//       - a visible child element `data-testid="have-flag"` with text content exactly `"Have"` or
+//         `"Gap"` — the "distinct glyph/label" the SPEC requires, present for BOTH states (not
+//         "have" glyph vs. silent absence).
+//       - an accessible name (aria-label) SUFFIXED with exactly
+//         `", you already have this skill"` (have) or `", gap — you do not have this skill yet"`
+//         (gap), appended after the existing demand/scarcity/market-share/arbitrage-score text.
+//   - the wrapped <SkillDataTable> gets an explicit have/gap column: `<th scope="col">` text
+//     `"Have or gap"`, with each `<td>` reading exactly `"Have"` or `"Gap"` (text, never
+//     color-only) — see the mirrored contract note in ArbitrageLadder.test.tsx.
+describe('<SkillMatrix /> have/gap rendering (haveSkillKeys prop)', () => {
+  it('marks matching scatter points data-have="true" and non-matching ones data-have="false"', async () => {
+    const SkillMatrix = await loadSkillMatrix()
+    render(<SkillMatrix rows={roleSkillProfileFixture} haveSkillKeys={HAVE_SKILL_KEYS} />)
+
+    // Kubernetes (skill_key 'kubernetes') is in HAVE_SKILL_KEYS.
+    const kubernetesPoint = screen.getByRole('button', { name: /^Kubernetes:/ })
+    expect(kubernetesPoint).toHaveAttribute('data-have', 'true')
+
+    // Rust and PostgreSQL are not in HAVE_SKILL_KEYS -> gap.
+    for (const skill of GAP_SKILLS) {
+      const point = screen.getByRole('button', { name: new RegExp(`^${skill}:`) })
+      expect(point).toHaveAttribute('data-have', 'false')
+    }
+  })
+
+  it('preserves the existing per-skill shape encoding alongside the new have/gap attribute (never replaces it)', async () => {
+    const SkillMatrix = await loadSkillMatrix()
+    render(<SkillMatrix rows={roleSkillProfileFixture} haveSkillKeys={HAVE_SKILL_KEYS} />)
+
+    for (const point of screen.getAllByTestId('scatter-point')) {
+      expect(point).toHaveAttribute('data-shape')
+      expect(point.getAttribute('data-shape')).toBeTruthy()
+      expect(point).toHaveAttribute('data-have')
+    }
+  })
+
+  it('renders a non-color "Have"/"Gap" glyph/label on every scored scatter point', async () => {
+    const SkillMatrix = await loadSkillMatrix()
+    render(<SkillMatrix rows={roleSkillProfileFixture} haveSkillKeys={HAVE_SKILL_KEYS} />)
+
+    const kubernetesPoint = screen.getByRole('button', { name: /^Kubernetes:/ })
+    expect(within(kubernetesPoint).getByTestId('have-flag')).toHaveTextContent('Have')
+
+    for (const skill of GAP_SKILLS) {
+      const point = screen.getByRole('button', { name: new RegExp(`^${skill}:`) })
+      expect(within(point).getByTestId('have-flag')).toHaveTextContent('Gap')
+    }
+  })
+
+  it('suffixes the accessible name with explicit have/gap wording (not color-only)', async () => {
+    const SkillMatrix = await loadSkillMatrix()
+    render(<SkillMatrix rows={roleSkillProfileFixture} haveSkillKeys={HAVE_SKILL_KEYS} />)
+
+    expect(
+      screen.getByRole('button', { name: /Kubernetes:.*you already have this skill/ }),
+    ).toBeInTheDocument()
+
+    for (const skill of GAP_SKILLS) {
+      expect(
+        screen.getByRole('button', {
+          name: new RegExp(`^${skill}:.*you do not have this skill yet`),
+        }),
+      ).toBeInTheDocument()
+    }
+  })
+
+  it('threads haveSkillKeys into the accessible table alternative as an explicit have/gap column (never color-only)', async () => {
+    const SkillMatrix = await loadSkillMatrix()
+    render(<SkillMatrix rows={roleSkillProfileFixture} haveSkillKeys={HAVE_SKILL_KEYS} />)
+
+    const table = screen.getByRole('table')
+    const columnHeaders = within(table).getAllByRole('columnheader')
+    expect(columnHeaders.some((th) => /have.*gap/i.test(th.textContent ?? ''))).toBe(true)
+
+    for (const skill of HAVE_SKILLS) {
+      const rowHeader = within(table).getByRole('rowheader', { name: skill })
+      const row = rowHeader.closest('tr')!
+      expect(within(row).getByText('Have')).toBeInTheDocument()
+    }
+    for (const skill of GAP_SKILLS) {
+      const rowHeader = within(table).getByRole('rowheader', { name: skill })
+      const row = rowHeader.closest('tr')!
+      expect(within(row).getByText('Gap')).toBeInTheDocument()
+    }
+  })
+
+  it('renders every point identically to the no-prop case when haveSkillKeys is omitted (backward compatible)', async () => {
+    const SkillMatrix = await loadSkillMatrix()
+    render(<SkillMatrix rows={roleSkillProfileFixture} />)
+
+    for (const point of screen.getAllByTestId('scatter-point')) {
+      expect(point).not.toHaveAttribute('data-have')
+      expect(within(point).queryByTestId('have-flag')).not.toBeInTheDocument()
+    }
+    const table = screen.getByRole('table')
+    expect(within(table).queryByText('Have')).not.toBeInTheDocument()
+    expect(within(table).queryByText('Gap')).not.toBeInTheDocument()
+  })
+
+  it('has zero axe violations on the fully mounted matrix with have/gap state populated', async () => {
+    const SkillMatrix = await loadSkillMatrix()
+    const { container } = render(
+      <SkillMatrix rows={roleSkillProfileFixture} haveSkillKeys={HAVE_SKILL_KEYS} />,
+    )
     expect(await axe(container)).toHaveNoViolations()
   })
 })

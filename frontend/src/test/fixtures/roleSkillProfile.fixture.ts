@@ -80,3 +80,17 @@ export const DEMAND_ONLY_SKILL = 'gRPC'
 
 // Ladder order: descending by arbitrage_score, with the null-score row sorted LAST.
 export const LADDER_ORDER_DESC = ['Rust', 'Kubernetes', 'PostgreSQL', 'gRPC'] as const
+
+// ---------------------------------------------------------------------------------------------
+// Have/gap fixture (spec 004, Task 5) — the identifier scheme is the SAME one `computeSkillGap`
+// (frontend/src/lib/gap.ts) produces: `row.skill_key ?? normalizeSkillName(row.skill_name_raw)`.
+// Consumers of `haveSkillKeys` (SkillMatrix / ArbitrageLadder / SkillDataTable) must key into it
+// with that exact identifier, never the raw `skill_name_raw`.
+//
+// Deliberately covers BOTH a plotted/scored row (Kubernetes) and the demand-only row (gRPC, whose
+// `skill_key` is null so the fallback normalized-`skill_name_raw` path is exercised too) as
+// "have", leaving Rust and PostgreSQL as "gap" — every one of the four fixture rows is exercised
+// by at least one have/gap assertion.
+export const HAVE_SKILL_KEYS: Set<string> = new Set(['kubernetes', 'grpc'])
+export const HAVE_SKILLS = ['Kubernetes', 'gRPC'] as const
+export const GAP_SKILLS = ['Rust', 'PostgreSQL'] as const

@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe } from 'jest-axe'
 import {
   roleSkillProfileFixture,
   LADDER_ORDER_DESC,
   DEMAND_ONLY_SKILL,
+  HAVE_SKILL_KEYS,
+  HAVE_SKILLS,
+  GAP_SKILLS,
 } from '../../test/fixtures/roleSkillProfile.fixture'
 
 // RED phase (Task 6 of specs/003) — Magnolia's <ArbitrageLadder> does NOT exist yet. Dynamic import
@@ -86,6 +89,99 @@ describe('<ArbitrageLadder /> ranked gap list', () => {
   it('has zero axe violations on the fully mounted ladder', async () => {
     const ArbitrageLadder = await loadArbitrageLadder()
     const { container } = render(<ArbitrageLadder rows={roleSkillProfileFixture} />)
+    expect(await axe(container)).toHaveNoViolations()
+  })
+})
+
+// RED phase (Task 5 of specs/004) — <ArbitrageLadder> does not accept `haveSkillKeys` yet.
+//
+// Component contract Magnolia MUST honor (identical marker vocabulary to SkillMatrix.test.tsx —
+// see [COMPLIANCE-REPORT] for the single canonical definition):
+//   - additive optional prop `haveSkillKeys?: Set<string>`.
+//   - identifier scheme: `row.skill_key ?? normalizeSkillName(row.skill_name_raw)`, the exact
+//     identifier `computeSkillGap` produces.
+//   - when OMITTED: byte-identical to today's rendering (no `data-have`, no glyph, no
+//     accessible-name suffix) — keeps every test above passing unmodified.
+//   - when provided, each `data-testid="ladder-item"` additionally carries:
+//       - `data-have="true"` / `data-have="false"`.
+//       - a visible child `data-testid="have-flag"` with text exactly `"Have"` or `"Gap"`.
+//       - accessible name suffixed with exactly `", you already have this skill"` (have) or
+//         `", gap — you do not have this skill yet"` (gap), appended after the existing
+//         rank/name/(score or demand-only-flag) text — for the demand-only row this suffix comes
+//         AFTER the existing "Demand only, scarcity unknown" text, so both flags coexist.
+describe('<ArbitrageLadder /> have/gap rendering (haveSkillKeys prop)', () => {
+  it('marks matching ladder items data-have="true" and non-matching ones data-have="false"', async () => {
+    const ArbitrageLadder = await loadArbitrageLadder()
+    render(<ArbitrageLadder rows={roleSkillProfileFixture} haveSkillKeys={HAVE_SKILL_KEYS} />)
+
+    for (const skill of HAVE_SKILLS) {
+      const item = screen.getByRole('button', { name: new RegExp(`${skill},`) })
+      expect(item).toHaveAttribute('data-have', 'true')
+    }
+    for (const skill of GAP_SKILLS) {
+      const item = screen.getByRole('button', { name: new RegExp(`${skill},`) })
+      expect(item).toHaveAttribute('data-have', 'false')
+    }
+  })
+
+  it('renders a non-color "Have"/"Gap" glyph/label on every ladder item, including the demand-only row', async () => {
+    const ArbitrageLadder = await loadArbitrageLadder()
+    render(<ArbitrageLadder rows={roleSkillProfileFixture} haveSkillKeys={HAVE_SKILL_KEYS} />)
+
+    const items = screen.getAllByTestId('ladder-item')
+    expect(items).toHaveLength(roleSkillProfileFixture.length)
+
+    for (const skill of HAVE_SKILLS) {
+      const item = screen.getByRole('button', { name: new RegExp(`${skill},`) })
+      expect(within(item).getByTestId('have-flag')).toHaveTextContent('Have')
+    }
+    for (const skill of GAP_SKILLS) {
+      const item = screen.getByRole('button', { name: new RegExp(`${skill},`) })
+      expect(within(item).getByTestId('have-flag')).toHaveTextContent('Gap')
+    }
+
+    // gRPC (DEMAND_ONLY_SKILL) is in HAVE_SKILL_KEYS via its normalized skill_name_raw fallback.
+    const demandOnlyItem = screen.getByText(/demand only/i).closest('[data-testid="ladder-item"]')!
+    expect(demandOnlyItem).toHaveAttribute('data-have', 'true')
+    expect(within(demandOnlyItem as HTMLElement).getByTestId('have-flag')).toHaveTextContent('Have')
+    expect(demandOnlyItem.textContent).toContain(DEMAND_ONLY_SKILL)
+  })
+
+  it('suffixes the accessible name with explicit have/gap wording (not color-only)', async () => {
+    const ArbitrageLadder = await loadArbitrageLadder()
+    render(<ArbitrageLadder rows={roleSkillProfileFixture} haveSkillKeys={HAVE_SKILL_KEYS} />)
+
+    for (const skill of HAVE_SKILLS) {
+      expect(
+        screen.getByRole('button', {
+          name: new RegExp(`${skill},.*you already have this skill`),
+        }),
+      ).toBeInTheDocument()
+    }
+    for (const skill of GAP_SKILLS) {
+      expect(
+        screen.getByRole('button', {
+          name: new RegExp(`${skill},.*you do not have this skill yet`),
+        }),
+      ).toBeInTheDocument()
+    }
+  })
+
+  it('renders every item identically to the no-prop case when haveSkillKeys is omitted (backward compatible)', async () => {
+    const ArbitrageLadder = await loadArbitrageLadder()
+    render(<ArbitrageLadder rows={roleSkillProfileFixture} />)
+
+    for (const item of screen.getAllByTestId('ladder-item')) {
+      expect(item).not.toHaveAttribute('data-have')
+      expect(within(item).queryByTestId('have-flag')).not.toBeInTheDocument()
+    }
+  })
+
+  it('has zero axe violations on the fully mounted ladder with have/gap state populated', async () => {
+    const ArbitrageLadder = await loadArbitrageLadder()
+    const { container } = render(
+      <ArbitrageLadder rows={roleSkillProfileFixture} haveSkillKeys={HAVE_SKILL_KEYS} />,
+    )
     expect(await axe(container)).toHaveNoViolations()
   })
 })
