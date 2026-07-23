@@ -63,43 +63,20 @@
   (per README's explicit V1 scope); (3) have/gap threaded as an additive `haveSkillKeys:
   Set<string>` prop on the existing three matrix components, no new pattern earned yet. New
   runtime dep approved: `zod`. Persisted; Tasks 1–6 authorized.
-  - **Task 1** (Redwood, SPIKE): built the repo's first Supabase Edge Function
-    (`supabase/functions/extract-resume-skills/{index.ts,README.md}`) — resume text in, Claude
-    call server-side via forced tool-use (bounds response shape at the source), flat skill-string
-    list out. No `console.*` calls anywhere (resume/response content never logged), fully
-    stateless (no DB writes), CORS allow-listed (never `'*'`), empty/oversized (>20,000 char)
-    input rejected before any Claude call, generic `502` on upstream failure (never forwards raw
-    error text). **Caught and fixed one real error on review**: Redwood's chosen model ID
-    (`claude-opus-4-6`) does not exist — corrected to `claude-sonnet-5` in both `index.ts` and the
-    README (right-sized: bounded structured extraction doesn't need Opus). **Not deployed, no
-    live secret set** — deploy + manual end-to-end verification steps documented in the function's
-    README for the human to run themselves (`supabase secrets set`, `supabase functions deploy`,
-    then a `curl`/`supabase-js` smoke test). Committed `b761f54`.
-  - **Provider switch, mid-Task-1**: user decided to use OpenRouter (`google/gemma-4-31b-it:free`,
-    confirmed via web search — a real model, released after this assistant's Jan-2026 knowledge
-    cutoff) instead of Claude directly, for both extraction and the future step-5 narration.
-    Updated `AGENTS.md`/`README.md`'s AI-layer stack line first (`2687b5f`) so docs and code stay
-    in sync, then had Cedar write a surgical amendment (`Task 1 (amended)`, committed `6a9a0c0`)
-    rather than let Redwood freelance the provider swap. Redwood implemented it (`d0b8670`):
-    endpoint → OpenRouter's Chat Completions API, secret `ANTHROPIC_API_KEY`→`OPENROUTER_API_KEY`,
-    auth `x-api-key`→`Bearer`, OpenAI-style `tools`/`tool_choice` shape, defensive `JSON.parse` of
-    the tool-call arguments string (itself a JSON string in this API shape, unlike Anthropic's
-    already-structured `content[].input`). Diff verified against the actual file changes (not just
-    the agent's self-report) — all 7 "what changes" items landed, untouched invariants (CORS,
-    validation, `jsonResponse`, control flow) genuinely untouched. Still undeployed, no live
-    secret.
-  - **Flagged follow-up, not yet done**: Task 2's SPEC text (in `specs/004-resume-gap-layer.md`)
-    still describes asserting `ANTHROPIC_API_KEY`/`sk-ant-...` — a note was added inline flagging
-    this as stale; whoever executes Task 2 must assert against `OPENROUTER_API_KEY` instead.
-- **Task 2** (Cypress, complete): characterization tests for the edge function, written against the
-  real OpenRouter implementation (not the stale spec prose) — `tests/test_extract_resume_skills_
-  function.py`, 26/26 passing (independently re-verified in the main session), full suite 208
-  passed/16 skipped. Locks in: `OPENROUTER_API_KEY` sourcing, `Authorization: Bearer ${apiKey}`
-  (never a literal or the old `x-api-key` shape), zero `console.*` calls, no Supabase writes
-  (stateless), CORS never `'*'`, max-length/empty checks before any upstream call, and the
-  OpenAI-style tool-call parsing (JSON-string `arguments`, defensive shape check, optional-chained
-  access). Spec file's Task 2 section reconciled to match reality (no more relying on the inline
-  amendment-note workaround). Committed `25d561a` + spec reconciliation.
+  - **Task 1** (Redwood, SPIKE, `b761f54`): built the repo's first Supabase Edge Function
+    (`supabase/functions/extract-resume-skills/`) calling Claude server-side via forced tool-use.
+    Caught and fixed a hallucinated model ID (`claude-opus-4-6` doesn't exist) on review.
+  - **Provider switch, mid-Task-1**: user chose OpenRouter (`google/gemma-4-31b-it:free`, verified
+    real via web search — released after this assistant's Jan-2026 cutoff) over Claude, for both
+    extraction and future narration. Updated `AGENTS.md`/`README.md` first (`2687b5f`), had Cedar
+    write a surgical amendment rather than let Redwood freelance it (`6a9a0c0`), Redwood
+    implemented (`d0b8670`) — endpoint/secret-name/auth-header/tool-call-shape all changed, CORS/
+    validation/statelessness untouched; diff-verified, not just self-report-trusted.
+  - **Task 2** (Cypress, `25d561a` + spec reconciliation): characterization tests written against
+    the real OpenRouter implementation, not the spec's stale Claude-era prose — 26/26 passing
+    (independently re-verified), full suite 208 passed/16 skipped. Spec file's Task 2 section
+    rewritten to match reality.
+  - Edge function still undeployed, no live secret set (deploy steps in its README for the human).
 - **Task 3** (Cypress, RED): failing tests for `extractResumeSkills()` and `computeSkillGap()`
   (`frontend/src/lib/{resumeSkills,gap}.test.ts` + `test/fixtures/resumeSkills.fixture.ts`) — both
   suites fail on module-not-found (correct RED reason), 28 pre-existing tests still pass
@@ -124,6 +101,19 @@
   `computeSkillGap` reuses `ArbitrageLadder`'s literal `byArbitrageDesc` function, zero score
   computation. 49/49 tests pass (28 pre-existing + 21 new), independently re-verified. Committed
   `cc819b5`.
+- **Task 5** (Cypress, RED, `e611f4e`): extended `App.test.tsx`/`SkillMatrix.test.tsx`/
+  `ArbitrageLadder.test.tsx` with failing tests for the resume-paste flow + have/gap rendering — 49
+  pre-existing tests still pass unmodified, 18 new tests fail for the right reason (independently
+  re-verified: 53/71 passing). **Contract Redwood/Magnolia must honor in Task 6**: additive
+  optional `haveSkillKeys?: Set<string>` on `SkillMatrix`/`ArbitrageLadder`/`SkillDataTable`
+  (byte-identical rendering when omitted); when provided, each item gets `data-have="true"|"false"`
+  + a visible `data-testid="have-flag"` reading `"Have"`/`"Gap"` + an accessible-name suffix
+  (`", you already have this skill"` / `", gap — you do not have this skill yet"`), layered on top
+  of the existing shape encoding — never color-only; `SkillDataTable` gets a text `<th>` matching
+  `/have.*gap/i`. `App.tsx`: textarea accessible name `"Resume text"`, submit button `"Find my
+  gaps"`, inline `role="alert"` validation (no role selected / empty resume — blocks the call),
+  `role="status"` `"Extracting skills from your resume…"` while pending, `role="alert"` on failure
+  (app + role profile stay visible).
 
 ### Unfinished / Blocked
 - **specs/003 fully complete and live-verified.**
@@ -139,11 +129,11 @@
   in `tests/test_ingest_parse.py`, unsorted imports in `tests/test_skill_core_join.py`.
 
 ### Next Steps
-- Continue `specs/004-resume-gap-layer.md`: **Task 5** (Cypress, RED) — failing tests for the
-  resume-paste input flow and have/gap visual state on `App`/`SkillMatrix`/`ArbitrageLadder`. Then
-  Task 6 (Magnolia, GREEN: wire resume input + have/gap into the matrix, invoking `dataviz` +
-  `a11y-sec-2026` first).
+- Continue `specs/004-resume-gap-layer.md`: **Task 6** (Magnolia, GREEN, final task) — wire the
+  resume textarea/submit into `App.tsx` and thread `haveSkillKeys` through
+  `SkillMatrix`/`ArbitrageLadder`/`SkillDataTable` per Task 5's frozen contract (above). Must
+  invoke `dataviz` + `a11y-sec-2026` skills first, same as spec 003's Task 7. Completes spec 004.
 - The edge function is still undeployed — no live secret set. Deploy + manual verification steps
   are in `supabase/functions/extract-resume-skills/README.md` for the human to run whenever ready
-  (not blocking Task 5, which mocks the extraction call).
+  (not blocking Task 6, which mocks the extraction call in tests).
 - Optional cleanup someday: fix the lint hook's node/nvm PATH resolution; consider `@types/jest-axe`.
