@@ -9,7 +9,6 @@ import { ArbitrageLadder } from './components/matrix/ArbitrageLadder'
 import { TopGapNarration } from './components/matrix/TopGapNarration'
 
 type Status = 'idle' | 'loading' | 'success' | 'error'
-type ExtractStatus = 'idle' | 'loading' | 'success' | 'error'
 type Narration = ReturnType<typeof narrateTopGap>
 
 // Resume text is capped client-side to the edge function's own limit (spec 004, Task 6) so an
@@ -28,8 +27,6 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('')
 
   const [resumeText, setResumeText] = useState('')
-  const [extractStatus, setExtractStatus] = useState<ExtractStatus>('idle')
-  const [extractError, setExtractError] = useState('')
   const [validationError, setValidationError] = useState('')
   const [haveSkillKeys, setHaveSkillKeys] = useState<Set<string> | undefined>(undefined)
   const [narration, setNarration] = useState<Narration | undefined>(undefined)
@@ -57,10 +54,9 @@ function App() {
     }
   }
 
-  async function handleResumeSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleResumeSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setValidationError('')
-    setExtractError('')
 
     if (!selectedRole) {
       setValidationError(ROLE_REQUIRED_MESSAGE)
@@ -71,17 +67,11 @@ function App() {
       return
     }
 
-    setExtractStatus('loading')
-    try {
-      const skills = await extractResumeSkills(resumeText)
-      const gap = computeSkillGap(rows, skills)
-      setHaveSkillKeys(gap.haveSkillKeys)
-      setNarration(narrateTopGap(gap.rows, gap.haveSkillKeys))
-      setExtractStatus('success')
-    } catch (err) {
-      setExtractError(err instanceof Error ? err.message : 'Unknown error')
-      setExtractStatus('error')
-    }
+    const vocabulary = rows.map((row) => row.skill_name_raw)
+    const skills = extractResumeSkills(resumeText, vocabulary)
+    const gap = computeSkillGap(rows, skills)
+    setHaveSkillKeys(gap.haveSkillKeys)
+    setNarration(narrateTopGap(gap.rows, gap.haveSkillKeys))
   }
 
   return (
@@ -126,14 +116,6 @@ function App() {
       </form>
 
       {validationError && <p role="alert">{validationError}</p>}
-
-      {extractStatus === 'loading' && (
-        <p role="status">Extracting skills from your resume…</p>
-      )}
-
-      {extractStatus === 'error' && (
-        <p role="alert">Could not extract skills from your resume: {extractError}</p>
-      )}
 
       {status === 'success' && rows.length > 0 && (
         <>
