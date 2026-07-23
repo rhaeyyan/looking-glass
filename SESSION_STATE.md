@@ -100,6 +100,21 @@
   OpenAI-style tool-call parsing (JSON-string `arguments`, defensive shape check, optional-chained
   access). Spec file's Task 2 section reconciled to match reality (no more relying on the inline
   amendment-note workaround). Committed `25d561a` + spec reconciliation.
+- **Task 3** (Cypress, RED): failing tests for `extractResumeSkills()` and `computeSkillGap()`
+  (`frontend/src/lib/{resumeSkills,gap}.test.ts` + `test/fixtures/resumeSkills.fixture.ts`) — both
+  suites fail on module-not-found (correct RED reason), 28 pre-existing tests still pass
+  (independently re-verified in the main session). Committed `5dad61a`. **Contract Redwood must
+  honor in Task 4**: `extractResumeSkills(resumeText): Promise<string[]>` in
+  `frontend/src/lib/resumeSkills.ts`, calling `supabase.functions.invoke('extract-resume-skills',
+  ...)`, Zod schema `z.object({ skills: z.array(z.string()).max(200) })`, throwing a named
+  exported `ExtractionSchemaError` (not a bare `Error`) on schema failure.
+  `computeSkillGap(rows, resumeSkills): { haveSkillKeys: Set<string>; rows: RoleSkillRow[] }` in
+  `frontend/src/lib/gap.ts`, pure/no I/O, `haveSkillKeys` keyed by
+  `row.skill_key ?? normalizeSkillName(row.skill_name_raw)`. `normalizeSkillName()` in
+  `frontend/src/lib/normalize.ts` must mirror `src/ingest/normalize.py` exactly (lowercase,
+  collapse whitespace/`/`/`-`/`_`, keep `#`/`+`/`.`, no alias expansion). Output row order must
+  reuse `ArbitrageLadder`'s exact null-scores-last descending-`arbitrage_score` sort — not a second
+  drifting implementation.
 
 ### Unfinished / Blocked
 - **specs/003 fully complete and live-verified.**
@@ -115,11 +130,11 @@
   in `tests/test_ingest_parse.py`, unsorted imports in `tests/test_skill_core_join.py`.
 
 ### Next Steps
-- Continue `specs/004-resume-gap-layer.md`: **Task 3** (Cypress, RED) — failing tests for the
-  frontend's Zod-gated `extractResumeSkills()` call and the deterministic `computeSkillGap`. Then
-  Task 4 (Redwood, GREEN) → Task 5 (Cypress, RED) → Task 6 (Magnolia, GREEN: wire resume input +
-  have/gap into the matrix).
+- Continue `specs/004-resume-gap-layer.md`: **Task 4** (Redwood, GREEN) — build
+  `extractResumeSkills`/`computeSkillGap`/`normalizeSkillName` per Task 3's frozen contract (above),
+  add `zod` to `frontend/package.json`. Then Task 5 (Cypress, RED) → Task 6 (Magnolia, GREEN: wire
+  resume input + have/gap into the matrix).
 - The edge function is still undeployed — no live secret set. Deploy + manual verification steps
   are in `supabase/functions/extract-resume-skills/README.md` for the human to run whenever ready
-  (not blocking Task 3, which is frontend-only and mocks the function call).
+  (not blocking Task 4, which mocks the function call).
 - Optional cleanup someday: fix the lint hook's node/nvm PATH resolution; consider `@types/jest-axe`.
