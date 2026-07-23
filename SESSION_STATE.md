@@ -112,17 +112,22 @@
      it. Retried: still 502.
   3. Isolated further by having the user test **outside our function entirely**: a plain chat
      completion directly against OpenRouter with their real key → succeeded (200, real response) —
-     confirms the key and the model itself both work. This means the bug is specific to our
-     function's forced-tool-use request shape, not the provider/key/model.
-  4. Next isolation step in flight: a scratch script
-     (`/tmp/.../scratchpad/test_openrouter.sh`, **not** committed — a stray earlier copy was
-     accidentally written into the repo root and has been deleted) sends the exact
-     `tools`/`tool_choice` shape our edge function sends, run by the user with their own key, to
-     confirm whether `google/gemma-4-31b-it:free` genuinely supports forced tool-use despite being
-     listed as supporting "native function calling" — **result not yet reported back**.
-- **specs/003 and specs/004 both code-complete.** specs/004 still not live-verified end-to-end —
-  the deployed function is returning 502 on every real extraction attempt; root cause narrowed to
-  the tool-use request shape but not yet confirmed or fixed.
+     confirms the key and the model itself both work in general.
+  4. Same isolation with the exact `tools`/`tool_choice` shape our function sends (scratch script
+     in `/tmp/.../scratchpad/`, never committed — a stray earlier copy in the repo root was caught
+     and deleted before commit) → **`429 Provider returned error`**: `"google/gemma-4-31b-it:free
+     is temporarily rate-limited upstream"` (Google AI Studio backend, `is_byok: false`). This is
+     the actual root cause — not a code bug, not the earlier privacy-setting/key-typo red herrings
+     (those were real problems too, both fixed, but not *the* blocker).
+  5. Confirmed persistent, not transient: polled the real deployed function directly (bypassing the
+     user) — **10 consecutive attempts over ~3.5 minutes, all `502`**. Free-tier capacity on this
+     model is saturated right now, not a momentary blip.
+- **specs/003 and specs/004 both code-complete; specs/004 still NOT live-verified end-to-end.** The
+  deployed function and all application code are confirmed correct — the sole blocker is external
+  free-tier rate-limiting on `google/gemma-4-31b-it:free`. Was mid-way through asking the user to
+  choose between (a) switching to a different free OpenRouter model, (b) waiting longer and
+  retrying later, (c) accepting a paid model (needs Cedar authorization) — **user interrupted with
+  `/wrap-up` before answering; decision still pending next session.**
 - Task 6 note: `SkillMatrix`'s have/gap badge doesn't get the same `visually-hidden` duplicate-text
   span `ArbitrageLadder`'s does — deliberate (avoids ambiguous double-matches when a skill appears
   in both components at once), documented in Magnolia's completion report, not a gap.
@@ -135,16 +140,11 @@
   in `tests/test_ingest_parse.py`, unsorted imports in `tests/test_skill_core_join.py`.
 
 ### Next Steps
-- **Get the result of the in-flight tool-use isolation test** (step 4 above) from the user, then:
-  - If `google/gemma-4-31b-it:free` fails on forced tool-use directly: this is a real model
-    limitation, not a code bug — needs a decision (different free model? relax to unforced
-    `tool_choice: "auto"` with stricter response parsing? accept and document the gap?) rather than
-    more guessing.
-  - If it succeeds directly: the bug is in our function's exact request encoding vs. the isolation
-    script's — diff them line by line (attribution headers? message content escaping? `max_tokens`
-    field OpenRouter doesn't like?).
-- Once extraction genuinely returns real skills end-to-end, finish live-verifying spec 004 in a
-  real browser: pick a role, paste a resume, confirm have/gap renders correctly.
+- **Ask the user which mitigation they want** for the confirmed rate-limit blocker (see above):
+  switch model, wait and retry later, or accept a paid model (Cedar authorization needed for the
+  latter). Do not re-diagnose — root cause is confirmed, this is now a decision, not a bug hunt.
+- Once extraction genuinely returns real skills end-to-end (any mitigation), finish live-verifying
+  spec 004 in a real browser: pick a role, paste a resume, confirm have/gap renders correctly.
 - Clean up: the scratch debug script lives in `/tmp/.../scratchpad/`, not the repo — confirm no
   other stray scratch files landed in `looking-glass/` before the next commit.
 - After spec 004 is live-verified: README MVP step 5 (LLM narration) is next, unspecced, should
