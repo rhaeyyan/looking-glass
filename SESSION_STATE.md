@@ -80,11 +80,29 @@ LLM-extraction decision; deterministic-extraction pivot now complete — zero LL
   - Stopped the dev server (`npx vite --port 5173`) started for the aborted verification
     attempt — nothing was driving it.
 
+- **User confirmed the manual Supabase cleanup (edge function + secret deletion) is done.**
+  Started the dev server back up (`npx vite --port 5173`) and asked the user to try a live
+  verification pass themselves, since no Claude-in-Chrome connection exists in this environment.
+- **Found a second real live-environment gap via the user's screenshot**: the role picker failed
+  with `column role_skill_arbitrage.salary_premium_pct does not exist`. Root cause: migration
+  `0004_role_arbitrage_narration_fields.sql` (written in spec 005, appends
+  `salary_premium_pct`/`median_days_open` to the `role_skill_arbitrage` view) was structurally
+  test-verified but — like every migration in this project — was **never actually applied to the
+  live Supabase database** (no live credentials in-agent). This was documented in each spec's
+  text but never surfaced to the user as a required manual step the way the edge-function
+  deletion was; that's a gap in how clearly this got communicated, not a code bug. Gave the user
+  the exact migration SQL to run via the Supabase Dashboard's SQL Editor (same place they
+  deployed the edge function earlier) — not yet confirmed applied/re-tested this session.
+- Noticed the user's screenshot folder is `screenshot/` (singular) — `.gitignore` only excluded
+  `screenshots/` (plural) from an earlier session, so the new folder was untracked and about to
+  surface as noise (worse: it contains an actual resume with real name/certs in it — exactly the
+  PII this project's Zero-Trust posture says should never land in the repo). Added `screenshot/`
+  to `.gitignore` alongside the existing plural entry.
+
 ### Unfinished / blocked
-- **Outstanding manual step for the user** (cannot be done in-agent, no live Supabase
-  credentials): run `supabase functions delete extract-resume-skills` and
-  `supabase secrets unset OPENROUTER_API_KEY` against the live project to fully decommission the
-  now-dead deployed function and its secret.
+- **Live verification is still blocked** on the user running migration 0004's SQL against the
+  live database (see above) — the app's own code is correct; the deployed schema is one
+  migration behind. Not yet confirmed resolved this session.
 - Two documented, intentionally-not-fixed residual limitations in the new extractor (by design,
   not bugs — pinned by frozen tests): a single-letter vocabulary entry (e.g. `r`) still
   false-matches inside an unrelated abbreviation that tokenizes identically (`R&D`); a negation
@@ -94,15 +112,18 @@ LLM-extraction decision; deterministic-extraction pivot now complete — zero LL
   Cedar's sign-off (new devDependency) if the user wants it resolved.
 - Lint hook (`post-edit-lint.sh`) still can't resolve `node` (doesn't source nvm) — pre-existing
   env issue affecting every edit.
-- **Live-browser verification of the full primary flow is still outstanding** — no
-  Claude-in-Chrome connection in this environment; needs either the user driving it themselves or
-  the extension getting connected in a future session.
+- No Claude-in-Chrome connection in this environment — live-browser verification depends on the
+  user driving it themselves (screenshots) or the extension getting connected in a future session.
 
 ### Next Steps
-- Once the user finishes the manual Supabase cleanup (function + secret deletion), do the full
-  live-browser verification pass: pick a role, paste a resume with a deliberate mix of
-  affirmed/negated/edge-case skill mentions, confirm have/gap + narration both render correctly
-  against live Supabase data. Requires either Claude-in-Chrome connectivity or the user's own
-  screenshots (the pattern used for spec 003's verification).
+- Confirm with the user that migration 0004's SQL (given to them verbatim) has been run against
+  the live DB, then have them retry the role picker and full primary flow (pick role → paste
+  resume with a mix of affirmed/negated skills → confirm have/gap + narration render correctly).
+- **Do not ask the user to paste more real-resume screenshots/content into the conversation or
+  repo if avoidable** — the `screenshot/` folder already has one with real PII in it; steer future
+  verification toward synthetic/placeholder resume text where possible, consistent with the
+  project's Zero-Trust "no real user PII" posture.
 - If the user wants `@types/jest-axe` resolved, route it to Cedar for dependency authorization
   first (Workflow Rule 8) — don't add it directly.
+- Once live verification passes end-to-end, README's full MVP scope is done, live-verified, and
+  zero-LLM — worth a final wrap-up/tag moment when that lands.
