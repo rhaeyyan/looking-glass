@@ -128,7 +128,27 @@ The thinnest end-to-end slice that proves the core value hypothesis, in build or
    demand × scarcity matrix.
 4. **Resume gap layer** — paste a resume → extract skills → subtract from the role profile →
    highlight *your* gaps on the matrix, ranked by Arbitrage Score.
-5. **Narrative** — the LLM writes a short "learn X before Y, here's why" rationale for the top gap.
+5. **Narrative** — a short "learn X before Y, here's why" rationale for the top gap.
+
+> **Recommended pivot for step 5 (not yet spec'd).** Replace the LLM narrator with a
+> **deterministic template engine**. By this stage every fact the rationale needs — demand,
+> `scarcity_index`, salary premium, days-open, the exact rank ordering — is already computed,
+> so a small template function can state the *precise* mathematical reason one gap outranks
+> another with zero latency, zero cost, and zero risk of a hallucinated number (the exact
+> Bounded-AI hazard this project guards against). For a demo whose credibility rests on "the
+> numbers are real," a template narrator is arguably *more* on-brand than generative prose, and
+> it removes the runtime dependency on a flaky free-tier model (see the spec 004 rate-limit
+> blocker). Given that blocker, the template path is worth adopting even just as the
+> deterministic fallback when the LLM call rate-limits, times out, or fails schema validation.
+>
+> **Scope this to narration only.** The sibling proposal to also drop the LLM from *resume
+> extraction* (pure string / Aho-Corasick matching for "100% zero-AI") is **not** recommended:
+> extraction consumes unstructured natural language, where fuzzy matching regresses on
+> single-letter skills (`r` matches "R&D"), negation ("no Kubernetes experience" → false
+> *have*), and contextual phrasing — and an extraction error corrupts the ranking itself, not
+> just the wording. Keep the bounded LLM call for extraction (string matching only ever as a
+> degraded fallback). This is a Cedar `[SPEC]`-level architecture/dependency decision, not a
+> drop-in edit.
 
 ### The visual matrix
 
@@ -149,7 +169,8 @@ coverage), and any forward-looking forecast axis.
 - **Data / DB** — Supabase (Postgres); deterministic scoring in SQL / Python.
 - **Frontend** — React + TypeScript; the demand × scarcity matrix.
 - **AI layer** — OpenRouter (`google/gemma-4-31b-it:free`) for resume skill-extraction and result
-  narration only (bounded, non-numeric).
+  narration only (bounded, non-numeric). *Narration is a candidate to move to a deterministic
+  template engine (see MVP step 5); extraction stays LLM-backed.*
 
 ## Status
 

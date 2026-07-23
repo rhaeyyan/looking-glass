@@ -139,7 +139,28 @@
 - Two pre-existing lint items flagged but out of scope where found: long-line (`E501`) warnings
   in `tests/test_ingest_parse.py`, unsorted imports in `tests/test_skill_core_join.py`.
 
+### Pivot evaluation — template narrator for MVP step 5 (recommendation logged, NOT yet routed to Cedar)
+- User asked for an evaluation of a proposal to replace the LLM narrator with a rule-based
+  template engine, and optionally go "100% zero-AI" by also replacing resume extraction with
+  Aho-Corasick/regex string matching. Recommendation recorded in README MVP step 5.
+- **Split verdict**: (a) narration → template engine = **recommended** — every fact the rationale
+  needs is already computed deterministically by this stage, so a template states the exact
+  math with zero latency/cost and no hallucinated-number risk; it's arguably *more* Bounded-AI
+  on-brand, and — given the confirmed spec 004 free-tier rate-limit blocker — worth adopting at
+  minimum as the deterministic fallback when the LLM call rate-limits/times-out/fails Zod. (b)
+  extraction → pure string matching = **not recommended** — unstructured NL is exactly where the
+  LLM earns its keep; string matching regresses on single-letter skills (`r` → "R&D"), negation
+  (false *have*), and contextual phrasing, and an extraction error corrupts the ranking itself.
+  Keep LLM extraction; string matching only as a degraded fallback.
+- Two nits flagged in the proposal's sample code: exact float equality on `demand_pct` (needs a
+  tolerance band) and unspecified rule precedence when a gap is both high-premium and tied-on-demand.
+- **This is a Cedar `[SPEC]`-level decision** (AI-layer contract + dependency change). Per user
+  instruction, NOT routed to Cedar yet — recommendation is logged only.
+
 ### Next Steps
+- **Decide on the step-5 narrator pivot** (recommendation logged above). If accepted, route to
+  Cedar for a `[SPEC]` on the template narrator (Cypress writes template unit tests first);
+  frame it as template-first with LLM-or-template fallback, extraction untouched.
 - **Ask the user which mitigation they want** for the confirmed rate-limit blocker (see above):
   switch model, wait and retry later, or accept a paid model (Cedar authorization needed for the
   latter). Do not re-diagnose — root cause is confirmed, this is now a decision, not a bug hunt.
