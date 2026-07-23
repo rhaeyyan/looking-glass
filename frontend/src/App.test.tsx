@@ -4,6 +4,13 @@ import userEvent from '@testing-library/user-event'
 import { axe } from 'jest-axe'
 import App from './App'
 import type { RoleSkillRow } from './lib/supabaseClient'
+// Real (never mocked) deterministic functions — reused ONLY to compute each test's *expected*
+// narration value the same way `handleResumeSubmit` must (spec 005 Task 6): `computeSkillGap`
+// then `narrateTopGap` on its sorted `rows` output. This is what "byte-identical to narrateTopGap's
+// return value" (the Bounded-AI boundary this SPEC locks) is checked against — never a hand-typed
+// expected string that could drift from the real function's actual output.
+import { computeSkillGap } from './lib/gap'
+import { narrateTopGap } from './lib/narrate'
 
 // Characterization tests (SPIKE path): freeze the observed behavior of the walking-skeleton <App />.
 // `./lib/supabaseClient` is mocked wholesale so no network/credentials load and `createClient`
@@ -396,6 +403,230 @@ describe('<App /> resume input + have/gap', () => {
     await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'PostgreSQL')
     await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
     await screen.findByText(/you already have this skill/i)
+
+    expect(await axe(container)).toHaveNoViolations()
+  })
+})
+
+// RED phase (Task 5 of specs/005-template-narrator.md) — `<App />` does not call `narrateTopGap`
+// or render any narration region yet. Task 6 (Magnolia) wires it up per this contract (see
+// [COMPLIANCE-REPORT]):
+//   - at the same point `handleResumeSubmit` computes `haveSkillKeys` (no new async trigger,
+//     no second `extractResumeSkills` call), also compute `narrateTopGap(<sorted rows from
+//     computeSkillGap>, haveSkillKeys)` and render its result via `<TopGapNarration>`.
+//   - a real top gap  -> a labelled `<section>` (accessible name referencing the top gap's
+//                        skill_name_raw) containing `narrateTopGap(...)`'s `narrative` string as
+//                        real, byte-identical DOM text.
+//   - `narrateTopGap` -> null (every role skill already "have") -> a DISTINCT, positive
+//                        `role="status"` message reading exactly:
+//                        "No gaps — you already have every skill this role needs." — never a
+//                        blank region, never the stale previous role's narration.
+//   - `haveSkillKeys === undefined` (no resume submitted yet, or role just changed) -> no
+//     narration region of either kind renders at all.
+//   - switching roles or re-submitting a new resume REPLACES (never appends/stacks) the
+//     narration region.
+const NO_GAPS_MESSAGE = 'No gaps — you already have every skill this role needs.'
+
+function makeGapRow(overrides: Partial<RoleSkillRow> = {}): RoleSkillRow {
+  return {
+    role_family: 'Backend',
+    skill_name_raw: 'Rust',
+    skill_key: 'rust',
+    pct_of_role: 18,
+    postings_with_skill: 420,
+    demand_score: 63,
+    scarcity_index: 88,
+    arbitrage_score: 9.1,
+    scarcity_data_completeness: 'complete',
+    d3_corroborated: false,
+    d3_pct_of_all_postings: 1.4,
+    salary_premium_pct: 22.6,
+    median_days_open: 45,
+    ...overrides,
+  }
+}
+
+// Backend fixture: Rust (highest arbitrage_score) ranks above PostgreSQL.
+const BACKEND_ROWS: RoleSkillRow[] = [
+  makeGapRow({ skill_name_raw: 'Rust', skill_key: 'rust', arbitrage_score: 9.1 }),
+  makeGapRow({
+    skill_name_raw: 'PostgreSQL',
+    skill_key: 'postgresql',
+    arbitrage_score: 4.2,
+    demand_score: 88,
+    scarcity_index: 12,
+    salary_premium_pct: 14.5,
+    median_days_open: 21,
+  }),
+]
+
+// Full Stack fixture: a disjoint skill set so switching roles produces a genuinely different top
+// gap, never a stale carryover from BACKEND_ROWS.
+const FULL_STACK_ROWS: RoleSkillRow[] = [
+  makeGapRow({
+    skill_name_raw: 'GraphQL',
+    skill_key: 'graphql',
+    arbitrage_score: 6.5,
+    demand_score: 55,
+    scarcity_index: 30,
+    salary_premium_pct: 28.4,
+    median_days_open: 10,
+  }),
+]
+
+/** Computes the exact narration `<App>` must produce for `rows`/`resumeSkills`, via the real
+ * (never mocked) `computeSkillGap` + `narrateTopGap` — the Bounded-AI byte-identity check below is
+ * only meaningful if the expected value comes from the same functions, not a hand-typed string. */
+function expectedNarration(rows: RoleSkillRow[], resumeSkills: string[]) {
+  const gap = computeSkillGap(rows, resumeSkills)
+  return narrateTopGap(gap.rows, gap.haveSkillKeys)
+}
+
+describe('<App /> top-gap narration (spec 005)', () => {
+  it('renders no narration region at all before any resume has been submitted', async () => {
+    mockFetch.mockResolvedValue(BACKEND_ROWS)
+    const user = userEvent.setup()
+    render(<App />)
+    await selectBackendRole(user)
+    await screen.findByRole('table')
+
+    expect(screen.queryByRole('region', { name: /Rust/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: '' })).not.toBeInTheDocument()
+    expect(screen.queryByText(NO_GAPS_MESSAGE)).not.toBeInTheDocument()
+  })
+
+  it('renders the top-gap narration in a labelled section with byte-identical narrative text', async () => {
+    mockFetch.mockResolvedValue(BACKEND_ROWS)
+    mockExtract.mockResolvedValue([])
+    const user = userEvent.setup()
+    render(<App />)
+    await selectBackendRole(user)
+
+    await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'no relevant skills')
+    await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+
+    const expected = expectedNarration(BACKEND_ROWS, [])
+    expect(expected).not.toBeNull()
+    expect(expected!.topGap.skill_name_raw).toBe('Rust')
+
+    const section = await screen.findByRole('region', { name: /Rust/i })
+    expect(within(section).getByText(expected!.narrative)).toBeInTheDocument()
+
+    // Real (not aria-hidden) text.
+    const textNode = within(section).getByText(expected!.narrative)
+    let node: HTMLElement | null = textNode
+    while (node) {
+      expect(node.getAttribute('aria-hidden')).not.toBe('true')
+      node = node.parentElement
+    }
+
+    // Synchronous piggyback on the same submit — no second extraction call triggered by
+    // rendering the narration region.
+    expect(mockExtract).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders a distinct, positive role="status" message (never a blank or stale region) when narrateTopGap returns null', async () => {
+    mockFetch.mockResolvedValue(BACKEND_ROWS)
+    mockExtract.mockResolvedValue(['Rust', 'PostgreSQL'])
+    const user = userEvent.setup()
+    render(<App />)
+    await selectBackendRole(user)
+
+    await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'Rust and PostgreSQL expert')
+    await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+
+    const expected = expectedNarration(BACKEND_ROWS, ['Rust', 'PostgreSQL'])
+    expect(expected).toBeNull()
+
+    // Query by role="status" directly (not just matching text) — the "distinct, positive
+    // role=status message" requirement is about the ARIA role, not merely the text existing
+    // somewhere in the DOM.
+    const status = await screen.findByRole('status', { name: '' })
+    expect(status).toHaveTextContent(NO_GAPS_MESSAGE)
+    expect(screen.queryByRole('region', { name: /Rust/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /PostgreSQL/i })).not.toBeInTheDocument()
+
+    // No competing role="status" collision with the (by-now-resolved) extraction-loading status.
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+  })
+
+  it('replaces (never stacks) the narration when re-submitting a new resume under the same role', async () => {
+    mockFetch.mockResolvedValue(BACKEND_ROWS)
+    mockExtract.mockResolvedValue([])
+    const user = userEvent.setup()
+    render(<App />)
+    await selectBackendRole(user)
+
+    const textarea = screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME })
+    await user.type(textarea, 'no relevant skills')
+    await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+    await screen.findByRole('region', { name: /Rust/i })
+
+    // Re-submit: the resume now shows Rust, so PostgreSQL becomes the new top gap.
+    mockExtract.mockResolvedValue(['Rust'])
+    await user.clear(textarea)
+    await user.type(textarea, 'I know Rust now')
+    await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+
+    const postgresSection = await screen.findByRole('region', { name: /PostgreSQL/i })
+    expect(postgresSection).toBeInTheDocument()
+    // The stale Rust-named narration must be gone, not left stacked alongside the new one.
+    expect(screen.queryByRole('region', { name: /^Rust\b/i })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('region', { name: /PostgreSQL/i })).toHaveLength(1)
+  })
+
+  it('replaces (never stacks) the narration when switching to a different role and resubmitting', async () => {
+    mockFetch.mockResolvedValueOnce(BACKEND_ROWS)
+    mockExtract.mockResolvedValue([])
+    const user = userEvent.setup()
+    render(<App />)
+    await selectBackendRole(user)
+
+    await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'no relevant skills')
+    await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+    await screen.findByRole('region', { name: /Rust/i })
+
+    // Switching roles resets haveSkillKeys -> narration must disappear immediately, before any
+    // new submit happens.
+    mockFetch.mockResolvedValueOnce(FULL_STACK_ROWS)
+    const select = screen.getByRole('combobox', { name: 'Target role' })
+    await user.selectOptions(select, 'Full Stack')
+    await vi.waitFor(() => expect(select).toHaveValue('Full Stack'))
+
+    expect(screen.queryByRole('region', { name: /Rust/i })).not.toBeInTheDocument()
+
+    await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), ' still nothing relevant')
+    await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+
+    const graphqlSection = await screen.findByRole('region', { name: /GraphQL/i })
+    expect(graphqlSection).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /Rust/i })).not.toBeInTheDocument()
+  })
+
+  it('has no axe violations with the narration region present in the "has a top gap" state', async () => {
+    mockFetch.mockResolvedValue(BACKEND_ROWS)
+    mockExtract.mockResolvedValue([])
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+    await selectBackendRole(user)
+
+    await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'no relevant skills')
+    await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+    await screen.findByRole('region', { name: /Rust/i })
+
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('has no axe violations with the narration region present in the "no gaps" state', async () => {
+    mockFetch.mockResolvedValue(BACKEND_ROWS)
+    mockExtract.mockResolvedValue(['Rust', 'PostgreSQL'])
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+    await selectBackendRole(user)
+
+    await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'Rust and PostgreSQL expert')
+    await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+    await screen.findByText(NO_GAPS_MESSAGE)
 
     expect(await axe(container)).toHaveNoViolations()
   })
