@@ -65,9 +65,9 @@ Expected module contract (this file is the source of truth for these signatures)
 import dataclasses
 
 import pytest
+
 from src.ingest.corroborate import corroborate
 from src.ingest.join_core import SkillCoreRow, build_skill_core
-
 from src.ingest.normalize import normalize_skill
 from src.ingest.parse import D1Row, D2Row, D3OverallRow
 
@@ -512,9 +512,8 @@ class TestBuildRoleProfiles:
         assert java_row.skill_key == normalize_skill("java")
 
     def test_multiple_rows_for_same_skill_across_roles_all_retained(self):
-        from src.ingest.role_profile import build_role_profiles
-
         from src.ingest.parse import D3RoleRow
+        from src.ingest.role_profile import build_role_profiles
 
         role_rows = [
             D3RoleRow("Backend", 15000, "java", 9000, 60.0),

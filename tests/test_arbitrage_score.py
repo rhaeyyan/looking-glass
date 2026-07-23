@@ -46,9 +46,9 @@ Expected module contract (this file is the source of truth for these signatures)
 import dataclasses
 
 import pytest
-from src.scoring.arbitrage import ArbitrageScoreRow, compute_arbitrage_score
 
 from src.ingest.join_core import SkillCoreRow
+from src.scoring.arbitrage import ArbitrageScoreRow, compute_arbitrage_score
 
 DAYS_OPEN_CAP = 60.0
 SALARY_PREMIUM_CAP = 100.0
