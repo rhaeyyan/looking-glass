@@ -25,6 +25,10 @@
   --series-2: #eb6834; /* orange */
   --series-3: #1baf7a; /* aqua  */
   --series-4: #eda100; /* yellow — reinforcement only, shape carries identity */
+  --status-good: #1a7f4b; /* have — reinforcement only; text + icon carry the state */
+  --status-good-surface: #e3f5ea;
+  --status-critical: #8a3b12; /* gap — reinforcement only; text + icon carry the state */
+  --status-critical-surface: #fbe9df;
 
   color: var(--text-primary);
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -51,6 +55,10 @@
     --series-2: #d95926;
     --series-3: #199e70;
     --series-4: #c98500;
+    --status-good: #63d69a;
+    --status-good-surface: #123122;
+    --status-critical: #e8a37e;
+    --status-critical-surface: #33190c;
   }
 }
 
@@ -155,6 +163,94 @@
   }
 }
 
+/* Visually hidden, but still present in the DOM/accessibility tree — used for text that is
+ * already fully covered by an ancestor's `aria-label` (so it is `aria-hidden` to avoid
+ * double-announcement) but still needs to be a real DOM text node for automated checks. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Have/gap flag (spec 004) ----------
+ * Non-color-only per the `dataviz` skill's status rule: every have/gap flag carries an icon
+ * (CSS-generated, decorative) AND the literal text "Have"/"Gap" — never color alone. Color here
+ * is reinforcement on top of the text/icon, using the reserved status ramp (never a categorical
+ * series hue), same as the scarcity/shape channel it sits beside.
+ */
+
+.matrix-point-flag {
+  position: absolute;
+  top: -0.4rem;
+  right: -0.4rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--text-primary);
+  background: var(--surface-1);
+  border: 1.5px solid var(--baseline);
+  white-space: nowrap;
+}
+
+.matrix-point-flag::before {
+  content: '\2715'; /* ✕ */
+}
+
+.matrix-point[data-have='true'] .matrix-point-flag {
+  color: var(--status-good);
+  background: var(--status-good-surface);
+  border-color: var(--status-good);
+}
+
+.matrix-point[data-have='true'] .matrix-point-flag::before {
+  content: '\2713'; /* ✓ */
+}
+
+.matrix-point[data-have='false'] .matrix-point-flag {
+  color: var(--status-critical);
+  background: var(--status-critical-surface);
+  border-color: var(--status-critical);
+}
+
+.ladder-have-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--status-critical);
+  background: var(--status-critical-surface);
+  border: 1px solid var(--status-critical);
+}
+
+.ladder-have-flag::before {
+  content: '\2715'; /* ✕ */
+}
+
+.ladder-item[data-have='true'] .ladder-have-flag {
+  color: var(--status-good);
+  background: var(--status-good-surface);
+  border-color: var(--status-good);
+}
+
+.ladder-item[data-have='true'] .ladder-have-flag::before {
+  content: '\2713'; /* ✓ */
+}
+
 /* ---------- Arbitrage ladder ---------- */
 
 .ladder-list {
@@ -168,7 +264,7 @@
 
 .ladder-item {
   display: grid;
-  grid-template-columns: 1.75rem 8rem 1fr 5rem;
+  grid-template-columns: 1.75rem 8rem 1fr 5rem auto;
   align-items: center;
   gap: 0.75rem;
   width: 100%;

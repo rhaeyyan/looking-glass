@@ -1,5 +1,6 @@
 import type { RoleSkillRow } from '../../lib/supabaseClient'
 import { formatNum } from '../../lib/format'
+import { normalizeSkillName } from '../../lib/normalize'
 
 // The mandated text alternative for the demand×scarcity matrix (WCAG 2.2 AA data-viz rule:
 // the numbers a chart encodes must also be available as an accessible table). Every value is
@@ -8,10 +9,23 @@ import { formatNum } from '../../lib/format'
 // The demand-only row (null arbitrage fields) is NEVER dropped: its unknown numerics render as an
 // em dash and it carries the explicit "Demand only, scarcity unknown" flag, so absence of data is
 // visible, not silent.
+//
+// `haveSkillKeys` (spec 004, Task 6) is additive and optional: omitted -> byte-identical rendering
+// to before this prop existed (no extra column). Provided -> an explicit "Have or gap" text column,
+// never color-only, keyed by the same identifier `computeSkillGap` produces
+// (`row.skill_key ?? normalizeSkillName(row.skill_name_raw)`).
 
 const DEMAND_ONLY_FLAG = 'Demand only, scarcity unknown'
 
-export function SkillDataTable({ rows, caption }: { rows: RoleSkillRow[]; caption: string }) {
+export function SkillDataTable({
+  rows,
+  caption,
+  haveSkillKeys,
+}: {
+  rows: RoleSkillRow[]
+  caption: string
+  haveSkillKeys?: Set<string>
+}) {
   return (
     <table className="matrix-table">
       <caption>{caption}</caption>
@@ -25,11 +39,14 @@ export function SkillDataTable({ rows, caption }: { rows: RoleSkillRow[]; captio
           <th scope="col">Arbitrage score</th>
           <th scope="col">D3 corroborated</th>
           <th scope="col">Notes</th>
+          {haveSkillKeys && <th scope="col">Have or gap</th>}
         </tr>
       </thead>
       <tbody>
         {rows.map((row) => {
           const demandOnly = row.skill_key === null
+          const key = row.skill_key ?? normalizeSkillName(row.skill_name_raw)
+          const have = haveSkillKeys?.has(key) ?? false
           return (
             <tr key={row.skill_key ?? row.skill_name_raw}>
               <th scope="row">{row.skill_name_raw}</th>
@@ -42,6 +59,7 @@ export function SkillDataTable({ rows, caption }: { rows: RoleSkillRow[]; captio
                 {row.d3_corroborated === null ? '—' : row.d3_corroborated ? 'Yes' : 'No'}
               </td>
               <td>{demandOnly ? DEMAND_ONLY_FLAG : ''}</td>
+              {haveSkillKeys && <td>{have ? 'Have' : 'Gap'}</td>}
             </tr>
           )
         })}

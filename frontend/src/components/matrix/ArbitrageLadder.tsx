@@ -1,6 +1,7 @@
 import { useId } from 'react'
 import type { RoleSkillRow } from '../../lib/supabaseClient'
 import { formatNum } from '../../lib/format'
+import { normalizeSkillName } from '../../lib/normalize'
 import './matrix.css'
 
 // Arbitrage ladder: the ranked gap list — every role skill as a bar, ordered by the
@@ -23,7 +24,13 @@ function byArbitrageDesc(a: RoleSkillRow, b: RoleSkillRow): number {
   return b.arbitrage_score - a.arbitrage_score
 }
 
-export function ArbitrageLadder({ rows }: { rows: RoleSkillRow[] }) {
+export function ArbitrageLadder({
+  rows,
+  haveSkillKeys,
+}: {
+  rows: RoleSkillRow[]
+  haveSkillKeys?: Set<string>
+}) {
   const titleId = useId()
   const ranked = [...rows].sort(byArbitrageDesc)
   const topScore = ranked.reduce((max, r) => Math.max(max, r.arbitrage_score ?? 0), 0)
@@ -44,12 +51,28 @@ export function ArbitrageLadder({ rows }: { rows: RoleSkillRow[] }) {
           const widthPct = topScore > 0 && row.arbitrage_score !== null
             ? (row.arbitrage_score / topScore) * 100
             : 0
-          const label = demandOnly
-            ? `Rank ${i + 1}: ${row.skill_name_raw}, ${DEMAND_ONLY_FLAG}`
-            : `Rank ${i + 1}: ${row.skill_name_raw}, arbitrage score ${formatNum(row.arbitrage_score)}`
+          const key = row.skill_key ?? normalizeSkillName(row.skill_name_raw)
+          const have = haveSkillKeys?.has(key)
+          const haveSuffix =
+            have === undefined
+              ? ''
+              : have
+                ? ', you already have this skill'
+                : ', gap — you do not have this skill yet'
+          const label =
+            (demandOnly
+              ? `Rank ${i + 1}: ${row.skill_name_raw}, ${DEMAND_ONLY_FLAG}`
+              : `Rank ${i + 1}: ${row.skill_name_raw}, arbitrage score ${formatNum(row.arbitrage_score)}`) +
+            haveSuffix
           return (
             <li key={row.skill_key ?? row.skill_name_raw}>
-              <button type="button" data-testid="ladder-item" className="ladder-item" aria-label={label}>
+              <button
+                type="button"
+                data-testid="ladder-item"
+                data-have={have === undefined ? undefined : have ? 'true' : 'false'}
+                className="ladder-item"
+                aria-label={label}
+              >
                 <span className="ladder-rank" aria-hidden="true">
                   {i + 1}
                 </span>
@@ -64,6 +87,21 @@ export function ArbitrageLadder({ rows }: { rows: RoleSkillRow[] }) {
                 {!demandOnly && (
                   <span className="ladder-score" aria-hidden="true">
                     {formatNum(row.arbitrage_score)}
+                  </span>
+                )}
+                {have !== undefined && (
+                  <span className="ladder-have-flag" data-testid="have-flag" aria-hidden="true">
+                    {have ? 'Have' : 'Gap'}
+                  </span>
+                )}
+                {/* A real (but visually hidden) text node mirroring the aria-label's have/gap
+                    suffix. The button's aria-label already carries this for assistive tech, so
+                    this span is `aria-hidden` to avoid double-announcing it — it exists purely so
+                    the phrase is queryable as literal DOM text (e.g. by an app-level text
+                    assertion), not because sighted users need to see it twice. */}
+                {have !== undefined && (
+                  <span className="visually-hidden" aria-hidden="true">
+                    {have ? 'you already have this skill' : 'gap — you do not have this skill yet'}
                   </span>
                 )}
               </button>

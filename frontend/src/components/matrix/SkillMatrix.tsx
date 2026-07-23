@@ -1,6 +1,7 @@
 import { useId } from 'react'
 import type { RoleSkillRow } from '../../lib/supabaseClient'
 import { formatNum } from '../../lib/format'
+import { normalizeSkillName } from '../../lib/normalize'
 import { SkillDataTable } from './SkillDataTable'
 import './matrix.css'
 
@@ -41,7 +42,13 @@ function isScored(
   return row.demand_score !== null && row.scarcity_index !== null
 }
 
-export function SkillMatrix({ rows }: { rows: RoleSkillRow[] }) {
+export function SkillMatrix({
+  rows,
+  haveSkillKeys,
+}: {
+  rows: RoleSkillRow[]
+  haveSkillKeys?: Set<string>
+}) {
   const titleId = useId()
   const reduced = prefersReducedMotion()
   const scored = rows.filter(isScored)
@@ -69,16 +76,25 @@ export function SkillMatrix({ rows }: { rows: RoleSkillRow[] }) {
           {scored.map((row, i) => {
             const shape = SHAPES[i % SHAPES.length]
             const size = Math.max(24, Math.min(64, 24 + row.pct_of_role * 0.5))
+            const key = row.skill_key ?? normalizeSkillName(row.skill_name_raw)
+            const have = haveSkillKeys?.has(key)
+            const haveSuffix =
+              have === undefined
+                ? ''
+                : have
+                  ? ', you already have this skill'
+                  : ', gap — you do not have this skill yet'
             return (
               <button
                 key={row.skill_key ?? row.skill_name_raw}
                 type="button"
                 data-testid="scatter-point"
                 data-shape={shape}
+                data-have={have === undefined ? undefined : have ? 'true' : 'false'}
                 className="matrix-point"
                 aria-label={`${row.skill_name_raw}: demand ${formatNum(row.demand_score)}, scarcity ${formatNum(row.scarcity_index)}, market share ${row.pct_of_role}% of role postings${
                   row.arbitrage_score !== null ? `, arbitrage score ${formatNum(row.arbitrage_score)}` : ''
-                }`}
+                }${haveSuffix}`}
                 style={{
                   left: `${row.demand_score}%`,
                   bottom: `${row.scarcity_index}%`,
@@ -87,14 +103,20 @@ export function SkillMatrix({ rows }: { rows: RoleSkillRow[] }) {
                   clipPath: SHAPE_CLIP[shape],
                   background: SERIES_VARS[i % SERIES_VARS.length],
                 }}
-              />
+              >
+                {have !== undefined && (
+                  <span className="matrix-point-flag" data-testid="have-flag" aria-hidden="true">
+                    {have ? 'Have' : 'Gap'}
+                  </span>
+                )}
+              </button>
             )
           })}
         </div>
         <span className="matrix-axis-x">Demand score &rarr;</span>
       </div>
 
-      <SkillDataTable rows={rows} caption={caption} />
+      <SkillDataTable rows={rows} caption={caption} haveSkillKeys={haveSkillKeys} />
     </section>
   )
 }
