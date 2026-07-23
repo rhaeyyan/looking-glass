@@ -73,11 +73,25 @@
 - **Redwood harness fix** (config-only follow-up): added a global `afterEach(() => cleanup())` to
   `frontend/src/test/setup.ts` so every React suite gets automatic per-test unmount. Verified
   genuinely global (a temp suite with no local cleanup passed), full suite still 17/17 green. No
-  new dep. Committed.
+  new dep. Committed `ed7718c`.
+- **Task 6** (Cypress, RED): 11 failing a11y/behavioral tests defining Done for Magnolia's Task 7
+  (`SkillMatrix.test.tsx`, `ArbitrageLadder.test.tsx`, `roleSkillProfile.fixture.ts`). They fail on
+  the absent `SkillMatrix`/`ArbitrageLadder` modules; the 17 characterization tests still pass
+  (`npx vitest run` → 2 failed | 3 passed files, 11 failed | 17 passed tests). Committed `58c2dc7`.
+  - **Component contract Magnolia MUST honor**: named exports `SkillMatrix`/`ArbitrageLadder`,
+    prop `rows: RoleSkillRow[]`. `SkillMatrix`: root `data-testid="skill-matrix"`; one
+    `data-testid="scatter-point"` per *scored* skill (null-score row excluded from points); each
+    point button-like/tabbable, accessible name contains `skill_name_raw`, non-empty `data-shape`
+    (non-color encoding); root `data-reduced-motion="true"` under `(prefers-reduced-motion: reduce)`
+    with no inline animation; accessible `<table>` (`<caption>` + `<th scope="col">`, one row per
+    skill incl. demand-only flagged `/demand only/i`, raw numerics verbatim); zero axe violations.
+    `ArbitrageLadder`: one `data-testid="ladder-item"` per row (null row kept), each
+    button-like/tabbable/named; ordered descending by `arbitrage_score`, null-score rows last;
+    demand-only row flagged.
 
 ### Unfinished / Blocked
-- Tasks 6–7 of `specs/003-role-picker-matrix.md` not started (matrix/ladder tests → Magnolia's
-  build).
+- Task 7 of `specs/003-role-picker-matrix.md` not started (Magnolia builds the matrix + ladder to
+  make Task 6's 11 RED tests pass).
 - Lint hook (`post-edit-lint.sh`) still can't resolve `node` (doesn't source nvm) — pre-existing
   env issue affecting every edit.
 - README.md's MVP step 4 (resume gap layer) not specced yet.
@@ -88,6 +102,7 @@
 - Nothing from `specs/003-role-picker-matrix.md`'s work is committed yet.
 
 ### Next Steps
-- Continue the sequential pipeline: Task 6 (Cypress, matrix/ladder tests) → Task 7 (Magnolia, the
-  actual accessible matrix + ladder build).
+- Dispatch Task 7 to Magnolia: build `SkillMatrix`, `ArbitrageLadder`, `SkillDataTable`, wire into
+  `App.tsx`, one styling file. Must invoke `dataviz` + `a11y-sec-2026` skills first and honor the
+  frozen component contract above; make all 11 RED tests pass without editing them.
 - Optional cleanup someday: fix the lint hook's node/nvm PATH resolution.
