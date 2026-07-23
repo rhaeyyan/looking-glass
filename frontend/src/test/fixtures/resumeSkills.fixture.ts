@@ -1,59 +1,99 @@
 import type { RoleSkillRow } from '../../lib/supabaseClient'
 
-// Fixtures for spec 004 Task 3 (resume-gap-layer): mocked `supabase.functions.invoke` response
-// bodies for `extractResumeSkills()`, plus a dedicated `RoleSkillRow[]` set for
-// `computeSkillGap()`'s normalization/matching edge cases (deliberately distinct from
-// `roleSkillProfile.fixture.ts`, which exists to exercise the matrix/ladder/table rendering, not
-// the have/gap match rule).
+// Fixtures for spec 006 (deterministic-extraction) Task 2: pure resume-text + vocabulary inputs
+// for the new synchronous `extractResumeSkills(resumeText, vocabulary)` contract. Replaces the
+// old LLM-response-shaped fixtures (mocked `supabase.functions.invoke` bodies), which no longer
+// apply now that extraction is zero-I/O, zero-LLM regex matching.
+//
+// The `computeSkillGap()` fixture section below (GAP_MATCH_ROWS and friends) is UNCHANGED from
+// spec 004 — it is out of this SPEC's scope (`gap.ts`'s have/gap matching is unaffected by the
+// extractor rewrite) and `gap.test.ts` still imports it from this same file.
 
 // ---------------------------------------------------------------------------------------------
-// extractResumeSkills() — mocked `supabase.functions.invoke('extract-resume-skills', ...)` bodies
+// Edge case 1 — basic affirmed match (case-insensitive)
 // ---------------------------------------------------------------------------------------------
+export const BASIC_MATCH_RESUME_TEXT = 'I worked with kubernetes and PostgreSQL for three years.'
+export const BASIC_MATCH_VOCABULARY = ['Kubernetes', 'PostgreSQL', 'Rust']
+export const BASIC_MATCH_EXPECTED = ['Kubernetes', 'PostgreSQL']
 
-// A well-formed edge-function response: `supabase-js`'s `functions.invoke` resolves `{ data,
-// error }`, never throws for an HTTP-level failure — `error` is how those surface.
-export const VALID_INVOKE_RESPONSE = {
-  data: { skills: ['Kubernetes', 'Rust', 'PostgreSQL'] },
-  error: null,
-}
+// ---------------------------------------------------------------------------------------------
+// Edge case 2 — substring-inside-longer-word non-match (solved case)
+// ---------------------------------------------------------------------------------------------
+export const SUBSTRING_TRAP_RESUME_TEXT = 'I shipped cargo to Chicago last quarter.'
+export const SUBSTRING_TRAP_VOCABULARY = ['go']
+// Neither "cargo" nor "Chicago" contains a standalone, boundary-safe "go" token — in both words
+// the character immediately preceding "go" is alphanumeric ("r" in cargo, "a" in Chicago), so the
+// left-hand lookaround boundary fails and neither substring counts as a match.
+export const SUBSTRING_TRAP_EXPECTED: string[] = []
 
-export const EMPTY_SKILLS_INVOKE_RESPONSE = {
-  data: { skills: [] },
-  error: null,
-}
+// ---------------------------------------------------------------------------------------------
+// Edge case 3 — punctuation-preserving boundary / false-merge trap
+// ---------------------------------------------------------------------------------------------
+export const PUNCTUATION_TRAP_RESUME_TEXT = 'I write C# daily.'
+export const PUNCTUATION_TRAP_VOCABULARY = ['C', 'C#', 'C++']
+export const PUNCTUATION_TRAP_EXPECTED = ['C#']
 
-// Malformed response bodies — each must be rejected by the Zod schema, never coerced/passed
-// through. Kept as the exact `data` payload the mocked `invoke` would resolve with.
-export const MALFORMED_MISSING_SKILLS_KEY = {
-  data: { skillz: ['aws'] },
-  error: null,
-}
+// ---------------------------------------------------------------------------------------------
+// Edge case 4 — documented, NOT fixed: short-skill token collides with an unrelated abbreviation
+// ---------------------------------------------------------------------------------------------
+// "R&D" tokenizes, under lookaround word-boundary rules, as a standalone "R" (bounded by a space
+// before and "&" after — "&" is non-alphanumeric, so the right-hand boundary is satisfied) exactly
+// like a real mention of the "r" skill would. Distinguishing "R" the language from "R&D" the
+// department requires real NLP/semantic context, which this project has already decided against
+// (spec 006's own regression analysis). This is an accepted, permanent residual false positive —
+// pinned here as documented behavior, not a bug to chase.
+export const R_AND_D_RESUME_TEXT = 'Our R&D team ships fast.'
+export const R_AND_D_VOCABULARY = ['r']
+export const R_AND_D_EXPECTED = ['r']
 
-export const MALFORMED_WRONG_TYPE_NOT_ARRAY = {
-  data: { skills: 'aws, rust, postgresql' },
-  error: null,
-}
+// ---------------------------------------------------------------------------------------------
+// Edge case 5 — negation, direct adjacency
+// ---------------------------------------------------------------------------------------------
+export const NEGATION_ADJACENT_RESUME_TEXT =
+  'I have no Kubernetes experience and am not familiar with Rust.'
+export const NEGATION_ADJACENT_VOCABULARY = ['Kubernetes', 'Rust']
+export const NEGATION_ADJACENT_EXPECTED: string[] = []
 
-export const MALFORMED_WRONG_TYPE_NON_STRING_ITEMS = {
-  data: { skills: ['aws', 42, null] },
-  error: null,
-}
+// ---------------------------------------------------------------------------------------------
+// Edge case 6 — negation does not leak across a sentence boundary
+// ---------------------------------------------------------------------------------------------
+export const NEGATION_SENTENCE_BOUNDARY_RESUME_TEXT = "I don't like Java. I know Kubernetes."
+export const NEGATION_SENTENCE_BOUNDARY_VOCABULARY = ['Java', 'Kubernetes']
+export const NEGATION_SENTENCE_BOUNDARY_EXPECTED = ['Kubernetes']
 
-// The Zod schema's `skills` array is bounded (contract: `.max(200)`, see resumeSkills.test.ts) —
-// this fixture is one over that bound so the "oversized array" edge case is unambiguous
-// regardless of the exact limit Redwood picks, as long as it documents and honors one.
-export const OVERSIZED_SKILLS_ARRAY = Array.from({ length: 201 }, (_, i) => `skill-${i}`)
-export const MALFORMED_OVERSIZED = {
-  data: { skills: OVERSIZED_SKILLS_ARRAY },
-  error: null,
-}
+// ---------------------------------------------------------------------------------------------
+// Edge case 7 — documented, NOT fixed: negation cue beyond the window fails to suppress
+// ---------------------------------------------------------------------------------------------
+// The negation cue "never" sits far more than 40 characters before "Elixir", with no sentence
+// terminator in between, so it falls outside both halves of the window rule (40-char lookback OR
+// nearer sentence terminator) and fails to suppress the match. Pinned as an accepted, documented
+// limitation of the fixed-window heuristic, not a bug — full resolution needs real NLP.
+export const NEGATION_OUT_OF_WINDOW_RESUME_TEXT =
+  'I never had the chance during my last three jobs across two different countries to work with Elixir'
+export const NEGATION_OUT_OF_WINDOW_VOCABULARY = ['Elixir']
+export const NEGATION_OUT_OF_WINDOW_EXPECTED = ['Elixir']
 
-// A supabase-level invocation failure (network error, non-2xx from the edge function, etc.) —
-// `data` is null and `error` is populated. Distinct failure mode from a schema-malformed body.
-export const INVOKE_LEVEL_ERROR_RESPONSE = {
-  data: null,
-  error: { message: 'FunctionsHttpError: non-2xx status code' },
-}
+// ---------------------------------------------------------------------------------------------
+// Edge case 8 — any-affirmed-anywhere-wins
+// ---------------------------------------------------------------------------------------------
+export const ANY_AFFIRMED_ANYWHERE_RESUME_TEXT =
+  "I don't have Docker experience at my current job. At my previous job, I used Docker daily."
+export const ANY_AFFIRMED_ANYWHERE_VOCABULARY = ['Docker']
+export const ANY_AFFIRMED_ANYWHERE_EXPECTED = ['Docker']
+
+// ---------------------------------------------------------------------------------------------
+// Edge case 9 — no alias/synonym folding
+// ---------------------------------------------------------------------------------------------
+export const NO_ALIAS_FOLDING_RESUME_TEXT = 'I have deployed extensively on Amazon Web Services.'
+export const NO_ALIAS_FOLDING_VOCABULARY = ['AWS']
+export const NO_ALIAS_FOLDING_EXPECTED: string[] = []
+
+// ---------------------------------------------------------------------------------------------
+// Edge case 10 — empty vocabulary / no matches at all
+// ---------------------------------------------------------------------------------------------
+export const NO_MATCHES_RESUME_TEXT = 'I enjoy hiking and playing chess on weekends.'
+export const NO_MATCHES_VOCABULARY = ['Kubernetes', 'Rust', 'PostgreSQL']
+export const NO_MATCHES_EXPECTED: string[] = []
 
 // ---------------------------------------------------------------------------------------------
 // computeSkillGap() — RoleSkillRow fixture exercising the V1 exact-normalized-match rule
