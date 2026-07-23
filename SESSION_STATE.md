@@ -5,169 +5,98 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-22–23 (Ingest, arbitrage_score, role-picker skeleton, and resume gap layer built; live deploy/verification of the resume gap layer in progress)
+## Current Session — 2026-07-22–23 (resume gap layer built, live-verification blocked on an
+upstream rate limit; template narrator spec'd, built, and complete — README MVP step 5 done)
+
+> Specs 001–003 (ingest, arbitrage score, role-picker matrix) are complete and archived — see
+> [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
 ### Accomplished
-- Reviewed the full repo against the multi-agent orchestration pipeline; ported missing
-  `.claude/skills/`, `.claude/hooks/`, and two dangling handoff schemas from the seed repo.
-  Committed `26e8d74`.
-- **`specs/001-ingest-pipeline.md`** (7 tasks, complete): parse → normalize → join/corroborate/
-  role-profile → Supabase schema (`skills_core`, `skill_role_profile`) + idempotent loader → docs
-  reconciliation (139→141, 147→148, real drift found against the raw CSVs). `supabase-py` added
-  as the one authorized dependency. Committed through `4d2e323`.
-- **`specs/002-arbitrage-score.md`** (5 tasks, complete): `compute_arbitrage_score` → real
-  `skill_arbitrage_scores` table + `arbitrage_scores` view + idempotent loader → README
-  reconciliation. Live Supabase smoke test passed (RLS, exact row counts 141/450/141 against a
-  real DB). Committed through `155c2ed`.
-- **`specs/003-role-picker-matrix.md`** (7 tasks + one amendment, complete, live-verified) — MVP
-  step 3, the first-ever frontend work: direct-to-Supabase client-side reads via the anon key (no
-  backend API tier), new `role_skill_arbitrage` view, React/Vite/TS scaffold, a role picker →
-  `fetchRoleSkillProfile` → accessible quadrant scatter (`SkillMatrix`) + arbitrage ladder
-  (`ArbitrageLadder`) + accessible `<table>` fallback (`SkillDataTable`), all WCAG 2.2 AA (non-
-  color shape encoding, keyboard-operable points, zero axe violations, reduced-motion respected),
-  no charting dependency. 28/28 tests green. Notable mid-build fixes: RLS had only ever been
-  enabled manually (never migrated) until Task 2 caught it; a global Testing Library `cleanup` was
-  missing from the test harness (fixed, `ed7718c`) after Cypress found accumulating DOM renders
-  corrupting accessible names. Final commit `f89fb5b`.
+- **`specs/004-resume-gap-layer.md`** (6 tasks, complete, code-complete end-to-end): README MVP
+  step 4 — first LLM-in-the-loop slice. Supabase Edge Function (`extract-resume-skills`) proxies
+  an LLM call server-side via a project secret (never a `VITE_*` var); switched mid-build from
+  Claude to OpenRouter (`google/gemma-4-31b-it:free`) per user decision, diff-verified not just
+  self-report-trusted (`d0b8670`). V1 skill-matching is exact-normalized-match only (no fuzzy/
+  alias). `haveSkillKeys: Set<string>` threaded additively through the three matrix components,
+  no new pattern earned. `zod` added as the one new dependency. All 6 tasks committed
+  (`b761f54`…`6325ff6`), 71/71 tests green, independently re-verified each task.
+- **Deploy + live-verification attempt (spec 004)**: deployed via the Supabase Dashboard UI (CLI
+  OAuth login unusable headlessly in this sandbox). Root-caused a persistent `502
+  extraction_failed` through several red herrings (a secret typo, then an OpenRouter
+  free-tier "Model Training" privacy toggle — both real, both fixed, neither *the* blocker) down
+  to the actual cause: `google/gemma-4-31b-it:free` is genuinely rate-limited upstream on
+  OpenRouter right now (`429`, confirmed via isolated scratch-script testing and 10 consecutive
+  polls over ~3.5 minutes, all `502`). **Code and deployed function are both confirmed correct —
+  the sole blocker is external free-tier capacity, not a bug.**
+- **Template narrator pivot (README MVP step 5) — evaluated, approved, and now spec'd**: user
+  asked for an evaluation of replacing the LLM narrator with a deterministic template engine
+  (and, separately, of going "100% zero-AI" by also replacing resume extraction with string
+  matching). Recommendation: narration → template = **adopt** (every fact it needs is already
+  computed by this stage; also serves as the deterministic fallback for the confirmed rate-limit
+  blocker above); extraction → string matching = **reject** (unstructured NL is exactly where the
+  LLM earns its keep; regresses on single-letter skills, negation, phrasing). **User approved
+  moving forward with this recommendation.** Routed to Cedar, who produced a 6-task `[SPEC]`,
+  persisted to **`specs/005-template-narrator.md`**: Tasks 1–2 (Redwood) expose two already-
+  computed `skills_core` fields (`salary_premium_pct`, `median_days_open`) through
+  `role_skill_arbitrage`/`RoleSkillRow` via an append-only view-column authorization (Workflow
+  Rule 8, minimal — no new table/RLS); Tasks 3–4 (Redwood) build a pure, synchronous
+  `narrateTopGap()` with a fixed tie-precedence chain (`arbitrage_score → demand_score →
+  scarcity_index → salary_premium_pct → median_days_open`) and a `formatNum`-based tolerance
+  rule (never raw `===`) — this resolves the two nits flagged in the original proposal; Tasks 5–6
+  (Magnolia) wire it into a new `TopGapNarration` component. No GoF pattern earned. Extraction
+  stays untouched.
+- **`specs/005-template-narrator.md`** (6 tasks, complete, code-complete end-to-end, README MVP
+  step 5 done): all 6 tasks ran back-to-back with zero rejection-loop cycles — every RED task
+  (Cypress) came back PASS on the first try, every GREEN task (Redwood/Magnolia) satisfied the
+  frozen tests on the first attempt. Diff- and test-verified independently at every step, not
+  self-report-trusted. Tasks 1–2: appended `salary_premium_pct`/`median_days_open` to
+  `role_skill_arbitrage` via an append-only `CREATE OR REPLACE VIEW`
+  (`supabase/migrations/0004_role_arbitrage_narration_fields.sql`, not live-applied — no
+  credentials in-agent, same as 0003) and threaded them through `RoleSkillRow`/
+  `fetchRoleSkillProfile`; Redwood made both fields optional (`?:`) rather than the SPEC's literal
+  required text, to avoid touching two out-of-scope fixture files from specs 003/004 — flagged
+  transparently, verified behaviorally identical, accepted as a reasonable scope-respecting call.
+  Tasks 3–4: `frontend/src/lib/narrate.ts`'s `narrateTopGap()` — pure, synchronous, zero-I/O,
+  16/16 tests passing, correctly implements the fixed tie-precedence chain (not object-key-
+  declaration order) and cites `pct_of_role` (never a null field) for the demand-only degradation
+  case — both adversarial-fixture traps Cypress built in specifically to catch a naive
+  implementation. Tasks 5–6: `TopGapNarration.tsx` (new component, `<section
+  aria-labelledby>` + `<h2>`/`<p>`) wired into `App.tsx`'s existing `handleResumeSubmit`, no new
+  async trigger, `narration` state reset on role change so switching roles never leaves stale
+  narration in the DOM; the "no gaps" `role="status"` message text is locked verbatim
+  (`"No gaps — you already have every skill this role needs."`) per Cypress's own compliance
+  report making the test file the authoritative wording, not the SPEC's example text. Final
+  suite: 244/244 pytest, 93/93 relevant vitest (1 unrelated pre-existing `zod`-missing suite
+  failure, confirmed present before this spec started). **Not yet committed to git** — working
+  tree has the full spec 005 diff uncommitted.
 
-### Session addendum — live browser verification of spec 003, completed
-- Dev server started (`npx vite --port 5173`, backgrounded) to visually verify Task 7's matrix
-  against live Supabase data. Claude in Chrome extension not connected in this environment, so
-  verification was done via user-supplied screenshots (Backend and Full Stack roles) instead of
-  driven browser automation.
-- **Confirmed working**: role picker, quadrant scatter with distinct point shapes (circle/
-  triangle/square/diamond — non-color encoding holds), full skill table, and the arbitrage ladder
-  correctly ranked descending with unscored skills (`ai`, `css`, `spring boot`, etc.) pushed last
-  and flagged "Demand only, scarcity unknown."
-- **Bug found and fixed** (`f653ce4`): `.ladder-item`'s CSS grid had 3 explicit column tracks for
-  4 children (rank/name/track/score) — score wrapped to its own line instead of sitting inline at
-  the bar's end. Fixed by adding a 4th `5rem` track + right-align. Separately, raw unrounded score
-  floats (e.g. `291.323333333333`) overflowed that column and forced horizontal scroll — added
-  `frontend/src/lib/format.ts` (`formatNum`, round-to-2dp presentation transform, Bounded-AI safe)
-  used by `SkillDataTable`, `ArbitrageLadder`, and `SkillMatrix`'s point labels. Deliberately NOT
-  `toFixed(2)` — that would render `"7.30"` and break the frozen Task 5 characterization test
-  expecting `"7.3"`; used `Math.round(v*100)/100` instead to match. Re-verified via a second round
-  of user screenshots: numbers now short and inline, no clipping. Full suite still 28/28 green.
-- User populated `frontend/.env` with real credentials. In the process, `frontend/.env.example`
-  (the committed placeholder template, no real secrets) was deleted from disk — user confirmed
-  intentionally; deletion committed (`298efa3`).
-- Ad-hoc verification screenshots landed in `screenshots/` — deliberately kept out of the repo as
-  manual scratch artifacts; added `screenshots/` to `.gitignore` so this stops surfacing as
-  uncommitted-changes noise every session-end check.
-
-- **`specs/004-resume-gap-layer.md`** (6 tasks, approved by human): Cedar's SPEC for README MVP
-  step 4 — first LLM-in-the-loop slice. Three forced decisions approved: (1) a new Supabase Edge
-  Function (`extract-resume-skills`) proxies Claude server-side via a project *secret*
-  (`ANTHROPIC_API_KEY`, never a `VITE_*` var) — rejected calling Claude directly from the browser
-  as a Zero-Trust violation; (2) V1 skill-matching is exact-normalized-match only, no fuzzy/alias
-  (per README's explicit V1 scope); (3) have/gap threaded as an additive `haveSkillKeys:
-  Set<string>` prop on the existing three matrix components, no new pattern earned yet. New
-  runtime dep approved: `zod`. Persisted; Tasks 1–6 authorized.
-  - **Task 1** (Redwood, SPIKE, `b761f54`): built the repo's first Supabase Edge Function
-    (`supabase/functions/extract-resume-skills/`) calling Claude server-side via forced tool-use.
-    Caught and fixed a hallucinated model ID (`claude-opus-4-6` doesn't exist) on review.
-  - **Provider switch, mid-Task-1**: user chose OpenRouter (`google/gemma-4-31b-it:free`, verified
-    real via web search — released after this assistant's Jan-2026 cutoff) over Claude, for both
-    extraction and future narration. Updated `AGENTS.md`/`README.md` first (`2687b5f`), had Cedar
-    write a surgical amendment rather than let Redwood freelance it (`6a9a0c0`), Redwood
-    implemented (`d0b8670`) — endpoint/secret-name/auth-header/tool-call-shape all changed, CORS/
-    validation/statelessness untouched; diff-verified, not just self-report-trusted.
-  - **Task 2** (Cypress, `25d561a` + spec reconciliation): characterization tests written against
-    the real OpenRouter implementation, not the spec's stale Claude-era prose — 26/26 passing
-    (independently re-verified), full suite 208 passed/16 skipped. Spec file's Task 2 section
-    rewritten to match reality.
-  - Edge function still undeployed, no live secret set (deploy steps in its README for the human).
-- **Task 3** (Cypress, RED, `5dad61a`) → **Task 4** (Redwood, GREEN, `cc819b5`): built
-  `frontend/src/lib/{resumeSkills,gap,normalize}.ts` + `zod` dependency —
-  `extractResumeSkills()` (Zod-validates the edge function's response, named
-  `ExtractionSchemaError` on failure) and `computeSkillGap()` (pure, deterministic have/gap
-  partition, reusing `ArbitrageLadder`'s exact sort). `normalizeSkillName`'s regex verified
-  byte-for-byte against `src/ingest/normalize.py`'s join-key logic, not just described. 49/49 tests
-  pass, independently re-verified.
-- **Task 5** (Cypress, RED, `e611f4e`) → **Task 6** (Magnolia, GREEN, `6325ff6`, **completes spec
-  004**): resume textarea/submit wired into `App.tsx`; additive optional `haveSkillKeys?:
-  Set<string>` threaded through `SkillMatrix`/`ArbitrageLadder`/`SkillDataTable` — omitted →
-  byte-identical rendering to before, provided → `data-have` + visible `Have`/`Gap` badge +
-  accessible-name suffix, layered on the existing shape encoding via a reserved status color ramp
-  (never color-only, `dataviz` skill invoked first). 71/71 tests pass, independently re-verified;
-  exactly the spec-authorized files touched each task. Resume gap layer (README MVP step 4) is
-  code-complete end-to-end: pick role → paste resume → extract (OpenRouter) → Zod-gated →
-  deterministic gap → have/gap rendered on the matrix/ladder/table.
-
-### Deploy + live-verification attempt (spec 004, in progress)
-- Supabase CLI (`npx supabase`) proved unusable in this sandbox: `supabase login`'s browser OAuth
-  can't complete headlessly, and a `SUPABASE_ACCESS_TOKEN` exported in the user's own `!`-session
-  shell does not propagate to the assistant's separate Bash-tool subprocess (confirmed empirically
-  — different shell contexts despite both being called "this session"). Switched to deploying via
-  the **Supabase Dashboard UI** instead (Edge Functions → paste `index.ts` → deploy), which
-  succeeded.
-- First verification curl (anon key, real project URL, from the assistant's Bash tool) returned
-  `502 {"error":"extraction_failed"}` — correct generic-error behavior, but extraction itself was
-  failing. Root-caused iteratively, each hypothesis tested empirically rather than guessed:
-  1. Secret name/value typo in the dashboard's Secrets page — user found and fixed a wrong key
-     value. Retried: still 502.
-  2. Discovered via web search a real, documented OpenRouter gotcha: free-tier (`:free`) models
-     reject requests with a data-policy 404 unless "Model Training" is enabled in OpenRouter
-     account privacy settings (prompt data must be shareable with the free provider). User enabled
-     it. Retried: still 502.
-  3. Isolated further by having the user test **outside our function entirely**: a plain chat
-     completion directly against OpenRouter with their real key → succeeded (200, real response) —
-     confirms the key and the model itself both work in general.
-  4. Same isolation with the exact `tools`/`tool_choice` shape our function sends (scratch script
-     in `/tmp/.../scratchpad/`, never committed — a stray earlier copy in the repo root was caught
-     and deleted before commit) → **`429 Provider returned error`**: `"google/gemma-4-31b-it:free
-     is temporarily rate-limited upstream"` (Google AI Studio backend, `is_byok: false`). This is
-     the actual root cause — not a code bug, not the earlier privacy-setting/key-typo red herrings
-     (those were real problems too, both fixed, but not *the* blocker).
-  5. Confirmed persistent, not transient: polled the real deployed function directly (bypassing the
-     user) — **10 consecutive attempts over ~3.5 minutes, all `502`**. Free-tier capacity on this
-     model is saturated right now, not a momentary blip.
-- **specs/003 and specs/004 both code-complete; specs/004 still NOT live-verified end-to-end.** The
-  deployed function and all application code are confirmed correct — the sole blocker is external
-  free-tier rate-limiting on `google/gemma-4-31b-it:free`. Was mid-way through asking the user to
-  choose between (a) switching to a different free OpenRouter model, (b) waiting longer and
-  retrying later, (c) accepting a paid model (needs Cedar authorization) — **user interrupted with
-  `/wrap-up` before answering; decision still pending next session.**
-- Task 6 note: `SkillMatrix`'s have/gap badge doesn't get the same `visually-hidden` duplicate-text
-  span `ArbitrageLadder`'s does — deliberate (avoids ambiguous double-matches when a skill appears
-  in both components at once), documented in Magnolia's completion report, not a gap.
-- `@types/jest-axe` still not authorized/added — the frozen test files surface a `jest-axe`
-  TypeScript declaration gap under `tsc --noEmit` (does not affect vitest/runtime). Revisit with
-  Cedar if a types dep is wanted.
+### Unfinished / blocked
+- **Spec 004 still NOT live-verified end-to-end** — blocked purely on OpenRouter's free-tier
+  rate limit on `google/gemma-4-31b-it:free`. **Decision still pending from the user**: (a) switch
+  to a different free OpenRouter model, (b) wait and retry later, (c) accept a paid model (needs
+  Cedar authorization for the dependency/cost change). Do not re-diagnose — root cause is
+  confirmed; this is a decision, not a bug hunt. Independent of spec 005 (template narration
+  doesn't touch the extraction call path).
+- Spec 005's work is uncommitted — needs a commit (or `/wrap-up`) before it's durable.
+- `zod` is missing from `frontend/node_modules` despite being an authorized dependency since spec
+  004 — breaks `resumeSkills.test.ts` collection (1 failing suite every vitest run). Pre-existing,
+  not caused by spec 004 or 005, but worth a `npm install` sweep next session.
+- `@types/jest-axe` still not authorized/added — frozen test files surface a `jest-axe`
+  TypeScript declaration gap under `tsc --noEmit` only (does not affect vitest/runtime).
 - Lint hook (`post-edit-lint.sh`) still can't resolve `node` (doesn't source nvm) — pre-existing
   env issue affecting every edit.
-- Two pre-existing lint items flagged but out of scope where found: long-line (`E501`) warnings
-  in `tests/test_ingest_parse.py`, unsorted imports in `tests/test_skill_core_join.py`.
-
-### Pivot evaluation — template narrator for MVP step 5 (recommendation logged, NOT yet routed to Cedar)
-- User asked for an evaluation of a proposal to replace the LLM narrator with a rule-based
-  template engine, and optionally go "100% zero-AI" by also replacing resume extraction with
-  Aho-Corasick/regex string matching. Recommendation recorded in README MVP step 5.
-- **Split verdict**: (a) narration → template engine = **recommended** — every fact the rationale
-  needs is already computed deterministically by this stage, so a template states the exact
-  math with zero latency/cost and no hallucinated-number risk; it's arguably *more* Bounded-AI
-  on-brand, and — given the confirmed spec 004 free-tier rate-limit blocker — worth adopting at
-  minimum as the deterministic fallback when the LLM call rate-limits/times-out/fails Zod. (b)
-  extraction → pure string matching = **not recommended** — unstructured NL is exactly where the
-  LLM earns its keep; string matching regresses on single-letter skills (`r` → "R&D"), negation
-  (false *have*), and contextual phrasing, and an extraction error corrupts the ranking itself.
-  Keep LLM extraction; string matching only as a degraded fallback.
-- Two nits flagged in the proposal's sample code: exact float equality on `demand_pct` (needs a
-  tolerance band) and unspecified rule precedence when a gap is both high-premium and tied-on-demand.
-- **This is a Cedar `[SPEC]`-level decision** (AI-layer contract + dependency change). Per user
-  instruction, NOT routed to Cedar yet — recommendation is logged only.
+- Two pre-existing lint items out of scope where found: long-line (`E501`) warnings in
+  `tests/test_ingest_parse.py`, unsorted imports in `tests/test_skill_core_join.py`.
 
 ### Next Steps
-- **Decide on the step-5 narrator pivot** (recommendation logged above). If accepted, route to
-  Cedar for a `[SPEC]` on the template narrator (Cypress writes template unit tests first);
-  frame it as template-first with LLM-or-template fallback, extraction untouched.
-- **Ask the user which mitigation they want** for the confirmed rate-limit blocker (see above):
-  switch model, wait and retry later, or accept a paid model (Cedar authorization needed for the
-  latter). Do not re-diagnose — root cause is confirmed, this is now a decision, not a bug hunt.
-- Once extraction genuinely returns real skills end-to-end (any mitigation), finish live-verifying
-  spec 004 in a real browser: pick a role, paste a resume, confirm have/gap renders correctly.
-- Clean up: the scratch debug script lives in `/tmp/.../scratchpad/`, not the repo — confirm no
-  other stray scratch files landed in `looking-glass/` before the next commit.
-- After spec 004 is live-verified: README MVP step 5 (LLM narration) is next, unspecced, should
-  reuse this OpenRouter/edge-function pattern.
-- Optional cleanup someday: fix the lint hook's node/nvm PATH resolution; consider `@types/jest-axe`.
+- **Commit spec 005's work** (currently uncommitted) — group into Conventional Commits per task,
+  mirroring how spec 004 was committed task-by-task.
+- Get the user's decision on the spec 004 rate-limit mitigation (see above), then finish
+  live-verifying spec 004 in a real browser (pick a role, paste a resume, confirm have/gap and the
+  new top-gap narration both render correctly against live Supabase data) — this is the first
+  chance to see spec 005 rendered against real data, not just fixtures.
+- Run `npm install` in `frontend/` to resolve the missing `zod` module and get `resumeSkills.test.ts`
+  collecting again.
+- Confirm no stray scratch files landed in `looking-glass/` before the next commit.
+- After spec 004's live-verification is unblocked, README's MVP scope (all 5 steps) is
+  code-complete — next would be broader polish/hardening, not a new numbered MVP step.
