@@ -59,9 +59,26 @@
     confirmed: the role dropdown renders, selecting a role fetches live data, and a real table of
     skills populates. The skeleton is fully verified end-to-end against production data.
 
+- **Task 5** (Cypress): characterization tests for the walking skeleton — 17 tests across
+  `roles.test.ts`, `supabaseClient.test.ts`, `App.test.tsx`, all green (`npx vitest run` → 3/3
+  files, 17/17 tests), ESLint clean. Froze: the six verbatim role strings with `" / "` spacing,
+  the accessible "Target role" select + all six options, exact `role_family` reaching
+  `fetchRoleSkillProfile`, the `skill_key: null` row rendering flagged and never dropped, and zero
+  axe violations idle + populated. No skeleton source modified. **Not yet committed.**
+  - Two divergences flagged: (1) **test-harness trap** — `vite.config.ts` lacks
+    `test.globals: true` and `src/test/setup.ts` never calls Testing Library `cleanup`, so
+    repeated `render(<App />)` accumulates in the DOM and corrupts the select's accessible name;
+    Cypress worked around it with an explicit `afterEach(cleanup)` but couldn't fix root cause
+    (both files outside its test-only restriction). (2) **lint hook broken in this env** —
+    `post-edit-lint.sh` calls `/usr/bin/env node` but node is only on the nvm PATH.
+
 ### Unfinished / Blocked
-- Tasks 5–7 of `specs/003-role-picker-matrix.md` not started (characterization tests →
-  matrix/ladder tests → Magnolia's build).
+- Tasks 6–7 of `specs/003-role-picker-matrix.md` not started (matrix/ladder tests → Magnolia's
+  build).
+- Task 5's three test files are uncommitted.
+- Recommended small Redwood follow-up before Task 7: add `cleanup` to `src/test/setup.ts` (or
+  `test.globals: true` in `vite.config.ts`) so Magnolia's tests don't inherit the accessible-name
+  corruption trap. Fix the lint hook's node resolution too.
 - README.md's MVP step 4 (resume gap layer) not specced yet.
 - Two pre-existing lint items flagged but out of scope where found: long-line (`E501`) warnings
   in `tests/test_ingest_parse.py`, unsorted imports in `tests/test_skill_core_join.py`.
@@ -70,8 +87,8 @@
 - Nothing from `specs/003-role-picker-matrix.md`'s work is committed yet.
 
 ### Next Steps
-- Dispatch Task 5 to Cypress: characterization tests freezing the skeleton's observed behavior
-  (role list, fetch-on-select, null-row handling, zero axe violations) before Magnolia builds on
-  top of it.
+- Commit Task 5's three characterization test files (Conventional Commit, `test:` scope).
+- Decide: dispatch the small Redwood harness fix (`cleanup`/`test.globals`) first, or fold it into
+  Task 6.
 - Continue the sequential pipeline: Task 6 (Cypress, matrix/ladder tests) → Task 7 (Magnolia, the
   actual accessible matrix + ladder build).
