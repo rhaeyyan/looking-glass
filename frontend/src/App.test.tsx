@@ -19,14 +19,16 @@ vi.mock('./lib/supabaseClient', () => ({
   fetchRoleSkillProfile: vi.fn(),
 }))
 
-// Task 5 (spec 004): the resume-paste flow's only LLM boundary is `extractResumeSkills` — mock it
-// wholesale, exactly like `fetchRoleSkillProfile` above. `computeSkillGap` (frontend/src/lib/gap.ts)
-// is NEVER mocked here: it is 100% deterministic, so these tests exercise the REAL function to
-// prove the rendered have/gap state traces verbatim to its output, never to a raw LLM field
-// rendered directly (the Bounded-AI boundary this SPEC exists to lock).
+// Task 4a (spec 006): `extractResumeSkills` is now a pure, synchronous, zero-I/O function
+// (`(resumeText: string, vocabulary: string[]) => string[]`) — no LLM, no Promise, no schema
+// error class. It is still mocked wholesale here (exactly like `fetchRoleSkillProfile` above) so
+// these tests control its return value directly via `mockReturnValue`, never
+// `mockResolvedValue`/`mockRejectedValue`. `computeSkillGap` (frontend/src/lib/gap.ts) is NEVER
+// mocked here: it is 100% deterministic, so these tests exercise the REAL function to prove the
+// rendered have/gap state traces verbatim to its output, never to a raw extracted field rendered
+// directly (the Bounded-AI boundary this SPEC exists to lock).
 vi.mock('./lib/resumeSkills', () => ({
   extractResumeSkills: vi.fn(),
-  ExtractionSchemaError: class ExtractionSchemaError extends Error {},
 }))
 
 import { fetchRoleSkillProfile } from './lib/supabaseClient'
@@ -197,30 +199,33 @@ describe('<App /> walking skeleton', () => {
   })
 })
 
-// RED phase (Task 5 of specs/004) — `<App />` does not render a resume textarea/submit control
-// yet. Task 6 (Magnolia) wires it up per this contract (see [COMPLIANCE-REPORT]):
+// RED phase (Task 4a of specs/006) — `<App />` still calls the OLD, one-argument, `await`-ed
+// `extractResumeSkills(resumeText)` (spec 004's LLM-shaped contract). Task 4b (Redwood) rewires
+// it per this contract (see [COMPLIANCE-REPORT]):
 //   - resume input:  a <textarea> with accessible name "Resume text" (e.g. a <label htmlFor=...>).
 //   - submit control: a <button> (inside a <form>, so Enter-to-submit works) with accessible name
 //                      "Find my gaps".
-//   - on submit: `extractResumeSkills(<exact textarea value>)` is called, then the real
-//                `computeSkillGap(<current role's rows>, <extractResumeSkills result>)` — never a
-//                mocked/stubbed gap function — and its `haveSkillKeys` output is threaded into
-//                SkillMatrix / ArbitrageLadder / SkillDataTable exactly as those components' own
-//                test files specify.
+//   - on submit: `extractResumeSkills(<exact textarea value>, rows.map(r => r.skill_name_raw))`
+//                is called SYNCHRONOUSLY (no `await`, no pending state, no throw path over
+//                already-validated inputs — spec 006's extractor is pure and never throws), then
+//                the real `computeSkillGap(<current role's rows>, <extractResumeSkills result>)`
+//                — never a mocked/stubbed gap function — and its `haveSkillKeys` output is
+//                threaded into SkillMatrix / ArbitrageLadder / SkillDataTable exactly as those
+//                components' own test files specify.
 //   - client-side validation (no `extractResumeSkills` call is made in either case):
 //       - no role selected yet -> inline `role="alert"` reading exactly
 //         "Select a target role before finding your gaps."
 //       - empty/whitespace-only resume text -> inline `role="alert"` reading exactly
 //         "Paste your resume text before finding your gaps."
-//   - pending extraction -> `role="status"` reading exactly "Extracting skills from your resume…"
-//   - extraction failure -> `role="alert"` reading exactly
-//     "Could not extract skills from your resume: <error message>", app does not crash, and the
-//     still-visible role profile (table/matrix/ladder) remains rendered underneath.
+//   - REMOVED (spec 006): the pending-extraction `role="status"` ("Extracting skills from your
+//     resume…") and the extraction-failure `role="alert"` ("Could not extract skills from your
+//     resume: …") no longer exist — a pure synchronous function has neither a pending window nor
+//     a realistic throw path over already-validated inputs. These states are deleted from the
+//     DOM entirely, not restyled; their tests are deleted below, not updated to new copy.
 const RESUME_TEXTAREA_NAME = 'Resume text'
 const SUBMIT_BUTTON_NAME = 'Find my gaps'
 const ROLE_REQUIRED_MESSAGE = 'Select a target role before finding your gaps.'
 const RESUME_REQUIRED_MESSAGE = 'Paste your resume text before finding your gaps.'
-const LOADING_MESSAGE = 'Extracting skills from your resume…'
 
 // Selects a role without assuming any particular fetched-row shape — callers that need the table
 // present set `mockFetch`'s resolution themselves before calling this. Waits on the select's own
@@ -268,57 +273,38 @@ describe('<App /> resume input + have/gap', () => {
     expect(mockExtract).not.toHaveBeenCalled()
   })
 
-  it('calls extractResumeSkills with the exact textarea value on submit', async () => {
-    mockExtract.mockResolvedValue(['PostgreSQL'])
+  it("calls extractResumeSkills with the exact textarea value and the current role's skill vocabulary on submit", async () => {
+    const roleRows = [
+      makeRow({ skill_name_raw: 'PostgreSQL' }),
+      makeRow({ skill_name_raw: 'gRPC', skill_key: null }),
+    ]
+    mockFetch.mockResolvedValue(roleRows)
+    mockExtract.mockReturnValue(['PostgreSQL'])
     const user = userEvent.setup()
     render(<App />)
     await selectBackendRole(user)
+    // Wait for the role's rows to actually be in state before submitting, so the vocabulary
+    // argument below reflects the loaded rows rather than a still-empty initial array.
+    await screen.findByRole('table')
 
     const resumeText = 'Built services with PostgreSQL and gRPC.'
     await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), resumeText)
     await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
 
     expect(mockExtract).toHaveBeenCalledTimes(1)
-    expect(mockExtract).toHaveBeenCalledWith(resumeText)
-  })
-
-  it('shows a role="status" loading state while extraction is pending', async () => {
-    let resolveExtract: (skills: string[]) => void = () => {}
-    mockExtract.mockReturnValue(
-      new Promise((resolve) => {
-        resolveExtract = resolve
-      }),
+    expect(mockExtract).toHaveBeenCalledWith(
+      resumeText,
+      roleRows.map((row) => row.skill_name_raw),
     )
-    const user = userEvent.setup()
-    render(<App />)
-    await selectBackendRole(user)
-
-    await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'PostgreSQL')
-    await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
-
-    expect(await screen.findByRole('status', { name: '' })).toHaveTextContent(LOADING_MESSAGE)
-
-    resolveExtract([])
   })
 
-  it('surfaces an extraction failure via role="alert" without crashing, keeping the role profile visible', async () => {
-    mockFetch.mockResolvedValue([makeRow({ skill_name_raw: 'PostgreSQL' })])
-    mockExtract.mockRejectedValue(new Error('rate limited'))
-    const user = userEvent.setup()
-    render(<App />)
-    await selectBackendRole(user)
+  // Note: no loading/error state tests exist here (spec 006, Task 4a) — extractResumeSkills is
+  // now pure and synchronous, so `App.tsx`'s pending-extraction `role="status"` and
+  // extraction-failure `role="alert"` regions are removed from the DOM entirely, not restyled.
+  // Their absence is proven by App.tsx no longer containing that dead code once Task 4b lands,
+  // not by a runtime test failure here (a deleted test can't "fail").
 
-    await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'PostgreSQL')
-    await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
-
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('Could not extract skills from your resume: rate limited')
-    // The app did not crash: the role profile table is still visible underneath.
-    expect(screen.getByRole('table')).toBeInTheDocument()
-    expect(screen.getByRole('rowheader', { name: 'PostgreSQL' })).toBeInTheDocument()
-  })
-
-  it('renders the deterministic have/gap partition from computeSkillGap, never a raw LLM field', async () => {
+  it('renders the deterministic have/gap partition from computeSkillGap, never a raw extraction field', async () => {
     mockFetch.mockResolvedValue([
       makeRow({ skill_name_raw: 'PostgreSQL', skill_key: 'postgresql' }),
       makeRow({
@@ -334,7 +320,7 @@ describe('<App /> resume input + have/gap', () => {
     ])
     // extractResumeSkills only ever returns a flat skill-string list — computeSkillGap (the real,
     // unmocked function) is what actually derives the have/gap partition from it.
-    mockExtract.mockResolvedValue(['PostgreSQL'])
+    mockExtract.mockReturnValue(['PostgreSQL'])
     const user = userEvent.setup()
     render(<App />)
     await selectBackendRole(user)
@@ -347,38 +333,6 @@ describe('<App /> resume input + have/gap', () => {
     await screen.findByText(/you already have this skill/i)
     expect(screen.getByText(/you already have this skill/i)).toBeInTheDocument()
     expect(screen.getByText(/you do not have this skill yet/i)).toBeInTheDocument()
-  })
-
-  it('has no axe violations in the loading state', async () => {
-    let resolveExtract: (skills: string[]) => void = () => {}
-    mockExtract.mockReturnValue(
-      new Promise((resolve) => {
-        resolveExtract = resolve
-      }),
-    )
-    const user = userEvent.setup()
-    const { container } = render(<App />)
-    await selectBackendRole(user)
-
-    await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'PostgreSQL')
-    await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
-    await screen.findByRole('status', { name: '' })
-
-    expect(await axe(container)).toHaveNoViolations()
-    resolveExtract([])
-  })
-
-  it('has no axe violations in the extraction-error state', async () => {
-    mockExtract.mockRejectedValue(new Error('rate limited'))
-    const user = userEvent.setup()
-    const { container } = render(<App />)
-    await selectBackendRole(user)
-
-    await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'PostgreSQL')
-    await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
-    await screen.findByRole('alert')
-
-    expect(await axe(container)).toHaveNoViolations()
   })
 
   it('has no axe violations in the populated have/gap state', async () => {
@@ -395,7 +349,7 @@ describe('<App /> resume input + have/gap', () => {
         d3_pct_of_all_postings: null,
       }),
     ])
-    mockExtract.mockResolvedValue(['PostgreSQL'])
+    mockExtract.mockReturnValue(['PostgreSQL'])
     const user = userEvent.setup()
     const { container } = render(<App />)
     await selectBackendRole(user)
@@ -497,7 +451,7 @@ describe('<App /> top-gap narration (spec 005)', () => {
 
   it('renders the top-gap narration in a labelled section with byte-identical narrative text', async () => {
     mockFetch.mockResolvedValue(BACKEND_ROWS)
-    mockExtract.mockResolvedValue([])
+    mockExtract.mockReturnValue([])
     const user = userEvent.setup()
     render(<App />)
     await selectBackendRole(user)
@@ -527,7 +481,7 @@ describe('<App /> top-gap narration (spec 005)', () => {
 
   it('renders a distinct, positive role="status" message (never a blank or stale region) when narrateTopGap returns null', async () => {
     mockFetch.mockResolvedValue(BACKEND_ROWS)
-    mockExtract.mockResolvedValue(['Rust', 'PostgreSQL'])
+    mockExtract.mockReturnValue(['Rust', 'PostgreSQL'])
     const user = userEvent.setup()
     render(<App />)
     await selectBackendRole(user)
@@ -546,13 +500,14 @@ describe('<App /> top-gap narration (spec 005)', () => {
     expect(screen.queryByRole('region', { name: /Rust/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: /PostgreSQL/i })).not.toBeInTheDocument()
 
-    // No competing role="status" collision with the (by-now-resolved) extraction-loading status.
+    // Exactly one role="status" region exists (the "no gaps" message) — no stray extraction
+    // loading status lingers, since spec 006's extractResumeSkills has no pending state at all.
     expect(screen.getAllByRole('status')).toHaveLength(1)
   })
 
   it('replaces (never stacks) the narration when re-submitting a new resume under the same role', async () => {
     mockFetch.mockResolvedValue(BACKEND_ROWS)
-    mockExtract.mockResolvedValue([])
+    mockExtract.mockReturnValue([])
     const user = userEvent.setup()
     render(<App />)
     await selectBackendRole(user)
@@ -563,7 +518,7 @@ describe('<App /> top-gap narration (spec 005)', () => {
     await screen.findByRole('region', { name: /Rust/i })
 
     // Re-submit: the resume now shows Rust, so PostgreSQL becomes the new top gap.
-    mockExtract.mockResolvedValue(['Rust'])
+    mockExtract.mockReturnValue(['Rust'])
     await user.clear(textarea)
     await user.type(textarea, 'I know Rust now')
     await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
@@ -577,7 +532,7 @@ describe('<App /> top-gap narration (spec 005)', () => {
 
   it('replaces (never stacks) the narration when switching to a different role and resubmitting', async () => {
     mockFetch.mockResolvedValueOnce(BACKEND_ROWS)
-    mockExtract.mockResolvedValue([])
+    mockExtract.mockReturnValue([])
     const user = userEvent.setup()
     render(<App />)
     await selectBackendRole(user)
@@ -605,7 +560,7 @@ describe('<App /> top-gap narration (spec 005)', () => {
 
   it('has no axe violations with the narration region present in the "has a top gap" state', async () => {
     mockFetch.mockResolvedValue(BACKEND_ROWS)
-    mockExtract.mockResolvedValue([])
+    mockExtract.mockReturnValue([])
     const user = userEvent.setup()
     const { container } = render(<App />)
     await selectBackendRole(user)
@@ -619,7 +574,7 @@ describe('<App /> top-gap narration (spec 005)', () => {
 
   it('has no axe violations with the narration region present in the "no gaps" state', async () => {
     mockFetch.mockResolvedValue(BACKEND_ROWS)
-    mockExtract.mockResolvedValue(['Rust', 'PostgreSQL'])
+    mockExtract.mockReturnValue(['Rust', 'PostgreSQL'])
     const user = userEvent.setup()
     const { container } = render(<App />)
     await selectBackendRole(user)
