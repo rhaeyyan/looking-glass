@@ -114,12 +114,24 @@
   gaps"`, inline `role="alert"` validation (no role selected / empty resume — blocks the call),
   `role="status"` `"Extracting skills from your resume…"` while pending, `role="alert"` on failure
   (app + role profile stay visible).
+- **Task 6** (Magnolia, GREEN, `6325ff6`) — **completes spec 004.** Wired the resume
+  textarea/submit into `App.tsx`; threaded `haveSkillKeys` through the three matrix components
+  exactly per Task 5's contract, verified against the real diff (not just the report): omitted
+  prop → byte-identical rendering; provided → `data-have` + visible `Have`/`Gap` badge + aria-label
+  suffix, layered on the existing shape encoding via a reserved status color ramp (distinct from
+  the categorical series ramp, `dataviz` skill invoked first). 71/71 tests pass, independently
+  re-verified; exactly the 5 spec-authorized files touched. Resume gap layer (README MVP step 4)
+  is now feature-complete end-to-end: pick role → paste resume → extract (OpenRouter) → Zod-gated
+  → deterministic gap → have/gap rendered on the matrix/ladder/table.
 
 ### Unfinished / Blocked
-- **specs/003 fully complete and live-verified.**
-- Task 7's matrix currently encodes color as reinforcement only (no have/gap field on
-  `RoleSkillRow` yet). Step 4's resume matching is where the have-vs-gap color+shape binary gets
-  wired in.
+- **specs/003 and specs/004 both fully complete.** specs/004 not yet live-verified in a real
+  browser (unlike 003) — the edge function is undeployed, so `extractResumeSkills` has never been
+  exercised against a live OpenRouter call. Deploy steps are in
+  `supabase/functions/extract-resume-skills/README.md`.
+- Task 6 note: `SkillMatrix`'s have/gap badge doesn't get the same `visually-hidden` duplicate-text
+  span `ArbitrageLadder`'s does — deliberate (avoids ambiguous double-matches when a skill appears
+  in both components at once), documented in Magnolia's completion report, not a gap.
 - `@types/jest-axe` still not authorized/added — the frozen test files surface a `jest-axe`
   TypeScript declaration gap under `tsc --noEmit` (does not affect vitest/runtime). Revisit with
   Cedar if a types dep is wanted.
@@ -129,11 +141,11 @@
   in `tests/test_ingest_parse.py`, unsorted imports in `tests/test_skill_core_join.py`.
 
 ### Next Steps
-- Continue `specs/004-resume-gap-layer.md`: **Task 6** (Magnolia, GREEN, final task) — wire the
-  resume textarea/submit into `App.tsx` and thread `haveSkillKeys` through
-  `SkillMatrix`/`ArbitrageLadder`/`SkillDataTable` per Task 5's frozen contract (above). Must
-  invoke `dataviz` + `a11y-sec-2026` skills first, same as spec 003's Task 7. Completes spec 004.
-- The edge function is still undeployed — no live secret set. Deploy + manual verification steps
-  are in `supabase/functions/extract-resume-skills/README.md` for the human to run whenever ready
-  (not blocking Task 6, which mocks the extraction call in tests).
+- **Deploy the edge function and live-verify spec 004** (README MVP step 4): `supabase secrets set
+  OPENROUTER_API_KEY=...`, `supabase functions deploy extract-resume-skills`, then exercise the
+  full flow in a real browser — pick a role, paste a resume, confirm have/gap renders correctly
+  against a live OpenRouter response. Steps documented in the function's README.
+- After that: README MVP step 5 (LLM narration of the top gap) is the next unbuilt slice — not
+  specced yet, should reuse the OpenRouter/edge-function pattern established here rather than
+  re-deriving it (noted in spec 004's Task 1 amendment).
 - Optional cleanup someday: fix the lint hook's node/nvm PATH resolution; consider `@types/jest-axe`.
