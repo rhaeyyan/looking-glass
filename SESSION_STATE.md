@@ -115,6 +115,15 @@
   collapse whitespace/`/`/`-`/`_`, keep `#`/`+`/`.`, no alias expansion). Output row order must
   reuse `ArbitrageLadder`'s exact null-scores-last descending-`arbitrage_score` sort — not a second
   drifting implementation.
+- **Task 4** (Redwood, GREEN): built `frontend/src/lib/{resumeSkills,gap,normalize}.ts` +
+  added `zod` (^3, the one authorized dependency) to `frontend/package.json`. Contract verified
+  against the actual code, not just the report: `normalizeSkillName`'s regex
+  (`/[\s/_-]+/g`) matches `src/ingest/normalize.py`'s `_SEPARATOR_RUN_RE` exactly, and `skill_key`
+  is confirmed (`role_profile.py`) to already be `normalize_skill(skill_name_raw)`, so comparing it
+  directly against a normalized resume skill (no double-normalization) is correct.
+  `computeSkillGap` reuses `ArbitrageLadder`'s literal `byArbitrageDesc` function, zero score
+  computation. 49/49 tests pass (28 pre-existing + 21 new), independently re-verified. Committed
+  `cc819b5`.
 
 ### Unfinished / Blocked
 - **specs/003 fully complete and live-verified.**
@@ -130,11 +139,11 @@
   in `tests/test_ingest_parse.py`, unsorted imports in `tests/test_skill_core_join.py`.
 
 ### Next Steps
-- Continue `specs/004-resume-gap-layer.md`: **Task 4** (Redwood, GREEN) — build
-  `extractResumeSkills`/`computeSkillGap`/`normalizeSkillName` per Task 3's frozen contract (above),
-  add `zod` to `frontend/package.json`. Then Task 5 (Cypress, RED) → Task 6 (Magnolia, GREEN: wire
-  resume input + have/gap into the matrix).
+- Continue `specs/004-resume-gap-layer.md`: **Task 5** (Cypress, RED) — failing tests for the
+  resume-paste input flow and have/gap visual state on `App`/`SkillMatrix`/`ArbitrageLadder`. Then
+  Task 6 (Magnolia, GREEN: wire resume input + have/gap into the matrix, invoking `dataviz` +
+  `a11y-sec-2026` first).
 - The edge function is still undeployed — no live secret set. Deploy + manual verification steps
   are in `supabase/functions/extract-resume-skills/README.md` for the human to run whenever ready
-  (not blocking Task 4, which mocks the function call).
+  (not blocking Task 5, which mocks the extraction call).
 - Optional cleanup someday: fix the lint hook's node/nvm PATH resolution; consider `@types/jest-axe`.
