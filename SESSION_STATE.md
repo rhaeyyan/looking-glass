@@ -88,13 +88,28 @@
     `ArbitrageLadder`: one `data-testid="ladder-item"` per row (null row kept), each
     button-like/tabbable/named; ordered descending by `arbitrage_score`, null-score rows last;
     demand-only row flagged.
+- **Task 7** (Magnolia, GREEN — completes spec 003): built `SkillMatrix.tsx`,
+  `ArbitrageLadder.tsx`, `SkillDataTable.tsx`, `matrix.css`, wired into `App.tsx` (5 files).
+  Hand-rolled SVG/DOM quadrant scatter (x=demand, y=scarcity, bubble=`pct_of_role`) + descending
+  arbitrage ladder + shared accessible `<table>`; **no charting dependency added** (Rule 8 honored;
+  `dataviz` + `a11y-sec-2026` skills invoked first). WCAG 2.2 AA: per-point `data-shape` glyphs
+  (non-color encoding), native `<button>` points/ladder items, caption + `th scope=col` table incl.
+  the demand-only null row (flagged, kept in table+ladder, excluded from scatter points),
+  `prefers-reduced-motion` gated CSS, zero axe violations. **Full suite 28/28 green — independently
+  re-verified in the main session** (`npx vitest run`). Committed `f89fb5b`. **specs/003 is now
+  fully complete.**
 
 ### Unfinished / Blocked
-- Task 7 of `specs/003-role-picker-matrix.md` not started (Magnolia builds the matrix + ladder to
-  make Task 6's 11 RED tests pass).
+- **specs/003 complete.** Next unbuilt slice is README MVP step 4 (resume gap layer) — not specced
+  yet; Cedar needs to turn it into a SPEC.
+- Task 7's matrix currently encodes color as reinforcement only (no have/gap field on
+  `RoleSkillRow` yet). Step 4's resume matching is where the have-vs-gap color+shape binary gets
+  wired in.
+- `@types/jest-axe` still not authorized/added — the frozen test files surface a `jest-axe`
+  TypeScript declaration gap under `tsc --noEmit` (does not affect vitest/runtime). Revisit with
+  Cedar if a types dep is wanted.
 - Lint hook (`post-edit-lint.sh`) still can't resolve `node` (doesn't source nvm) — pre-existing
   env issue affecting every edit.
-- README.md's MVP step 4 (resume gap layer) not specced yet.
 - Two pre-existing lint items flagged but out of scope where found: long-line (`E501`) warnings
   in `tests/test_ingest_parse.py`, unsorted imports in `tests/test_skill_core_join.py`.
 - Minor open item: `@types/jest-axe` not authorized/added — worked around with a scoped
@@ -102,7 +117,10 @@
 - Nothing from `specs/003-role-picker-matrix.md`'s work is committed yet.
 
 ### Next Steps
-- Dispatch Task 7 to Magnolia: build `SkillMatrix`, `ArbitrageLadder`, `SkillDataTable`, wire into
-  `App.tsx`, one styling file. Must invoke `dataviz` + `a11y-sec-2026` skills first and honor the
-  frozen component contract above; make all 11 RED tests pass without editing them.
-- Optional cleanup someday: fix the lint hook's node/nvm PATH resolution.
+- **MVP step 4 (resume gap layer)**: route to Cedar for a `[SPEC]` — paste-resume → Claude skill
+  extraction (Bounded-AI: LLM extracts, deterministic layer computes the gap) → have/gap split
+  rendered on the existing matrix. This is the first LLM-in-the-loop slice, so the Bounded-AI +
+  Zero-Trust (no resume PII in commits/logs) gates apply hard.
+- Live browser re-verification of the new matrix against production data (as was done for the
+  skeleton) would be worthwhile before calling step 3 shippable.
+- Optional cleanup someday: fix the lint hook's node/nvm PATH resolution; consider `@types/jest-axe`.
