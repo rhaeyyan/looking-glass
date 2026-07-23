@@ -1,4 +1,5 @@
 import type { RoleSkillRow } from '../../lib/supabaseClient'
+import { formatNum } from '../../lib/format'
 
 // The mandated text alternative for the demand×scarcity matrix (WCAG 2.2 AA data-viz rule:
 // the numbers a chart encodes must also be available as an accessible table). Every value is
@@ -9,10 +10,6 @@ import type { RoleSkillRow } from '../../lib/supabaseClient'
 // visible, not silent.
 
 const DEMAND_ONLY_FLAG = 'Demand only, scarcity unknown'
-
-function num(value: number | null): string {
-  return value === null ? '—' : String(value)
-}
 
 export function SkillDataTable({ rows, caption }: { rows: RoleSkillRow[]; caption: string }) {
   return (
@@ -38,9 +35,9 @@ export function SkillDataTable({ rows, caption }: { rows: RoleSkillRow[]; captio
               <th scope="row">{row.skill_name_raw}</th>
               <td>{row.pct_of_role}%</td>
               <td>{row.postings_with_skill}</td>
-              <td>{num(row.demand_score)}</td>
-              <td>{num(row.scarcity_index)}</td>
-              <td>{num(row.arbitrage_score)}</td>
+              <td>{formatNum(row.demand_score)}</td>
+              <td>{formatNum(row.scarcity_index)}</td>
+              <td>{formatNum(row.arbitrage_score)}</td>
               <td>
                 {row.d3_corroborated === null ? '—' : row.d3_corroborated ? 'Yes' : 'No'}
               </td>

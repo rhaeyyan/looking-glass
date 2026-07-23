@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import type { RoleSkillRow } from '../../lib/supabaseClient'
+import { formatNum } from '../../lib/format'
 import { SkillDataTable } from './SkillDataTable'
 import './matrix.css'
 
@@ -75,8 +76,8 @@ export function SkillMatrix({ rows }: { rows: RoleSkillRow[] }) {
                 data-testid="scatter-point"
                 data-shape={shape}
                 className="matrix-point"
-                aria-label={`${row.skill_name_raw}: demand ${row.demand_score}, scarcity ${row.scarcity_index}, market share ${row.pct_of_role}% of role postings${
-                  row.arbitrage_score !== null ? `, arbitrage score ${row.arbitrage_score}` : ''
+                aria-label={`${row.skill_name_raw}: demand ${formatNum(row.demand_score)}, scarcity ${formatNum(row.scarcity_index)}, market share ${row.pct_of_role}% of role postings${
+                  row.arbitrage_score !== null ? `, arbitrage score ${formatNum(row.arbitrage_score)}` : ''
                 }`}
                 style={{
                   left: `${row.demand_score}%`,

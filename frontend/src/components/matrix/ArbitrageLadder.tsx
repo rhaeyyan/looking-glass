@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import type { RoleSkillRow } from '../../lib/supabaseClient'
+import { formatNum } from '../../lib/format'
 import './matrix.css'
 
 // Arbitrage ladder: the ranked gap list — every role skill as a bar, ordered by the
@@ -45,7 +46,7 @@ export function ArbitrageLadder({ rows }: { rows: RoleSkillRow[] }) {
             : 0
           const label = demandOnly
             ? `Rank ${i + 1}: ${row.skill_name_raw}, ${DEMAND_ONLY_FLAG}`
-            : `Rank ${i + 1}: ${row.skill_name_raw}, arbitrage score ${row.arbitrage_score}`
+            : `Rank ${i + 1}: ${row.skill_name_raw}, arbitrage score ${formatNum(row.arbitrage_score)}`
           return (
             <li key={row.skill_key ?? row.skill_name_raw}>
               <button type="button" data-testid="ladder-item" className="ladder-item" aria-label={label}>
@@ -62,7 +63,7 @@ export function ArbitrageLadder({ rows }: { rows: RoleSkillRow[] }) {
                 )}
                 {!demandOnly && (
                   <span className="ladder-score" aria-hidden="true">
-                    {row.arbitrage_score}
+                    {formatNum(row.arbitrage_score)}
                   </span>
                 )}
               </button>
