@@ -21,7 +21,11 @@ arbitrage-ranked gap list → LLM narrates the top move.**
 ## Stack
 - **Data / DB**: Supabase (Postgres). Deterministic scoring in SQL / Python 3.12.
 - **Frontend**: React + TypeScript (Vite SPA); ESLint + Prettier.
-- **AI layer**: Claude for resume skill-extraction and result narration **only** (bounded, non-numeric); structured output schema-validated (Zod/Pydantic).
+- **AI layer**: OpenRouter (`google/gemma-4-31b-it:free`, OpenAI-compatible endpoint, native
+  function-calling) for resume skill-extraction and result narration **only** (bounded,
+  non-numeric); structured output schema-validated (Zod/Pydantic). Model/provider is swappable —
+  no assumption elsewhere in the codebase depends on this being Claude specifically, only that it
+  is a single, server-side-proxied, bounded LLM call.
 - **Test**: `pytest` (Python), `vitest` + `@testing-library/react` + `axe-core` (TS).
 - **Lint**: `ruff` (Python), `eslint` + `eslint-plugin-jsx-a11y` (TS).
 - **Deploy**: Vercel (frontend), Supabase hosted (DB).

@@ -148,7 +148,8 @@ coverage), and any forward-looking forecast axis.
 
 - **Data / DB** — Supabase (Postgres); deterministic scoring in SQL / Python.
 - **Frontend** — React + TypeScript; the demand × scarcity matrix.
-- **AI layer** — Claude for resume skill-extraction and result narration only (bounded, non-numeric).
+- **AI layer** — OpenRouter (`google/gemma-4-31b-it:free`) for resume skill-extraction and result
+  narration only (bounded, non-numeric).
 
 ## Status
 
