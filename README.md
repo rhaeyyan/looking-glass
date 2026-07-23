@@ -30,9 +30,13 @@ A whole-market "explore" mode (all skills, no target role) is available as a sec
 
 ### Bounded AI, by design
 
-The Arbitrage Score is **computed deterministically** in SQL/Python — never estimated by the
-LLM. The language model's only job is to *narrate* the result ("learn X before Y, here's
-why") and to extract skills from the resume. Numbers come from data; words come from the model.
+The Arbitrage Score is **computed deterministically** in SQL/Python — never estimated by a
+language model. As of specs 005 and 006, this bound is total: both result narration ("learn X
+before Y, here's why") and resume-skill extraction are also fully deterministic (a template
+engine and vocabulary-scoped regex matching, respectively), so the app currently makes **zero
+LLM calls anywhere**. The bounded-single-call mechanism (a server-side-proxied, schema-validated,
+swappable-provider LLM call) remains the documented pattern-in-reserve should a future feature
+need it — narration and extraction just don't need it today.
 
 ## How the score works
 
@@ -130,25 +134,22 @@ The thinnest end-to-end slice that proves the core value hypothesis, in build or
    highlight *your* gaps on the matrix, ranked by Arbitrage Score.
 5. **Narrative** — a short "learn X before Y, here's why" rationale for the top gap.
 
-> **Recommended pivot for step 5 (not yet spec'd).** Replace the LLM narrator with a
-> **deterministic template engine**. By this stage every fact the rationale needs — demand,
-> `scarcity_index`, salary premium, days-open, the exact rank ordering — is already computed,
-> so a small template function can state the *precise* mathematical reason one gap outranks
-> another with zero latency, zero cost, and zero risk of a hallucinated number (the exact
-> Bounded-AI hazard this project guards against). For a demo whose credibility rests on "the
-> numbers are real," a template narrator is arguably *more* on-brand than generative prose, and
-> it removes the runtime dependency on a flaky free-tier model (see the spec 004 rate-limit
-> blocker). Given that blocker, the template path is worth adopting even just as the
-> deterministic fallback when the LLM call rate-limits, times out, or fails schema validation.
->
-> **Scope this to narration only.** The sibling proposal to also drop the LLM from *resume
-> extraction* (pure string / Aho-Corasick matching for "100% zero-AI") is **not** recommended:
-> extraction consumes unstructured natural language, where fuzzy matching regresses on
-> single-letter skills (`r` matches "R&D"), negation ("no Kubernetes experience" → false
-> *have*), and contextual phrasing — and an extraction error corrupts the ranking itself, not
-> just the wording. Keep the bounded LLM call for extraction (string matching only ever as a
-> degraded fallback). This is a Cedar `[SPEC]`-level architecture/dependency decision, not a
-> drop-in edit.
+> **Steps 4 and 5 are both deterministic (specs 005, 006) — first zero-LLM state since spec
+> 001.** Step 5's narration was replaced with a deterministic template engine (spec 005): every
+> fact the rationale needs — demand, `scarcity_index`, salary premium, days-open, the exact rank
+> ordering — is already computed by this stage, so a template function states the *precise*
+> mathematical reason one gap outranks another with zero latency, zero cost, and zero risk of a
+> hallucinated number. Step 4's extraction was originally kept LLM-backed (fuzzy string matching
+> was rejected as a "100% zero-AI" pivot, since it regresses on single-letter skills — `r`
+> matching "R&D" — negation — "no Kubernetes experience" reading as a false *have* — and
+> contextual phrasing) — but that decision was later reversed once the LLM path's upstream
+> free-tier rate limit made live verification impractical. Spec 006 replaced it with
+> vocabulary-scoped regex matching (matching only against the *selected role's* own skill list,
+> not the full skill catalog), with the two flagged regressions given concrete, bounded
+> mitigations (lookaround-based word-boundary matching; a negation-cue list scanned in a
+> clause-bounded window) — and their honest *residual* limits documented rather than claimed
+> solved (e.g. `r` still false-matches inside "R&D"; a negation cue outside the scan window still
+> slips through). No alias/synonym folding was added — that constraint is unchanged from spec 004.
 
 ### The visual matrix
 
@@ -156,7 +157,7 @@ Not a text list — the interface is the product:
 
 - **Quadrant scatter** — x = demand, y = scarcity, bubble size = market share, color = have vs.
   gap. The top-right (high demand + high scarcity) is the "learn this next" zone.
-- **Arbitrage ladder** — a ranked bar list of *your* gaps by score, each with the one-line LLM rationale.
+- **Arbitrage ladder** — a ranked bar list of *your* gaps by score, each with a one-line rationale.
 
 ### Explicitly out of scope for V1
 
@@ -168,9 +169,10 @@ coverage), and any forward-looking forecast axis.
 
 - **Data / DB** — Supabase (Postgres); deterministic scoring in SQL / Python.
 - **Frontend** — React + TypeScript; the demand × scarcity matrix.
-- **AI layer** — OpenRouter (`google/gemma-4-31b-it:free`) for resume skill-extraction and result
-  narration only (bounded, non-numeric). *Narration is a candidate to move to a deterministic
-  template engine (see MVP step 5); extraction stays LLM-backed.*
+- **AI layer** — none currently in the runtime path (specs 005/006 made both narration and
+  resume-skill extraction fully deterministic). The bounded-single-call mechanism — a server-
+  side-proxied, schema-validated, swappable-provider LLM call (bounded, non-numeric) — remains
+  documented as the pattern-in-reserve should a future feature need one.
 
 ## Status
 

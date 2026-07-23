@@ -10,7 +10,9 @@ High-Leverage Pivot Engine. Read this before working in the repo. Product spec l
 Looking Glass ranks a user's skill gaps toward a **target role** by a deterministic
 **Arbitrage Score** (demand × scarcity) computed across three Kaggle datasets, then routes them
 to the highest-leverage skill first. The primary flow: **pick target role → paste resume →
-arbitrage-ranked gap list → LLM narrates the top move.**
+arbitrage-ranked gap list → the top move is narrated for the user.** As of specs 005/006, both
+the narration and the resume-skill extraction steps are fully deterministic — no LLM call
+anywhere in the current runtime path (see the AI layer entry below).
 
 **Data invariants (verified against source CSVs — do not drift without re-validating):**
 - **D1 + D2 = 141-skill core** (skill-scarcity-index + skill-demand-index; same publisher, perfect join). Carries demand, `scarcity_score`, salary premium, days-open, skill_group. D2's own distinct-skill count is 148 (7 skills D1 lacks: `duckdb`, `qlik`, `r`, `ray`, `streamlit`, `supabase`, `talend`). Re-validated against the raw CSVs on 2026-07-22 — corrected from the earlier 139/147; both figures are now locked in as passing, enforced assertions in `tests/test_data_invariants.py`.
@@ -21,11 +23,13 @@ arbitrage-ranked gap list → LLM narrates the top move.**
 ## Stack
 - **Data / DB**: Supabase (Postgres). Deterministic scoring in SQL / Python 3.12.
 - **Frontend**: React + TypeScript (Vite SPA); ESLint + Prettier.
-- **AI layer**: OpenRouter (`google/gemma-4-31b-it:free`, OpenAI-compatible endpoint, native
-  function-calling) for resume skill-extraction and result narration **only** (bounded,
-  non-numeric); structured output schema-validated (Zod/Pydantic). Model/provider is swappable —
-  no assumption elsewhere in the codebase depends on this being Claude specifically, only that it
-  is a single, server-side-proxied, bounded LLM call.
+- **AI layer**: none currently in the runtime path. Resume skill-extraction (spec 006) is
+  deterministic vocabulary-scoped regex matching; result narration (spec 005) is a deterministic
+  template engine. The bounded-single-call mechanism — OpenAI-compatible endpoint, native
+  function-calling, structured output schema-validated (Zod/Pydantic), single server-side-proxied
+  bounded LLM call, swappable model/provider — remains documented here as the pattern-in-reserve
+  should a future feature need an LLM call again; no assumption elsewhere in the codebase depends
+  on any specific provider.
 - **Test**: `pytest` (Python), `vitest` + `@testing-library/react` + `axe-core` (TS).
 - **Lint**: `ruff` (Python), `eslint` + `eslint-plugin-jsx-a11y` (TS).
 - **Deploy**: Vercel (frontend), Supabase hosted (DB).
@@ -89,8 +93,12 @@ each agent's `tools:` frontmatter.
 
 ## Quality Standards
 ### Bounded AI (the core discipline)
-- **Compute deterministically, summarize generatively.** Never let the LLM calculate the arbitrage score, a gap, a join, or any ranking. Build deterministic SQL/Python first, then pass results to the LLM as context.
-- The LLM's only jobs: **extract skills from a resume** and **narrate a computed result**. Enforce strict schema validation (Zod/Pydantic) on any structured LLM output.
+- **Compute deterministically, summarize generatively.** Never let an LLM calculate the arbitrage score, a gap, a join, or any ranking. Build deterministic SQL/Python first, then pass results to the LLM as context.
+- If an LLM call is ever (re)introduced, its only jobs remain: **extract skills from a resume**
+  and **narrate a computed result** — nothing else. Enforce strict schema validation
+  (Zod/Pydantic) on any structured LLM output. Currently, neither job uses an LLM at all: both
+  are deterministic (specs 005, 006) — this section states the standing constraint that would
+  govern a future LLM call, not a description of the current runtime path.
 
 ### Security (Zero-Trust)
 - No secrets/API keys/PII (including resume content) in LLM context, code, or commits. Env vars only; `.gitignore` covers `.env*`.
