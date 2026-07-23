@@ -275,3 +275,140 @@ def test_role_skill_arbitrage_view_selects_column(migration_sql, column):
     assert re.search(rf'"?{re.escape(column)}"?', body, re.IGNORECASE), (
         f"expected the `{ROLE_SKILL_ARBITRAGE_VIEW}` view to select `{column}`:\n{body}"
     )
+
+
+# ==================================================================================================
+# Task 1 of specs/005-template-narrator.md: schema-exposure RED tests for
+# `0004_role_arbitrage_narration_fields.sql`.
+#
+# `supabase/migrations/0004_role_arbitrage_narration_fields.sql` does not exist yet (that's Task 2,
+# Redwood). Every test below reads it as plain text, same no-live-DB convention as the 0003 suite
+# above, and is expected to fail (file not found, or an assertion against missing content) until
+# Task 2 lands — that is the correct RED-phase failure mode for this task.
+#
+# Per spec 005's Task 2, this migration must `CREATE OR REPLACE VIEW role_skill_arbitrage` and
+# append exactly two new columns, `salary_premium_pct` and `median_days_open`, sourced from the
+# `arbitrage_scores` view (not `skill_role_profile` — these are `skills_core`-origin fields already
+# flowing into `arbitrage_scores` since spec 002), at the END of the existing 11-column SELECT list
+# (append-only column order is a hard Postgres requirement for `CREATE OR REPLACE VIEW` to succeed
+# without a drop/recreate). `WITH (security_invoker = true)` must survive the replace — silently
+# dropping it would be the same owner-bypass RLS footgun the 0003 suite above guards against.
+# ==================================================================================================
+
+MIGRATION_0004_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "supabase"
+    / "migrations"
+    / "0004_role_arbitrage_narration_fields.sql"
+)
+
+# The two new columns this migration must expose (Task 1's [SPEC] edge cases).
+NARRATION_COLUMNS = ["salary_premium_pct", "median_days_open"]
+
+# The full expected column set on the replaced view: the 11 pre-existing columns (unchanged, still
+# sourced however 0003 already sources them) plus the 2 new narration columns appended at the end.
+ROLE_SKILL_ARBITRAGE_COLUMNS_WITH_NARRATION = ROLE_SKILL_ARBITRAGE_COLUMNS + NARRATION_COLUMNS
+
+
+@pytest.fixture(scope="module")
+def migration_sql_0004() -> str:
+    """Read the 0004 migration file as plain text. No DB connection, no credentials."""
+    return MIGRATION_0004_PATH.read_text(encoding="utf-8")
+
+
+def _select_columns_list(select_body: str) -> list[str]:
+    """Split the `SELECT <cols> FROM ...` column list on top-level commas into trimmed tokens.
+
+    Safe here because this view's column list is a flat list of (optionally table-qualified)
+    identifiers — no nested function calls or parenthesized expressions appear in it, so a naive
+    comma split does not need paren-depth tracking."""
+    match = re.search(r"select\s+(.*?)\s+from\b", select_body, re.IGNORECASE | re.DOTALL)
+    assert match, f"expected a `SELECT ... FROM ...` clause in the view body:\n{select_body}"
+    return [c.strip() for c in match.group(1).split(",")]
+
+
+def test_narration_migration_file_exists_and_is_nonempty():
+    assert MIGRATION_0004_PATH.is_file(), f"expected a migration file at {MIGRATION_0004_PATH}"
+    assert MIGRATION_0004_PATH.read_text(encoding="utf-8").strip(), (
+        "migration file must not be empty"
+    )
+
+
+def test_narration_migration_parentheses_are_balanced(migration_sql_0004):
+    assert migration_sql_0004.count("(") == migration_sql_0004.count(")"), (
+        "unbalanced parentheses in migration SQL — not syntactically well-formed"
+    )
+
+
+def test_narration_migration_uses_create_or_replace_view(migration_sql_0004):
+    """Regression guard: this must be a `CREATE OR REPLACE VIEW`, not a `DROP VIEW` + fresh
+    `CREATE VIEW` — Postgres only accepts an append-only column-list change via `REPLACE`, which is
+    exactly the append-only guarantee spec 005 Task 2 relies on."""
+    assert re.search(
+        rf"create\s+or\s+replace\s+view\s+(?:\w+\.)?\"?{re.escape(ROLE_SKILL_ARBITRAGE_VIEW)}\"?\b",
+        migration_sql_0004,
+        re.IGNORECASE,
+    ), (
+        f"expected `CREATE OR REPLACE VIEW {ROLE_SKILL_ARBITRAGE_VIEW} ...` in the migration "
+        f"SQL:\n{migration_sql_0004}"
+    )
+
+
+def test_narration_migration_role_skill_arbitrage_view_still_declares_security_invoker(
+    migration_sql_0004,
+):
+    """Regression guard for the edge case in Task 1's [SPEC]: replacing the view must not
+    silently drop `WITH (security_invoker = true)` — the same owner-bypass RLS footgun the 0003
+    suite above guards against on initial creation."""
+    options, _ = _extract_view_with_options(migration_sql_0004, ROLE_SKILL_ARBITRAGE_VIEW)
+    assert re.search(r"security_invoker\s*=\s*true", options, re.IGNORECASE), (
+        f"expected `CREATE OR REPLACE VIEW {ROLE_SKILL_ARBITRAGE_VIEW} WITH (security_invoker = "
+        f"true) AS ...;` — got WITH options: {options!r}"
+    )
+
+
+@pytest.mark.parametrize("column", ROLE_SKILL_ARBITRAGE_COLUMNS_WITH_NARRATION)
+def test_narration_migration_view_selects_column(migration_sql_0004, column):
+    _, body = _extract_view_with_options(migration_sql_0004, ROLE_SKILL_ARBITRAGE_VIEW)
+    assert re.search(rf'"?{re.escape(column)}"?', body, re.IGNORECASE), (
+        f"expected the replaced `{ROLE_SKILL_ARBITRAGE_VIEW}` view to still select `{column}`:\n"
+        f"{body}"
+    )
+
+
+@pytest.mark.parametrize("column", NARRATION_COLUMNS)
+def test_narration_migration_new_column_sourced_from_arbitrage_scores_not_role_profile(
+    migration_sql_0004, column
+):
+    """The two new fields are `skills_core`-origin, joined in via `arbitrage_scores` — exactly
+    like `demand_score`/`scarcity_index` already are — never sourced from `skill_role_profile`."""
+    _, body = _extract_view_with_options(migration_sql_0004, ROLE_SKILL_ARBITRAGE_VIEW)
+    assert re.search(rf"arbitrage_scores\.\"?{re.escape(column)}\"?\b", body, re.IGNORECASE), (
+        f"expected `{column}` to be selected qualified as `arbitrage_scores.{column}` in the "
+        f"`{ROLE_SKILL_ARBITRAGE_VIEW}` view body:\n{body}"
+    )
+    assert not re.search(
+        rf"skill_role_profile\.\"?{re.escape(column)}\"?\b", body, re.IGNORECASE
+    ), (
+        f"`{column}` must not be sourced from `skill_role_profile` — it is a `skills_core`-origin "
+        f"field that only exists via the `arbitrage_scores` join:\n{body}"
+    )
+
+
+def test_narration_migration_new_columns_appended_at_end_of_select_list(migration_sql_0004):
+    """Regression guard for the append-only requirement (Task 2's [SPEC]): the two new columns
+    must be the LAST two entries in the SELECT list, in `salary_premium_pct, median_days_open`
+    order — reordering or interleaving them would break `CREATE OR REPLACE VIEW`'s append-only
+    contract even if every individual column were still present."""
+    _, body = _extract_view_with_options(migration_sql_0004, ROLE_SKILL_ARBITRAGE_VIEW)
+    columns = _select_columns_list(body)
+    assert len(columns) >= 2, f"expected at least 2 columns in the SELECT list, got: {columns}"
+
+    def _bare_name(token: str) -> str:
+        return token.split(".")[-1].strip().strip('"').lower()
+
+    last_two = [_bare_name(c) for c in columns[-2:]]
+    assert last_two == ["salary_premium_pct", "median_days_open"], (
+        f"expected the SELECT list to end with `salary_premium_pct, median_days_open` (in that "
+        f"order) — got the last two columns as {last_two}, full column list: {columns}"
+    )

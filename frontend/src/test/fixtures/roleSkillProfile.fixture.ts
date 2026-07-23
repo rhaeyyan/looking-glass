@@ -12,6 +12,11 @@ import type { RoleSkillRow } from '../../lib/supabaseClient'
 // `skill_key: null` — the "demand only, scarcity unknown" case where the view's LEFT JOIN found no
 // D1/D2 arbitrage match, so every numeric arbitrage field is null. That row must survive into the
 // table and the ladder (flagged), and be excluded only from the scatter's plotted (x,y) points.
+// `salary_premium_pct` / `median_days_open` (Task 1 of specs/005-template-narrator.md) are added
+// below on every row, including the demand-only `gRPC` row (both `null` there, same as every other
+// nullable field on that row). Until Task 2 adds these two fields to `RoleSkillRow`
+// (frontend/src/lib/supabaseClient.ts), this file fails `tsc --noEmit` on excess-property checking
+// — that is the deliberate type-level RED this task locks in.
 export const roleSkillProfileFixture: RoleSkillRow[] = [
   {
     role_family: 'Backend',
@@ -25,6 +30,8 @@ export const roleSkillProfileFixture: RoleSkillRow[] = [
     scarcity_data_completeness: 'complete',
     d3_corroborated: true,
     d3_pct_of_all_postings: 6.2,
+    salary_premium_pct: 11.8,
+    median_days_open: 30,
   },
   {
     role_family: 'Backend',
@@ -38,6 +45,8 @@ export const roleSkillProfileFixture: RoleSkillRow[] = [
     scarcity_data_completeness: 'complete',
     d3_corroborated: false,
     d3_pct_of_all_postings: 1.4,
+    salary_premium_pct: 22.6,
+    median_days_open: 45,
   },
   {
     role_family: 'Backend',
@@ -51,6 +60,8 @@ export const roleSkillProfileFixture: RoleSkillRow[] = [
     scarcity_data_completeness: 'complete',
     d3_corroborated: true,
     d3_pct_of_all_postings: 5.1,
+    salary_premium_pct: 14.5,
+    median_days_open: 21,
   },
   {
     // Demand-only row: no D1/D2 arbitrage match, so skill_key and every numeric field are null.
@@ -65,6 +76,8 @@ export const roleSkillProfileFixture: RoleSkillRow[] = [
     scarcity_data_completeness: null,
     d3_corroborated: null,
     d3_pct_of_all_postings: null,
+    salary_premium_pct: null,
+    median_days_open: null,
   },
 ]
 

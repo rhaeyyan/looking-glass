@@ -25,6 +25,7 @@ vi.mock('@supabase/supabase-js', () => {
 })
 
 import { fetchRoleSkillProfile } from './supabaseClient'
+import type { RoleSkillRow } from './supabaseClient'
 
 beforeEach(() => {
   mockState.response = { data: [], error: null }
@@ -45,13 +46,20 @@ describe('fetchRoleSkillProfile', () => {
   it('selects the frozen column list column-for-column with the view', async () => {
     await fetchRoleSkillProfile('Backend')
 
+    // Task 1 of specs/005-template-narrator.md: the column-list string gains
+    // `salary_premium_pct, median_days_open`, appended at the end — same append-only order as the
+    // migration's SELECT list (tests/test_frontend_read_layer_migration.py).
     expect(mockState.select).toHaveBeenCalledWith(
-      'role_family, skill_name_raw, skill_key, pct_of_role, postings_with_skill, demand_score, scarcity_index, arbitrage_score, scarcity_data_completeness, d3_corroborated, d3_pct_of_all_postings',
+      'role_family, skill_name_raw, skill_key, pct_of_role, postings_with_skill, demand_score, scarcity_index, arbitrage_score, scarcity_data_completeness, d3_corroborated, d3_pct_of_all_postings, salary_premium_pct, median_days_open',
     )
   })
 
   it('returns the rows verbatim on success, including a null-skill_key (demand-only) row', async () => {
-    const rows = [
+    // Explicitly typed as `RoleSkillRow[]` (not left inferred) so this is a genuine type-level RED
+    // per Task 1 of specs/005-template-narrator.md: until Task 2 adds `salary_premium_pct` /
+    // `median_days_open` to `RoleSkillRow`, `tsc --noEmit` must fail excess-property checking on
+    // these object literals.
+    const rows: RoleSkillRow[] = [
       {
         role_family: 'Backend',
         skill_name_raw: 'PostgreSQL',
@@ -64,6 +72,8 @@ describe('fetchRoleSkillProfile', () => {
         scarcity_data_completeness: 'complete',
         d3_corroborated: true,
         d3_pct_of_all_postings: 5.1,
+        salary_premium_pct: 14.5,
+        median_days_open: 21,
       },
       {
         role_family: 'Backend',
@@ -77,6 +87,8 @@ describe('fetchRoleSkillProfile', () => {
         scarcity_data_completeness: null,
         d3_corroborated: null,
         d3_pct_of_all_postings: null,
+        salary_premium_pct: null,
+        median_days_open: null,
       },
     ]
     mockState.response = { data: rows, error: null }
