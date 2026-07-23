@@ -1,30 +1,39 @@
 # extract-resume-skills (Supabase Edge Function)
 
-Server-side proxy to Claude for resume skill extraction. This is the repo's first Supabase Edge
-Function and the first LLM call in the codebase — see `specs/004-resume-gap-layer.md` (Task 1)
-for the approved SPIKE this implements.
+Server-side proxy to OpenRouter for resume skill extraction. This is the repo's first Supabase
+Edge Function and the first LLM call in the codebase — see `specs/004-resume-gap-layer.md`
+(Task 1, amended) for the approved SPIKE/amendment this implements.
 
 ## What it does
 
 - Accepts `POST { resumeText: string }`.
-- Rejects (400, no Claude call made) empty/whitespace-only text, or text over 20,000 characters.
-- Calls Claude's Messages API (`https://api.anthropic.com/v1/messages`) via plain `fetch()` — no
-  Anthropic SDK dependency — with a forced tool-use call (`extract_skills`) so the response shape
-  is constrained at the source.
+- Rejects (400, no upstream call made) empty/whitespace-only text, or text over 20,000 characters.
+- Calls OpenRouter's OpenAI-compatible Chat Completions API
+  (`https://openrouter.ai/api/v1/chat/completions`) via plain `fetch()` — no SDK dependency — with
+  a forced tool call (`extract_skills`) so the response shape is constrained at the source.
 - Returns `200 { skills: string[] }` on success (an empty array is a valid result, not an error).
-- Returns `502 { error: "extraction_failed" }` on any upstream failure/timeout — the raw Anthropic
-  error text is never forwarded to the client, since it could leak infra details.
-- Never logs `resumeText`, the raw Claude response, or writes anything to the database. This
+- Returns `502 { error: "extraction_failed" }` on any upstream failure/timeout — the raw
+  OpenRouter error text is never forwarded to the client, since it could leak infra details.
+- Never logs `resumeText`, the raw OpenRouter response, or writes anything to the database. This
   function is fully stateless.
 
 ## Model choice
 
-Uses `claude-sonnet-5` for extraction. This repo's first LLM call had no established model
-convention to reuse; Sonnet 5 gives reliable structured tool-use output on free-form resume text
-at a lower cost than Opus for a bounded, non-reasoning-heavy extraction task. If step 5 (result
-narration, a future SPEC) turns out to need a different model for a simpler summarization task,
-that can be chosen independently when that function is built — this doesn't need to be the same
-model repo-wide.
+Uses `google/gemma-4-31b-it:free` via OpenRouter. This was a human provider decision (recorded in
+`AGENTS.md`/`README.md`), superseding the original Task 1 SPIKE's direct Claude call — this
+amendment is a surgical swap of the upstream provider only, not a redesign. OpenRouter's
+OpenAI-compatible endpoint gives native function-calling support, which this function relies on
+to constrain the response shape the same way the original tool-use call did.
+
+**Reliability tradeoff (deliberate, documented)**: `google/gemma-4-31b-it:free` is a free-tier
+model and may be rate-limited or occasionally return non-tool-call/non-conforming output more
+often than Claude's tool-use did. This function's existing generic `try/catch` → `502
+extraction_failed` path (plus the defensive `JSON.parse` handling of the tool-call arguments
+string) already covers this — no additional code is required. If this proves operationally
+unacceptable, a paid-tier fallback model is a future SPEC decision, not something solved
+speculatively here. If step 5 (result narration, a future SPEC) needs a different model for a
+simpler summarization task, that can be chosen independently when that function is built — this
+doesn't need to be the same model repo-wide.
 
 ## CORS
 
@@ -43,10 +52,10 @@ This function has not been deployed and no secret has been set as part of this t
    supabase link --project-ref <your-project-ref>
    ```
 
-2. **Set the Anthropic API key as a project secret** (never a `VITE_*`/client-visible env var —
-   this must never end up in the frontend bundle):
+2. **Set the OpenRouter API key as a project secret** (never a `VITE_*`/client-visible env var —
+   this must never end up in the frontend bundle). Get a key at https://openrouter.ai/keys:
    ```bash
-   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+   supabase secrets set OPENROUTER_API_KEY=sk-or-...
    ```
 
 3. **(Optional) Set production CORS origins**, once the frontend has a deployed URL:
@@ -74,7 +83,7 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
   '<your-supabase-url>',
-  '<your-anon-key>', // the public anon key is fine here — it's not the Anthropic key
+  '<your-anon-key>', // the public anon key is fine here — it's not the OpenRouter key
 )
 
 const { data, error } = await supabase.functions.invoke('extract-resume-skills', {
@@ -98,17 +107,16 @@ curl -i -X POST \
 - A valid resume string returns `200` with a JSON body shaped `{ "skills": [...] }` containing
   plausible skill strings (e.g. `"python"`, `"sql"`, `"aws"`, `"docker"`).
 - An empty-string `resumeText` returns `400` immediately (check function logs to confirm no
-  Anthropic API call was attempted — no latency, no Claude usage recorded in the Anthropic
-  console).
-- A `resumeText` longer than 20,000 characters returns `400` with no Claude call.
+  OpenRouter API call was attempted — no latency, no usage recorded in the OpenRouter dashboard).
+- A `resumeText` longer than 20,000 characters returns `400` with no OpenRouter call.
 - Requesting from a browser origin *not* on the allow-list (e.g. opening the deployed function URL
   directly from an arbitrary origin) is blocked by the browser's CORS check — the
   `Access-Control-Allow-Origin` response header will not match.
-- `supabase functions logs extract-resume-skills` shows no resume content and no raw Claude
+- `supabase functions logs extract-resume-skills` shows no resume content and no raw OpenRouter
   response body in the log output — only the generic status/error strings this function emits.
 
 ## Tipping point
 
-If a second Claude call is ever needed (e.g. the step-5 narration function, out of scope here),
-factor the shared `fetch`/auth boilerplate into `supabase/functions/_shared/anthropic.ts` instead
-of duplicating it. Not worth doing for a single function.
+If a second OpenRouter call is ever needed (e.g. the step-5 narration function, out of scope
+here), factor the shared `fetch`/auth boilerplate into `supabase/functions/_shared/openrouter.ts`
+instead of duplicating it. Not worth doing for a single function.

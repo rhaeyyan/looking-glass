@@ -1,7 +1,7 @@
 // Supabase Edge Function: extract-resume-skills
 //
-// Server-side proxy to Claude for resume skill extraction. This is the ONLY place in the
-// codebase that talks to the Anthropic API — the API key never reaches the browser bundle.
+// Server-side proxy to OpenRouter for resume skill extraction. This is the ONLY place in the
+// codebase that talks to the OpenRouter API — the API key never reaches the browser bundle.
 //
 // Bounded-AI boundary: this function extracts a flat list of skill strings from free text. It
 // performs zero scoring, ranking, or gap logic — that happens later in deterministic frontend
@@ -9,17 +9,21 @@
 //
 // Request:  POST { resumeText: string }
 // Response: 200 { skills: string[] }
-//           400 { error: string }  — invalid input, no Claude call made
-//           502 { error: string }  — upstream Claude failure (generic message only)
+//           400 { error: string }  — invalid input, no upstream call made
+//           502 { error: string }  — upstream failure (generic message only)
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages'
-const ANTHROPIC_VERSION = '2023-06-01'
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
 // See the README in this directory for why this model was chosen.
-const CLAUDE_MODEL = 'claude-sonnet-5'
+const OPENROUTER_MODEL = 'google/gemma-4-31b-it:free'
+
+// Static, non-PII attribution metadata OpenRouter recommends including — never derived from
+// request data. See https://openrouter.ai/docs for why these headers exist.
+const OPENROUTER_HTTP_REFERER = 'https://github.com/rhaeyyan/looking-glass'
+const OPENROUTER_X_TITLE = 'Looking Glass'
 
 const MAX_RESUME_LENGTH = 20000
-const CLAUDE_TIMEOUT_MS = 30000
+const OPENROUTER_TIMEOUT_MS = 30000
 
 // CORS is restricted to known frontend origins — never '*'. The Vite dev server's default port
 // covers local development; production origins are supplied via the ALLOWED_ORIGINS secret
@@ -56,40 +60,45 @@ function jsonResponse(body: unknown, status: number, headers: Record<string, str
 }
 
 const EXTRACT_SKILLS_TOOL = {
-  name: 'extract_skills',
-  description:
-    'Record the technical skills mentioned in a resume as a flat list of short skill-name strings.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      skills: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'Skill names extracted verbatim from the resume text, e.g. "python", "sql".',
+  type: 'function',
+  function: {
+    name: 'extract_skills',
+    description:
+      'Record the technical skills mentioned in a resume as a flat list of short skill-name strings.',
+    parameters: {
+      type: 'object',
+      properties: {
+        skills: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Skill names extracted verbatim from the resume text, e.g. "python", "sql".',
+        },
       },
+      required: ['skills'],
     },
-    required: ['skills'],
   },
 } as const
 
-async function callClaude(resumeText: string, apiKey: string): Promise<string[]> {
+async function callOpenRouter(resumeText: string, apiKey: string): Promise<string[]> {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), CLAUDE_TIMEOUT_MS)
+  const timeout = setTimeout(() => controller.abort(), OPENROUTER_TIMEOUT_MS)
 
   let response: Response
   try {
-    response = await fetch(ANTHROPIC_API_URL, {
+    response = await fetch(OPENROUTER_API_URL, {
       method: 'POST',
       headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': ANTHROPIC_VERSION,
+        Authorization: `Bearer ${apiKey}`,
         'content-type': 'application/json',
+        'HTTP-Referer': OPENROUTER_HTTP_REFERER,
+        'X-Title': OPENROUTER_X_TITLE,
       },
       body: JSON.stringify({
-        model: CLAUDE_MODEL,
+        model: OPENROUTER_MODEL,
         max_tokens: 1024,
         tools: [EXTRACT_SKILLS_TOOL],
-        tool_choice: { type: 'tool', name: 'extract_skills' },
+        tool_choice: { type: 'function', function: { name: 'extract_skills' } },
         messages: [
           {
             role: 'user',
@@ -116,13 +125,29 @@ async function callClaude(resumeText: string, apiKey: string): Promise<string[]>
     throw new Error('upstream_response_unparseable')
   }
 
-  const toolUseBlock = Array.isArray((parsed as { content?: unknown[] })?.content)
-    ? (parsed as { content: Array<{ type?: string; input?: unknown }> }).content.find(
-        (block) => block?.type === 'tool_use',
-      )
-    : undefined
+  type OpenRouterResponse = {
+    choices?: Array<{
+      message?: {
+        tool_calls?: Array<{ function?: { arguments?: unknown } }>
+      }
+    }>
+  }
 
-  const skills = (toolUseBlock?.input as { skills?: unknown })?.skills
+  const rawArguments = (parsed as OpenRouterResponse)?.choices?.[0]?.message?.tool_calls?.[0]
+    ?.function?.arguments
+
+  if (typeof rawArguments !== 'string') {
+    throw new Error('upstream_response_unparseable')
+  }
+
+  let parsedArguments: unknown
+  try {
+    parsedArguments = JSON.parse(rawArguments)
+  } catch {
+    throw new Error('upstream_response_unparseable')
+  }
+
+  const skills = (parsedArguments as { skills?: unknown })?.skills
 
   if (!Array.isArray(skills) || !skills.every((skill) => typeof skill === 'string')) {
     throw new Error('upstream_response_unparseable')
@@ -159,13 +184,13 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'resumeText_too_long' }, 400, headers)
   }
 
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
+  const apiKey = Deno.env.get('OPENROUTER_API_KEY')
   if (!apiKey) {
     return jsonResponse({ error: 'server_misconfigured' }, 502, headers)
   }
 
   try {
-    const skills = await callClaude(resumeText, apiKey)
+    const skills = await callOpenRouter(resumeText, apiKey)
     return jsonResponse({ skills }, 200, headers)
   } catch {
     // Never forward the raw upstream error text — it could leak infra details.
