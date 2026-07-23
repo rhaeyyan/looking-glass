@@ -56,6 +56,29 @@ LLM-extraction decision; deterministic-extraction pivot now complete — zero LL
     touched (only pre-existing, unrelated `jest-axe` typing gaps remain).
 - **User instruction this session, applied throughout spec 006's execution**: commit and push
   after each task/subtask completes, not just at the end.
+- **Housekeeping pass while the user handled the manual Supabase cleanup step (below)**: no
+  Claude-in-Chrome connection in this environment, so a live-browser verification pass wasn't
+  possible solo — did a full-repo health sweep instead (`b5d303e`, `c5b7f2f`, pushed).
+  - Fixed the two pre-existing lint items flagged-but-deferred across specs 004–006: sorted
+    import blocks in `tests/test_arbitrage_score.py` and `tests/test_skill_core_join.py`
+    (mechanical, `ruff --fix`); added a scoped `per-file-ignores` E501 exemption for
+    `tests/test_ingest_parse.py` in `pyproject.toml` (the long lines are CSV fixture data
+    transcribed verbatim from `data/schema-notes.md`, not wrappable code).
+  - **Found and fixed a real gap spec 006 left behind**: `tests/test_extract_resume_skills_function.py`
+    (spec 004 Task 2's characterization tests) reads
+    `supabase/functions/extract-resume-skills/index.ts` for its assertions — Task 3 correctly
+    deleted that source file (per the approved forced decision) but this now-orphaned test file
+    was never in Task 3's file list, so it silently started erroring on every test (25 errors, 1
+    failure) once the source it characterized was gone. Deleted the file — nothing left for it
+    to guard.
+  - Whole-tree health confirmed green end-to-end: `ruff check src/ tests/` all-pass, 218/218
+    pytest, 104/104 vitest, `eslint .` clean, `tsc --noEmit` down to only the pre-existing
+    `jest-axe` typing gap (unrelated, needs Cedar's dependency authorization — not fixed, per
+    Workflow Rule 8).
+  - Confirmed no stray scratch files in the repo (`git clean -ndx` showed only expected
+    caches/env files/venvs).
+  - Stopped the dev server (`npx vite --port 5173`) started for the aborted verification
+    attempt — nothing was driving it.
 
 ### Unfinished / blocked
 - **Outstanding manual step for the user** (cannot be done in-agent, no live Supabase
@@ -67,17 +90,19 @@ LLM-extraction decision; deterministic-extraction pivot now complete — zero LL
   false-matches inside an unrelated abbreviation that tokenizes identically (`R&D`); a negation
   cue further back than the fixed scan window fails to suppress a match.
 - `@types/jest-axe` still not authorized/added — frozen test files surface a `jest-axe`
-  TypeScript declaration gap under `tsc --noEmit` only (does not affect vitest/runtime).
+  TypeScript declaration gap under `tsc --noEmit` only (does not affect vitest/runtime). Needs
+  Cedar's sign-off (new devDependency) if the user wants it resolved.
 - Lint hook (`post-edit-lint.sh`) still can't resolve `node` (doesn't source nvm) — pre-existing
   env issue affecting every edit.
-- Two pre-existing lint items out of scope where found: long-line (`E501`) warnings in
-  `tests/test_ingest_parse.py`, unsorted imports in `tests/test_skill_core_join.py`.
+- **Live-browser verification of the full primary flow is still outstanding** — no
+  Claude-in-Chrome connection in this environment; needs either the user driving it themselves or
+  the extension getting connected in a future session.
 
 ### Next Steps
-- Remind the user about the manual Supabase cleanup step (function + secret) above.
-- **README's MVP scope (all 5 steps) is now code-complete with zero LLM calls anywhere.** Do a
-  full live-browser verification pass: pick a role, paste a resume with a deliberate mix of
+- Once the user finishes the manual Supabase cleanup (function + secret deletion), do the full
+  live-browser verification pass: pick a role, paste a resume with a deliberate mix of
   affirmed/negated/edge-case skill mentions, confirm have/gap + narration both render correctly
-  against live Supabase data. This is the first live-verification opportunity for the whole
-  primary flow, since spec 004's LLM path never got there.
-- Confirm no stray scratch files landed in `looking-glass/` before the next commit.
+  against live Supabase data. Requires either Claude-in-Chrome connectivity or the user's own
+  screenshots (the pattern used for spec 003's verification).
+- If the user wants `@types/jest-axe` resolved, route it to Cedar for dependency authorization
+  first (Workflow Rule 8) — don't add it directly.
