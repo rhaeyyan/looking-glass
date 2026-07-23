@@ -75,6 +75,22 @@
     live secret set** — deploy + manual end-to-end verification steps documented in the function's
     README for the human to run themselves (`supabase secrets set`, `supabase functions deploy`,
     then a `curl`/`supabase-js` smoke test). Committed `b761f54`.
+  - **Provider switch, mid-Task-1**: user decided to use OpenRouter (`google/gemma-4-31b-it:free`,
+    confirmed via web search — a real model, released after this assistant's Jan-2026 knowledge
+    cutoff) instead of Claude directly, for both extraction and the future step-5 narration.
+    Updated `AGENTS.md`/`README.md`'s AI-layer stack line first (`2687b5f`) so docs and code stay
+    in sync, then had Cedar write a surgical amendment (`Task 1 (amended)`, committed `6a9a0c0`)
+    rather than let Redwood freelance the provider swap. Redwood implemented it (`d0b8670`):
+    endpoint → OpenRouter's Chat Completions API, secret `ANTHROPIC_API_KEY`→`OPENROUTER_API_KEY`,
+    auth `x-api-key`→`Bearer`, OpenAI-style `tools`/`tool_choice` shape, defensive `JSON.parse` of
+    the tool-call arguments string (itself a JSON string in this API shape, unlike Anthropic's
+    already-structured `content[].input`). Diff verified against the actual file changes (not just
+    the agent's self-report) — all 7 "what changes" items landed, untouched invariants (CORS,
+    validation, `jsonResponse`, control flow) genuinely untouched. Still undeployed, no live
+    secret.
+  - **Flagged follow-up, not yet done**: Task 2's SPEC text (in `specs/004-resume-gap-layer.md`)
+    still describes asserting `ANTHROPIC_API_KEY`/`sk-ant-...` — a note was added inline flagging
+    this as stale; whoever executes Task 2 must assert against `OPENROUTER_API_KEY` instead.
 
 ### Unfinished / Blocked
 - **specs/003 fully complete and live-verified.**
@@ -91,10 +107,11 @@
 
 ### Next Steps
 - Continue `specs/004-resume-gap-layer.md`: **Task 2** (Cypress) — characterization tests locking
-  in Task 1's edge-function contract (security invariants: secret sourced from `Deno.env`, no
-  logging, no DB writes, CORS not `'*'`, max-length guard). Then Task 3 (Cypress, RED) → Task 4
-  (Redwood, GREEN: schema-validated extraction call + deterministic `computeSkillGap`) → Task 5
-  (Cypress, RED) → Task 6 (Magnolia, GREEN: wire resume input + have/gap into the matrix).
+  in the (now OpenRouter-based) edge-function contract (security invariants: secret sourced from
+  `Deno.env` as `OPENROUTER_API_KEY`, no logging, no DB writes, CORS not `'*'`, max-length guard).
+  Then Task 3 (Cypress, RED) → Task 4 (Redwood, GREEN: schema-validated extraction call +
+  deterministic `computeSkillGap`) → Task 5 (Cypress, RED) → Task 6 (Magnolia, GREEN: wire resume
+  input + have/gap into the matrix).
 - Task 1's edge function is still undeployed — no live secret set. Deploy + manual verification
   steps are in `supabase/functions/extract-resume-skills/README.md` for the human to run
   whenever ready (not blocking Task 2, which tests the function's source structurally).
