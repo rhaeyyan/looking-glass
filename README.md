@@ -123,7 +123,9 @@ flagged *"demand only, scarcity unknown"* rather than silently dropped.
 
 ## MVP scope (walking skeleton)
 
-The thinnest end-to-end slice that proves the core value hypothesis, in build order:
+**All five steps below are complete and live-verified end-to-end**, against the real Supabase
+database, with zero LLM calls anywhere in the flow. The thinnest end-to-end slice that proves the
+core value hypothesis, in build order:
 
 1. **Ingest** the three CSVs into Supabase; resolve the D1+D2 skill join (141-skill core) and
    the D3 per-role skill profiles.
@@ -176,9 +178,12 @@ coverage), and any forward-looking forecast axis.
 
 ## Status
 
-Scoped and data-validated. Datasets downloaded, join test and per-role coverage run (results
-above). Primary flow is target-role → resume → arbitrage-ranked gaps, V1 scoped to the six
-high-coverage technical roles. Next: implementation planning and the walking-skeleton build.
+**The full MVP is built and live-verified.** All five steps above — ingest, arbitrage scoring,
+role picker, resume gap layer, and top-gap narration — are code-complete and confirmed working
+end-to-end against the real Supabase database, for the six V1 high-coverage technical roles. The
+app currently makes zero LLM calls anywhere: both resume-skill extraction and result narration
+are fully deterministic (specs 005, 006). Next: whatever comes after V1 — polish, the
+moderate-coverage roles, or a genuinely new feature — is unspecced.
 
 ---
 
