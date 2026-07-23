@@ -95,7 +95,122 @@ matrix UI (standard TDD). 6 tasks, none over 5 files, no task references more th
 2. Simplicity > Pattern purity
 ```
 
+## Task 1 (amended) — Redwood: swap the edge function's upstream call from Anthropic to OpenRouter
+
+**Amendment context (2026-07-22)**: after Task 1 shipped calling Claude directly, the human
+decided to switch the AI layer to OpenRouter (`google/gemma-4-31b-it:free`, OpenAI-compatible
+endpoint, confirmed native function-calling support) for both this extraction task and the future
+step-5 narration task. `AGENTS.md`/`README.md`'s stack lines were updated first (commit `2687b5f`)
+to keep docs and code in sync. This amendment is a surgical diff to the already-built edge
+function — its public HTTP contract, input validation, timeout handling, CORS allow-listing,
+statelessness, and Bounded-AI/Zero-Trust invariants are unchanged.
+
+```markdown
+[SPEC]
+- **Objective**: Re-point the already-built `extract-resume-skills` edge function's single
+  upstream LLM call from Anthropic's Messages API to OpenRouter's OpenAI-compatible Chat
+  Completions API (`google/gemma-4-31b-it:free`), per the human's provider decision now recorded
+  in `AGENTS.md` and `README.md`. This is a surgical diff: the function's public HTTP contract
+  (`POST { resumeText }` → `200 { skills: string[] }` / `400` / `502`), its input validation,
+  timeout handling, CORS allow-listing, statelessness, and no-logging-of-resume-content
+  invariants are UNCHANGED and must not be touched except where explicitly listed below.
+- **Inputs/Outputs**: unchanged from the original Task 1 — `POST { resumeText: string }` →
+  `200 { skills: string[] }` | `400 { error: string }` | `502 { error: string }`. Only the
+  function's internal upstream call changes.
+- **Design Pattern**: none — simple case; a single call-site swap, no new abstraction earned by
+  one provider change (per the existing Tipping Point below, still not crossed).
+- **Bounded-AI boundary**: unchanged — the model's only job is extracting a flat `skills: string[]`
+  from free text; this function still performs zero scoring/ranking/gap logic. The forced tool-call
+  continues to bound malformed output at the source; the frontend's future Zod parse (Task 4)
+  remains the authoritative gate.
+- **What changes**:
+  1. **Endpoint**: `ANTHROPIC_API_URL` (`https://api.anthropic.com/v1/messages`) →
+     `OPENROUTER_API_URL` (`https://openrouter.ai/api/v1/chat/completions`). Remove the
+     `ANTHROPIC_VERSION` constant (no OpenRouter equivalent needed).
+  2. **Model constant**: `CLAUDE_MODEL = 'claude-sonnet-5'` → `OPENROUTER_MODEL =
+     'google/gemma-4-31b-it:free'`.
+  3. **Secret name**: `Deno.env.get('ANTHROPIC_API_KEY')` → `Deno.env.get('OPENROUTER_API_KEY')`.
+     Update the `server_misconfigured` check accordingly. No other secret/env-var name changes.
+  4. **Auth header**: `'x-api-key': apiKey` → `Authorization: 'Bearer ' + apiKey`. Remove the
+     `anthropic-version` header entirely.
+  5. **Attribution headers**: include OpenRouter's recommended `HTTP-Referer` and `X-Title`
+     headers (low-stakes attribution/ranking metadata, not a Bounded-AI or Zero-Trust concern —
+     no secret or PII in either value). Use a static, non-PII value for both (e.g. the repo's
+     public GitHub URL for `HTTP-Referer`, `"Looking Glass"` for `X-Title`) — do not derive either
+     from request data.
+  6. **Request body shape**: replace Anthropic's `{ model, max_tokens, tools: [EXTRACT_SKILLS_TOOL
+     as Anthropic input_schema], tool_choice: { type: 'tool', name }, messages }` with the
+     OpenAI-compatible shape: `{ model, messages, tools: [{ type: 'function', function: { name,
+     description, parameters: <same JSON-schema object, renamed from input_schema> } }],
+     tool_choice: { type: 'function', function: { name: 'extract_skills' } } }`. Keep the same
+     `max_tokens`-equivalent (`max_tokens` is also valid in OpenRouter's schema — retain it) and
+     the same user-message prompt text.
+  7. **Response parsing**: replace the Anthropic `content[].find(block => block.type ===
+     'tool_use').input.skills` walk with reading
+     `choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments` — this arrives as a JSON
+     **string**, not a structured object, and must be `JSON.parse`'d inside its own `try/catch`
+     (a `JSON.parse` failure here is a distinct failure mode from an HTTP/network failure and must
+     also throw `'upstream_response_unparseable'`, not an unhandled exception). After parsing,
+     apply the exact same defensive shape check as today (`Array.isArray(skills) &&
+     skills.every(s => typeof s === 'string')`) before returning — do not relax this check for
+     the new provider.
+- **Constraints**: no new npm/Deno dependency — plain `fetch()`, same as today. No change to
+  `MAX_RESUME_LENGTH`, `*_TIMEOUT_MS` (rename the constant, keep the value and the
+  `AbortController` mechanism identical), CORS logic, or the `Deno.serve` handler's control flow
+  (validation → key check → call → generic-502-on-any-thrown-error). Do not touch
+  `resolveAllowedOrigins`, `corsHeaders`, `jsonResponse`, or the request-validation block in
+  `Deno.serve` — none of those reference the provider and must not be edited.
+- **Edge Cases**:
+  - All edge cases from the original Task 1 SPIKE still apply unchanged (empty/whitespace
+    `resumeText` → 400 no call made; oversized `resumeText` → 400 no call made; empty `{ skills:
+    [] }` is a valid 200; upstream error/timeout → generic 502, never forward raw upstream text).
+  - **New**: a `tool_calls[0].function.arguments` string that fails `JSON.parse` must be caught
+    and mapped to the same `'upstream_response_unparseable'` error as a missing/malformed field —
+    never an unhandled exception that could 500 instead of 502 or leak a stack trace.
+  - **New**: a response with no `tool_calls` array at all (model replied with plain text instead
+    of invoking the tool) must be handled by the same defensive check, not assumed present.
+  - **Operational risk (documented, not code)**: `google/gemma-4-31b-it:free` is a free-tier
+    OpenRouter model and may be rate-limited or occasionally return non-tool-call/non-conforming
+    output more often than Claude's tool-use did. The existing generic `try/catch` → `502
+    extraction_failed` path already covers this — no additional code is required beyond the
+    defensive parsing above — but this is a deliberate, documented reliability tradeoff of the
+    provider swap, not a silent gap. If this proves operationally unacceptable, that is a future
+    SPEC decision (e.g. a paid-tier fallback model), not something to solve speculatively here.
+- **Files**: `supabase/functions/extract-resume-skills/index.ts`,
+  `supabase/functions/extract-resume-skills/README.md` (update: API URL, secret-setup step 2 →
+  `OPENROUTER_API_KEY`, model-choice section → explain the `google/gemma-4-31b-it:free` choice
+  and note the free-tier reliability tradeoff, curl/manual-verification snippets unaffected since
+  the function's public HTTP contract didn't change).
+- **Out of scope / follow-ups to flag, not to build now**:
+  - `tests/test_extract_resume_skills_function.py` (Task 2) currently asserts
+    `Deno.env.get('ANTHROPIC_API_KEY')` and a negative `sk-ant-...` regex — these will fail or go
+    stale once this amendment lands. A follow-up Cypress task should update those assertions to
+    `OPENROUTER_API_KEY` and an OpenRouter-appropriate secret-pattern check. Not authorized in
+    this task (would exceed this task's file budget and Cypress, not Redwood, owns that file).
+  - The future step-5 narration SPEC should reuse this exact OpenRouter pattern (endpoint, Bearer
+    auth, OpenAI-compatible `tools`/`tool_choice` shape, `arguments`-string parsing) rather than
+    re-deriving it — noted here for whoever writes that SPEC, not written now.
+- **Tipping Point**: unchanged from the original — if a second OpenRouter/LLM call is ever needed
+  (e.g. step-5 narration), factor the shared fetch/auth boilerplate into
+  `supabase/functions/_shared/openrouter.ts` rather than duplicating it. Not needed for one
+  function.
+```
+
+```markdown
+[FORCES]
+1. Minimal, provider-isolated diff (change only the upstream call) > touching already-approved surrounding logic
+2. Simplicity > Pattern purity
+```
+
 ## Task 2 — Cypress: characterization tests for the edge function (SPIKE audit)
+
+**Note (post Task 1 amendment)**: the edge cases below reference `ANTHROPIC_API_KEY` and an
+`sk-ant-...` literal check, written against the original Claude-calling implementation. Per the
+Task 1 amendment above, the deployed function now sources `OPENROUTER_API_KEY` instead. When this
+task is executed/re-executed, assert against the current provider's secret name and key-pattern
+(OpenRouter keys have no fixed public prefix convention to negatively assert against — omit that
+specific check or assert generically that no `Bearer sk-` /literal secret-shaped string appears
+outside `Deno.env.get(...)`), not the stale `ANTHROPIC_API_KEY`/`sk-ant-...` text below.
 
 ```markdown
 [SPEC]
