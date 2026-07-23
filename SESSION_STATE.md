@@ -5,7 +5,7 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-22 (Ingest, arbitrage_score, and role-picker skeleton built and verified live)
+## Current Session — 2026-07-22–23 (Ingest, arbitrage_score, role-picker skeleton, and resume gap layer built; live deploy/verification of the resume gap layer in progress)
 
 ### Accomplished
 - Reviewed the full repo against the multi-agent orchestration pipeline; ported missing
@@ -77,58 +77,52 @@
     (independently re-verified), full suite 208 passed/16 skipped. Spec file's Task 2 section
     rewritten to match reality.
   - Edge function still undeployed, no live secret set (deploy steps in its README for the human).
-- **Task 3** (Cypress, RED): failing tests for `extractResumeSkills()` and `computeSkillGap()`
-  (`frontend/src/lib/{resumeSkills,gap}.test.ts` + `test/fixtures/resumeSkills.fixture.ts`) — both
-  suites fail on module-not-found (correct RED reason), 28 pre-existing tests still pass
-  (independently re-verified in the main session). Committed `5dad61a`. **Contract Redwood must
-  honor in Task 4**: `extractResumeSkills(resumeText): Promise<string[]>` in
-  `frontend/src/lib/resumeSkills.ts`, calling `supabase.functions.invoke('extract-resume-skills',
-  ...)`, Zod schema `z.object({ skills: z.array(z.string()).max(200) })`, throwing a named
-  exported `ExtractionSchemaError` (not a bare `Error`) on schema failure.
-  `computeSkillGap(rows, resumeSkills): { haveSkillKeys: Set<string>; rows: RoleSkillRow[] }` in
-  `frontend/src/lib/gap.ts`, pure/no I/O, `haveSkillKeys` keyed by
-  `row.skill_key ?? normalizeSkillName(row.skill_name_raw)`. `normalizeSkillName()` in
-  `frontend/src/lib/normalize.ts` must mirror `src/ingest/normalize.py` exactly (lowercase,
-  collapse whitespace/`/`/`-`/`_`, keep `#`/`+`/`.`, no alias expansion). Output row order must
-  reuse `ArbitrageLadder`'s exact null-scores-last descending-`arbitrage_score` sort — not a second
-  drifting implementation.
-- **Task 4** (Redwood, GREEN): built `frontend/src/lib/{resumeSkills,gap,normalize}.ts` +
-  added `zod` (^3, the one authorized dependency) to `frontend/package.json`. Contract verified
-  against the actual code, not just the report: `normalizeSkillName`'s regex
-  (`/[\s/_-]+/g`) matches `src/ingest/normalize.py`'s `_SEPARATOR_RUN_RE` exactly, and `skill_key`
-  is confirmed (`role_profile.py`) to already be `normalize_skill(skill_name_raw)`, so comparing it
-  directly against a normalized resume skill (no double-normalization) is correct.
-  `computeSkillGap` reuses `ArbitrageLadder`'s literal `byArbitrageDesc` function, zero score
-  computation. 49/49 tests pass (28 pre-existing + 21 new), independently re-verified. Committed
-  `cc819b5`.
-- **Task 5** (Cypress, RED, `e611f4e`): extended `App.test.tsx`/`SkillMatrix.test.tsx`/
-  `ArbitrageLadder.test.tsx` with failing tests for the resume-paste flow + have/gap rendering — 49
-  pre-existing tests still pass unmodified, 18 new tests fail for the right reason (independently
-  re-verified: 53/71 passing). **Contract Redwood/Magnolia must honor in Task 6**: additive
-  optional `haveSkillKeys?: Set<string>` on `SkillMatrix`/`ArbitrageLadder`/`SkillDataTable`
-  (byte-identical rendering when omitted); when provided, each item gets `data-have="true"|"false"`
-  + a visible `data-testid="have-flag"` reading `"Have"`/`"Gap"` + an accessible-name suffix
-  (`", you already have this skill"` / `", gap — you do not have this skill yet"`), layered on top
-  of the existing shape encoding — never color-only; `SkillDataTable` gets a text `<th>` matching
-  `/have.*gap/i`. `App.tsx`: textarea accessible name `"Resume text"`, submit button `"Find my
-  gaps"`, inline `role="alert"` validation (no role selected / empty resume — blocks the call),
-  `role="status"` `"Extracting skills from your resume…"` while pending, `role="alert"` on failure
-  (app + role profile stay visible).
-- **Task 6** (Magnolia, GREEN, `6325ff6`) — **completes spec 004.** Wired the resume
-  textarea/submit into `App.tsx`; threaded `haveSkillKeys` through the three matrix components
-  exactly per Task 5's contract, verified against the real diff (not just the report): omitted
-  prop → byte-identical rendering; provided → `data-have` + visible `Have`/`Gap` badge + aria-label
-  suffix, layered on the existing shape encoding via a reserved status color ramp (distinct from
-  the categorical series ramp, `dataviz` skill invoked first). 71/71 tests pass, independently
-  re-verified; exactly the 5 spec-authorized files touched. Resume gap layer (README MVP step 4)
-  is now feature-complete end-to-end: pick role → paste resume → extract (OpenRouter) → Zod-gated
-  → deterministic gap → have/gap rendered on the matrix/ladder/table.
+- **Task 3** (Cypress, RED, `5dad61a`) → **Task 4** (Redwood, GREEN, `cc819b5`): built
+  `frontend/src/lib/{resumeSkills,gap,normalize}.ts` + `zod` dependency —
+  `extractResumeSkills()` (Zod-validates the edge function's response, named
+  `ExtractionSchemaError` on failure) and `computeSkillGap()` (pure, deterministic have/gap
+  partition, reusing `ArbitrageLadder`'s exact sort). `normalizeSkillName`'s regex verified
+  byte-for-byte against `src/ingest/normalize.py`'s join-key logic, not just described. 49/49 tests
+  pass, independently re-verified.
+- **Task 5** (Cypress, RED, `e611f4e`) → **Task 6** (Magnolia, GREEN, `6325ff6`, **completes spec
+  004**): resume textarea/submit wired into `App.tsx`; additive optional `haveSkillKeys?:
+  Set<string>` threaded through `SkillMatrix`/`ArbitrageLadder`/`SkillDataTable` — omitted →
+  byte-identical rendering to before, provided → `data-have` + visible `Have`/`Gap` badge +
+  accessible-name suffix, layered on the existing shape encoding via a reserved status color ramp
+  (never color-only, `dataviz` skill invoked first). 71/71 tests pass, independently re-verified;
+  exactly the spec-authorized files touched each task. Resume gap layer (README MVP step 4) is
+  code-complete end-to-end: pick role → paste resume → extract (OpenRouter) → Zod-gated →
+  deterministic gap → have/gap rendered on the matrix/ladder/table.
 
-### Unfinished / Blocked
-- **specs/003 and specs/004 both fully complete.** specs/004 not yet live-verified in a real
-  browser (unlike 003) — the edge function is undeployed, so `extractResumeSkills` has never been
-  exercised against a live OpenRouter call. Deploy steps are in
-  `supabase/functions/extract-resume-skills/README.md`.
+### Deploy + live-verification attempt (spec 004, in progress)
+- Supabase CLI (`npx supabase`) proved unusable in this sandbox: `supabase login`'s browser OAuth
+  can't complete headlessly, and a `SUPABASE_ACCESS_TOKEN` exported in the user's own `!`-session
+  shell does not propagate to the assistant's separate Bash-tool subprocess (confirmed empirically
+  — different shell contexts despite both being called "this session"). Switched to deploying via
+  the **Supabase Dashboard UI** instead (Edge Functions → paste `index.ts` → deploy), which
+  succeeded.
+- First verification curl (anon key, real project URL, from the assistant's Bash tool) returned
+  `502 {"error":"extraction_failed"}` — correct generic-error behavior, but extraction itself was
+  failing. Root-caused iteratively, each hypothesis tested empirically rather than guessed:
+  1. Secret name/value typo in the dashboard's Secrets page — user found and fixed a wrong key
+     value. Retried: still 502.
+  2. Discovered via web search a real, documented OpenRouter gotcha: free-tier (`:free`) models
+     reject requests with a data-policy 404 unless "Model Training" is enabled in OpenRouter
+     account privacy settings (prompt data must be shareable with the free provider). User enabled
+     it. Retried: still 502.
+  3. Isolated further by having the user test **outside our function entirely**: a plain chat
+     completion directly against OpenRouter with their real key → succeeded (200, real response) —
+     confirms the key and the model itself both work. This means the bug is specific to our
+     function's forced-tool-use request shape, not the provider/key/model.
+  4. Next isolation step in flight: a scratch script
+     (`/tmp/.../scratchpad/test_openrouter.sh`, **not** committed — a stray earlier copy was
+     accidentally written into the repo root and has been deleted) sends the exact
+     `tools`/`tool_choice` shape our edge function sends, run by the user with their own key, to
+     confirm whether `google/gemma-4-31b-it:free` genuinely supports forced tool-use despite being
+     listed as supporting "native function calling" — **result not yet reported back**.
+- **specs/003 and specs/004 both code-complete.** specs/004 still not live-verified end-to-end —
+  the deployed function is returning 502 on every real extraction attempt; root cause narrowed to
+  the tool-use request shape but not yet confirmed or fixed.
 - Task 6 note: `SkillMatrix`'s have/gap badge doesn't get the same `visually-hidden` duplicate-text
   span `ArbitrageLadder`'s does — deliberate (avoids ambiguous double-matches when a skill appears
   in both components at once), documented in Magnolia's completion report, not a gap.
@@ -141,11 +135,18 @@
   in `tests/test_ingest_parse.py`, unsorted imports in `tests/test_skill_core_join.py`.
 
 ### Next Steps
-- **Deploy the edge function and live-verify spec 004** (README MVP step 4): `supabase secrets set
-  OPENROUTER_API_KEY=...`, `supabase functions deploy extract-resume-skills`, then exercise the
-  full flow in a real browser — pick a role, paste a resume, confirm have/gap renders correctly
-  against a live OpenRouter response. Steps documented in the function's README.
-- After that: README MVP step 5 (LLM narration of the top gap) is the next unbuilt slice — not
-  specced yet, should reuse the OpenRouter/edge-function pattern established here rather than
-  re-deriving it (noted in spec 004's Task 1 amendment).
+- **Get the result of the in-flight tool-use isolation test** (step 4 above) from the user, then:
+  - If `google/gemma-4-31b-it:free` fails on forced tool-use directly: this is a real model
+    limitation, not a code bug — needs a decision (different free model? relax to unforced
+    `tool_choice: "auto"` with stricter response parsing? accept and document the gap?) rather than
+    more guessing.
+  - If it succeeds directly: the bug is in our function's exact request encoding vs. the isolation
+    script's — diff them line by line (attribution headers? message content escaping? `max_tokens`
+    field OpenRouter doesn't like?).
+- Once extraction genuinely returns real skills end-to-end, finish live-verifying spec 004 in a
+  real browser: pick a role, paste a resume, confirm have/gap renders correctly.
+- Clean up: the scratch debug script lives in `/tmp/.../scratchpad/`, not the repo — confirm no
+  other stray scratch files landed in `looking-glass/` before the next commit.
+- After spec 004 is live-verified: README MVP step 5 (LLM narration) is next, unspecced, should
+  reuse this OpenRouter/edge-function pattern.
 - Optional cleanup someday: fix the lint hook's node/nvm PATH resolution; consider `@types/jest-axe`.
