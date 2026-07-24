@@ -42,22 +42,33 @@
   salary_premium_pct only, fixture extended with a negative-salary-premium row); Redwood
   implemented `formatSalaryPremiumPhrase` in format.ts and wired it into narrate.ts's
   scoreClauses/statChips. **Verified: 162/162 vitest, eslint/tsc clean.**
-- **Spec 014: Cypress dispatched** to write failing tests for the table cell + accessible
-  footnote (imports 013's helper from main, does not reimplement); not yet returned.
+- **Spec 014: Cypress wrote failing tests, Magnolia implemented** — plain-language phrase in the
+  table cell + a visible `*` marker + `aria-describedby`-linked always-visible footnote (no
+  `title` tooltip, no color-only signaling, `useId()` convention reused). 168/169 vitest,
+  eslint/tsc clean, axe-clean.
+- **Cross-spec regression found and routed back to Cypress (not a real bug)**: spec 009's
+  App.test.tsx had a brittle assertion — "fewer than 3 `[aria-hidden=\"true\"]` descendants of
+  `.lg-results`" — used as a proxy for "the loading skeleton is gone." Spec 014's legitimate new
+  `aria-hidden` footnote marker (always present once the table renders) pushed the real-content
+  count from 2 to 3, coincidentally breaking that proxy threshold. **Dispatched Cypress** to fix
+  its own test: scope the three affected assertions to the actual `.lg-skeleton`/
+  `.lg-skeleton-block` selectors spec 009 introduced, instead of a generic aria-hidden count —
+  not yet returned. The underlying feature behavior (skeleton shows/hides correctly) has no bug.
 
 ### Unfinished / blocked
-- **Spec 014**: Cypress writing failing tests for the table cell + `aria-describedby` footnote;
-  not yet returned. Once red, dispatch Magnolia to implement (owns styling/matrix.css).
+- **Cypress fixing the brittle spec-009 skeleton-count assertion** in App.test.tsx (3 uses of
+  `.toBeLessThan(3)`/`.toBeGreaterThanOrEqual(3)` → real `.lg-skeleton`/`.lg-skeleton-block`
+  selector checks); not yet returned. Once fixed, full suite should be 169/169.
 - Rounds 1-3 (specs 001-012, `@types/node`, font swap, 15-role expansion) remain fully
   merged/pushed — no carryover blockers from earlier in the day.
-- **Verify push status before ending the session** — confirm round 4's commits (013/014 specs +
-  implementation) are pushed once spec 014 lands.
+- **Not yet committed or pushed**: spec 014's implementation (SkillLeverageTable.tsx, matrix.css,
+  SkillLeverageTable.test.tsx) and the pending App.test.tsx fix are both uncommitted on disk.
 
 ### Next Steps
-1. Check on the backgrounded Cypress agent (spec 014); when its red tests land, dispatch Magnolia
-   to implement (table cell + footnote, matrix.css styling).
-2. After spec 014 lands and is verified (vitest/eslint/tsc clean, axe-clean), push `main` to
+1. Check on the backgrounded Cypress agent (App.test.tsx skeleton-assertion fix); once it returns
+   169/169 green, commit spec 014's implementation + the test fix together, then push `main` to
    `origin/main`.
+2. After that push, this round (013/014, salary-premium clarity) is fully closed out.
 3. If a better learning-resource dataset surfaces later, re-run Birch's join-test methodology
    (pull the real 141-skill list live from Supabase `skills_core` via the anon-key REST endpoint —
    don't re-extract D1/D2 raw CSVs, they're gone locally and this is faster) before committing to
