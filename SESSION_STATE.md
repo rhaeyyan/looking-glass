@@ -38,27 +38,30 @@
     post-008 `main`, reran the full suite (129/129 then 147/147), confirmed eslint clean, then
     fast-forward merged. All four stale worktrees + branches removed after merge.
   - **Final state on `main`: 147/147 vitest, eslint clean.**
-- `npx tsc --noEmit` surfaced a recurring gap: 9 errors ("Cannot find module 'node:fs'/'node:url'/
-  'node:path'") across the 3 new static-CSS-parsing test files — the project has no `@types/node`.
-  Does not affect vitest/eslint. **Cedar authorized `@types/node@^22` as a devDependency** (Rule 8)
-  — rejected a hand-rolled shim (unlike spec 007's narrow jest-axe shim, Node's builtin surface is
-  too large to hand-maintain) — plus adding `"node"` to `tsconfig.json`'s `types` array (required:
-  TS only auto-includes `@types/*` when no `types` array is present, and one is already declared
-  here as `["vite/client"]`). Dispatched Redwood to implement; not yet returned.
+- `npx tsc --noEmit` had surfaced a recurring gap: 9 errors ("Cannot find module 'node:fs'/
+  'node:url'/'node:path'") across the 3 new static-CSS-parsing test files. **Cedar authorized
+  `@types/node` as a devDependency** (Rule 8) — rejected a hand-rolled shim (unlike spec 007's
+  narrow jest-axe shim, Node's builtin surface is too large to hand-maintain). Redwood implemented:
+  added `@types/node@^22.20.1` to devDependencies (full-semver pin, matching the existing
+  `@types/react*` convention already in this file) and `"node"` to `tsconfig.json`'s `types` array
+  (required — one is already explicitly declared as `["vite/client"]`, so TS won't auto-include
+  new `@types/*` packages without being listed). **`tsc --noEmit` now 0 errors (was 9); vitest
+  147/147 and eslint stayed clean.** Committed (`4f35f4c`).
 
 ### Unfinished / blocked
-- **Redwood implementing the `@types/node` addition**: dispatched, not yet returned. When it
-  reports back, verify its before/after `tsc --noEmit` error list (must show exactly the 9 known
-  errors gone, zero new ones elsewhere) and that vitest/eslint stay clean (147/147, clean), then
-  commit.
+- None outstanding from this round. All three UI/UX specs (008/009/010) are merged and green, and
+  the `@types/node` cleanup that fell out of them is closed. Whole tree: 147/147 vitest, eslint
+  clean, tsc clean.
 
 ### Next Steps
-1. Check on the backgrounded Redwood agent (`@types/node` + tsconfig `types` array); verify its
-   `[COMPLETION-REPORT]`, then commit (`build(types): add @types/node for CSS-parsing test files`).
-2. Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
-3. Note: `playwright-core` (headless Chromium driver used for live screenshots in an earlier
-   session) was installed `--no-save`, so it is **not** in `package.json` — reinstall it
-   (`npm install --no-save playwright-core@1.50.0`) if another live screenshot pass is needed.
+- No specific next step queued — this round's scope (whole-app UI/UX + data-viz pass) is complete.
+  Future work would be new/unspecced.
+- Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
+- Note: `playwright-core` (headless Chromium driver used for live screenshots in an earlier
+  session) was installed `--no-save`, so it is **not** in `package.json` — reinstall it
+  (`npm install --no-save playwright-core@1.50.0`) if another live screenshot pass is needed. A
+  live browser pass on 009/010 (empty/loading states, scatter legend/tap-reveal/motion) hasn't been
+  done yet this round — only automated tests — worth doing before considering this fully verified.
 
 ---
 
