@@ -186,3 +186,80 @@
   tsc/eslint/build clean.
 - Spec 007 (jest-axe local type shim, no new dependency) and this UI-polish pass are both
   committed and pushed to `main` this session.
+
+### 2026-07-24 (round 2) — Whole-app UI/UX + dataviz pass, specs 008–010
+
+- User asked for another whole-app UI/UX + data-viz pass and explicitly authorized relaxing the
+  standing `Simplicity > Pattern purity` [FORCES] default. Routed through Cedar first (Workflow
+  Rule 1). **Cedar investigated and declined to use the relaxed permission**: no genuine repeated
+  variance in the frontend (one chart, one table, one donut) — all three specs kept
+  `Design Pattern: none`.
+- **Three SPECs written, user-approved, persisted, all shipped and merged**, each via Cypress (red
+  tests) → Magnolia (implementation) → verify green:
+  - **008** (`dd04372`): unified `--have-tone`/`--learn-tone` (+surface) tokens across the donut,
+    scatter, and table, replacing the old disjoint `--color-accent`/`--gap-tone` vs.
+    `--status-good`/`--status-critical` pair.
+  - **009**: `.lg-results` now shows a Step-1 placeholder card when idle and a shaped,
+    `aria-hidden` skeleton (scorecard/scatter/table blocks) while loading. Shimmer gated behind
+    `prefers-reduced-motion`.
+  - **010**: scatter gained an always-visible legend (color-tier + ✓/✕ glyph meaning), a
+    tap-accessible reveal (`aria-pressed`/`data-revealed`, additive to hover/focus), and a
+    settle-in position transition on role change (gated behind `prefers-reduced-motion`).
+  - **Worktree note**: 009's and 010's Magnolia agents each got sandboxed into their own fresh
+    worktree rather than the one Cypress used (harness isolation); verified byte-identical intent,
+    rebased onto post-008 `main`, reran the full suite (147/147), fast-forward merged. All stale
+    worktrees + branches removed after merge.
+- `npx tsc --noEmit` surfaced a recurring gap: 9 errors ("Cannot find module 'node:fs'/'node:url'/
+  'node:path'") across 3 new static-CSS-parsing test files. **Cedar authorized `@types/node`** as a
+  devDependency (Rule 8) — rejected a hand-rolled shim (Node's builtin surface too large to
+  hand-maintain, unlike spec 007's narrow jest-axe shim). Added `@types/node@^22.20.1` +
+  `"node"` to `tsconfig.json`'s `types` array. `tsc --noEmit` 0 errors (was 9); 147/147 vitest,
+  eslint clean. Committed (`4f35f4c`), pushed to `origin/main` (`369a20a`).
+- User asked about a resume-upload option (PDF/DOCX) — **declined for this build**: a new
+  client-side parsing dependency (pdf.js/mammoth) needs Cedar dependency authorization and expands
+  the Zero-Trust surface. User chose to keep the paste-box as-is.
+- **Font system swap (Poppins/Inter/JetBrains Mono), user-approved directly** (cosmetic-only, no
+  Cedar SPEC needed): used the `ui-ux-pro-max` skill's typography domain to find the "Modern
+  Professional" pairing; user picked Poppins (headings) + Inter (body), plus a third token
+  **JetBrains Mono** applied only to digit-heavy table cells (rank, leverage-bar readout, demand/
+  scarcity/salary-premium/days-to-fill). Replaces Barlow/Barlow Condensed. Preserved the existing
+  `var(--font-heading, inherit)`/`var(--font-body, system-ui)` fallback chains. Committed
+  (`a33d59b`), pushed.
+
+### 2026-07-24 (round 3) — 15-role expansion + Coursera learning-resource scoping
+
+- User asked what other Kaggle datasets/features could help career changers, and whether the DB
+  supports more target roles. **Confirmed: yes, already does** — the ingest pipeline loads D3's
+  full `skills-2026-by-role.csv` unfiltered (450 rows / 15 roles), and `role_skill_arbitrage` joins
+  across all 15 with no role filter. The 6-role limit lived in exactly one place:
+  `frontend/src/lib/roles.ts`'s `ROLES` const.
+- User asked to add all 9 remaining roles and prioritize a skills → learning-resource mapping.
+  **Routed the role expansion through Cedar** (Rule 1 — touches docs asserting a "6-role" ship
+  gate). Cedar confirmed the backend was already fully tested for all 15 roles — pure frontend
+  enum widening. Resolved one open design question without inventing new UI: the existing
+  per-skill "demand only, scarcity unknown" flag already handles thin-coverage ("Weak" tier) roles
+  role-agnostically.
+  **Two SPECs (011, 012) written, approved, shipped**: widened `ROLES` to all 15 verbatim
+  `role_family` strings (Cypress→Redwood, `f2998b2`); corrected README/AGENTS' stale "V1 ships six
+  roles" framing (Redwood, `925c1a0`). 148/148 vitest, eslint/tsc clean.
+- **Learning-resource mapping: investigated, then dropped.** User downloaded the Coursera 2025
+  skills dataset (`data/raw/d4/Coursera.csv`, gitignored). Birch's first pass (proxy vocabulary)
+  flagged concerns: messy row grain (courses cross-listed across `Subject`), no license file, and
+  a naming-convention mismatch (D4 uses expanded forms — "Amazon Web Services" not "AWS" — that the
+  case-fold-only `normalize_skill()` won't bridge).
+  Pulled the **real 141-skill vocabulary live from Supabase's `skills_core` table** (anon-key REST
+  endpoint, no new dependency) instead of asking the user to re-extract D1/D2, and had Birch re-run
+  the join test for real:
+  - Exact match: 33/141 (23.4%). Current normalization: 36/141 (25.5%).
+  - + generic "strip trailing (Qualifier)" rule: 56/141 (39.7%).
+  - + a hand-curated ~27-entry alias table: **83/141 (58.9%) — realistic ceiling.**
+  - **41% of the core (58 skills) genuinely absent from D4 under any spelling** — concentrated in
+    modern GenAI (`AI Agents`, `RAG`, `LangChain`), data-eng/observability tooling (`Airflow`,
+    `dbt`, `MLflow`), and current cloud-native tools (`FastAPI`, `Next.js`, `GraphQL`).
+  - Searched for a better alternative dataset — nothing found looked meaningfully better; the
+    problem is structural (a static course scrape lags fast-moving GenAI/tooling vocabulary), not
+    a matter of picking a different file.
+  - **User decision: drop the feature for now.** `data/raw/d4/Coursera.csv` left in place
+    (gitignored, harmless) in case a better dataset/approach surfaces later — no ingest code
+    written, nothing to revert.
+- Both rounds pushed to `origin/main`.
