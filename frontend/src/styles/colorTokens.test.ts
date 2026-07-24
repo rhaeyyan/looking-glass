@@ -321,9 +321,9 @@ describe('spec 015 — light-mode contrast fixes (all below are RED until Redwoo
       }
       // Every pre-existing key must be byte-identical to before. NEW keys are tolerated only if
       // they belong to the --glass-* family introduced by spec 017 and are inert in dark mode
-      // (fully opaque / no blur, so dark mode still renders identically to today) — mirrors the
-      // `assertNoRegressionAndGlassIsInertIfPresent` pattern in glassmorphism.test.ts, scoped here
-      // to this spec's own concern: no EXISTING (non-glass) token may drift.
+      // (fully transparent / no blur, so dark mode still renders identically to today) — mirrors
+      // the `assertNoRegressionAndGlassIsInertIfPresent` pattern in glassmorphism.test.ts, scoped
+      // here to this spec's own concern: no EXISTING (non-glass) token may drift.
       function assertNoRegressionAllowingInertGlassTokens(dark: Record<string, string>) {
         for (const [key, value] of Object.entries(expectedDarkRoot)) {
           expect(dark[key]).toBe(value)
@@ -332,7 +332,7 @@ describe('spec 015 — light-mode contrast fixes (all below are RED until Redwoo
         for (const key of newKeys) {
           expect(key.startsWith('glass-')).toBe(true)
           if (key === 'glass-alpha') {
-            expect(Number(dark[key])).toBe(1)
+            expect(Number(dark[key])).toBe(0)
           }
           if (key === 'glass-blur') {
             expect(['0', '0px', '0rem', '0em', 'none']).toContain(dark[key].trim())

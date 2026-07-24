@@ -329,12 +329,12 @@ describe('spec 017 — dark mode is pixel/behavior-identical to today (constrain
       expect(dark[key]).toBe(value)
     }
     // Any NEW key introduced by this spec must be a --glass-* token, and if present, must encode
-    // "no glass" (fully opaque, no blur) so dark mode renders identically to today.
+    // "no glass" (fully transparent, no blur) so dark mode renders identically to today.
     const newKeys = Object.keys(dark).filter((k) => !(k in PRE_SPEC_017_DARK_ROOT))
     for (const key of newKeys) {
       expect(key.startsWith('glass-')).toBe(true)
       if (key === 'glass-alpha') {
-        expect(Number(dark[key])).toBe(1)
+        expect(Number(dark[key])).toBe(0)
       }
       if (key === 'glass-blur') {
         expect(['0', '0px', '0rem', '0em', 'none']).toContain(dark[key].trim())

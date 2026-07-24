@@ -95,8 +95,10 @@
     --learn-tone-surface: #33190c;
 
     /* Glass tokens are inert in dark mode — no translucency, no blur, so dark rendering is
-     * unaffected by the light-mode glass treatment. */
-    --glass-alpha: 1;
+     * unaffected by the light-mode glass treatment. Alpha 0 (fully transparent) is the correct
+     * inert value for an rgba() overlay; alpha 1 would render fully opaque white, since
+     * --glass-tint-rgb is never overridden here and stays pure white from :root. */
+    --glass-alpha: 0;
     --glass-blur: 0;
   }
 }
@@ -124,7 +126,7 @@
   --learn-tone: #e8a37e;
   --learn-tone-surface: #33190c;
 
-  --glass-alpha: 1;
+  --glass-alpha: 0;
   --glass-blur: 0;
 }
 
