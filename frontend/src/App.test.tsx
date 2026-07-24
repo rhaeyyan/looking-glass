@@ -681,7 +681,7 @@ describe('<App /> results-column empty + loading states (spec 009)', () => {
     const results = container.querySelector('.lg-results') as HTMLElement
     // At least 3 distinct shaped placeholders (scorecard/scatter/table stand-ins per the SPEC),
     // none of them exposed to the accessibility tree as real content.
-    const skeletonBlocks = results.querySelectorAll('[aria-hidden="true"]')
+    const skeletonBlocks = results.querySelectorAll('.lg-skeleton-block')
     expect(skeletonBlocks.length).toBeGreaterThanOrEqual(3)
 
     // Reuses the card/blueprint visual language rather than a new visual idiom.
@@ -702,14 +702,14 @@ describe('<App /> results-column empty + loading states (spec 009)', () => {
     await screen.findByRole('status')
 
     const resultsWhileLoading = container.querySelector('.lg-results') as HTMLElement
-    expect(resultsWhileLoading.querySelectorAll('[aria-hidden="true"]').length).toBeGreaterThanOrEqual(3)
+    expect(resultsWhileLoading.querySelectorAll('.lg-skeleton-block').length).toBeGreaterThanOrEqual(3)
 
     settle([makeRow({ skill_name_raw: 'PostgreSQL' })])
     await screen.findByRole('table')
 
     const resultsAfter = container.querySelector('.lg-results') as HTMLElement
     // The skeleton must not linger once real rows have rendered.
-    expect(resultsAfter.querySelectorAll('[aria-hidden="true"]').length).toBeLessThan(3)
+    expect(resultsAfter.querySelector('.lg-skeleton')).not.toBeInTheDocument()
   })
 
   it('does not show the idle placeholder or the loading skeleton once an error has occurred (no state collision)', async () => {
@@ -722,7 +722,7 @@ describe('<App /> results-column empty + loading states (spec 009)', () => {
 
     const results = container.querySelector('.lg-results') as HTMLElement
     expect(within(results).queryByText(STEP_1_PATTERN)).not.toBeInTheDocument()
-    expect(results.querySelectorAll('[aria-hidden="true"]').length).toBeLessThan(3)
+    expect(results.querySelector('.lg-skeleton')).not.toBeInTheDocument()
   })
 
   it('does not show the idle placeholder or the loading skeleton once a role resolves to zero skills (no state collision)', async () => {
@@ -735,7 +735,7 @@ describe('<App /> results-column empty + loading states (spec 009)', () => {
 
     const results = container.querySelector('.lg-results') as HTMLElement
     expect(within(results).queryByText(STEP_1_PATTERN)).not.toBeInTheDocument()
-    expect(results.querySelectorAll('[aria-hidden="true"]').length).toBeLessThan(3)
+    expect(results.querySelector('.lg-skeleton')).not.toBeInTheDocument()
   })
 
   it('has no axe violations with the idle placeholder card rendered', async () => {

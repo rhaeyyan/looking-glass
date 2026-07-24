@@ -115,6 +115,15 @@
   max-width: 60ch;
 }
 
+.lev-footnote {
+  margin: 0.75rem 0 0;
+}
+
+.lev-footnote-marker {
+  margin-left: 0.15em;
+  color: var(--text-secondary);
+}
+
 /* ---------- Scatter ---------- */
 
 .matrix-canvas {

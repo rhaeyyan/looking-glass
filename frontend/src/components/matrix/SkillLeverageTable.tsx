@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import type { RoleSkillRow } from '../../lib/supabaseClient'
-import { formatNum } from '../../lib/format'
+import { formatNum, formatSalaryPremiumPhrase } from '../../lib/format'
 import { normalizeSkillName } from '../../lib/normalize'
 import './matrix.css'
 
@@ -32,6 +32,7 @@ export function SkillLeverageTable({
   roleName: string
 }) {
   const titleId = useId()
+  const salaryFootnoteId = useId()
   const ranked = [...rows].sort(byArbitrageDesc)
   const topScore = ranked.reduce((max, r) => Math.max(max, r.arbitrage_score ?? 0), 0)
 
@@ -71,7 +72,12 @@ export function SkillLeverageTable({
               <th scope="col">Leverage</th>
               <th scope="col">Demand</th>
               <th scope="col">Scarcity</th>
-              <th scope="col">Salary premium</th>
+              <th scope="col" aria-describedby={salaryFootnoteId}>
+                Salary premium
+                <span aria-hidden="true" className="lev-footnote-marker">
+                  *
+                </span>
+              </th>
               <th scope="col">Days to fill</th>
               <th scope="col">% of role</th>
               <th scope="col">Confirmed across postings</th>
@@ -118,7 +124,9 @@ export function SkillLeverageTable({
                   <td className="lev-metric">{formatNum(row.demand_score)}</td>
                   <td className="lev-metric">{formatNum(row.scarcity_index)}</td>
                   <td className="lev-metric">
-                    {row.salary_premium_pct == null ? '—' : `${formatNum(row.salary_premium_pct)}%`}
+                    {row.salary_premium_pct == null
+                      ? '—'
+                      : formatSalaryPremiumPhrase(row.salary_premium_pct)}
                   </td>
                   <td className="lev-metric">
                     {row.median_days_open == null ? '—' : formatNum(row.median_days_open)}
@@ -131,6 +139,11 @@ export function SkillLeverageTable({
           </tbody>
         </table>
       </div>
+
+      <p id={salaryFootnoteId} className="ladder-hint lev-footnote">
+        * Salary premium is the dataset&rsquo;s own metric, comparing this skill&rsquo;s pay against
+        typical pay for that skill&rsquo;s job category.
+      </p>
     </section>
   )
 }
