@@ -6,13 +6,14 @@ import type { TopMove } from '../../lib/narrate'
 
 // `<TopGapNarration>` is a pure display of `narrateTopGaps`'s already-computed result — no LLM,
 // no scoring, no reformatting. Contract it MUST honor:
-//   - named export `TopGapNarration`, props `headline: string` and `moves: TopMove[]`.
+//   - named export `TopGapNarration`, prop `moves: TopMove[]`.
 //   - renders a `<section>` (implicit `role="region"` via `aria-labelledby`) whose accessible name
 //     references `moves[0].row.skill_name_raw`.
-//   - renders `headline` as REAL (not `aria-hidden`), byte-identical DOM text — no truncation, no
-//     re-wording, no re-derivation of its numbers.
+//   - does NOT render the redundant "X ranks above Y on leverage: A vs B" comparison sentence — the
+//     ranked list already shows which skill is above which (the UI dropped it; `narrateTopGaps`
+//     still returns the string, its provenance suite is unchanged).
 //   - renders one ranked list item per move, each surfacing the skill name + its stat chips
-//     verbatim; ranks 2+ also show their `note`, rank 1 does not (its rationale is the headline).
+//     verbatim; ranks 2+ also show their `note`, rank 1 does not (its rationale is the ranking).
 //   - a single-move `moves` array renders without throwing.
 //   - zero axe violations.
 const TOP_GAP_NARRATION_MODULE = './TopGapNarration'
@@ -40,9 +41,9 @@ function makeRow(overrides: Partial<RoleSkillRow> = {}): RoleSkillRow {
   }
 }
 
-// Deliberately "ugly" — an em dash, a colon, decimals — so a byte-identical assertion proves
-// something beyond a friendly plain sentence.
-const HEADLINE = 'Rust ranks above PostgreSQL on leverage score: 9.1 vs 4.2.'
+// The comparison sentence the UI used to render, kept here only so a regression test can assert it
+// is NOT shown (ask #3 — it just restated the visible ranking).
+const OLD_COMPARISON = 'Rust ranks above PostgreSQL on leverage score: 9.1 vs 4.2.'
 
 const THREE_MOVES: TopMove[] = [
   { rank: 1, row: makeRow(), note: '', stats: ['Leverage 9.1', 'Demand 63'] },
@@ -63,28 +64,22 @@ const THREE_MOVES: TopMove[] = [
 describe('<TopGapNarration /> isolated component contract', () => {
   it('renders a labelled section whose accessible name references the lead move skill', async () => {
     const TopGapNarration = await loadTopGapNarration()
-    render(<TopGapNarration headline={HEADLINE} moves={THREE_MOVES} />)
+    render(<TopGapNarration moves={THREE_MOVES} />)
 
     expect(screen.getByRole('region', { name: /Rust/ })).toBeInTheDocument()
   })
 
-  it('renders the headline as byte-identical, real (non aria-hidden) DOM text', async () => {
+  it('does not render the redundant "ranks above … : A vs B" comparison sentence', async () => {
     const TopGapNarration = await loadTopGapNarration()
-    render(<TopGapNarration headline={HEADLINE} moves={THREE_MOVES} />)
+    render(<TopGapNarration moves={THREE_MOVES} />)
 
-    const textNode = screen.getByText(HEADLINE)
-    expect(textNode.textContent).toBe(HEADLINE)
-
-    let node: HTMLElement | null = textNode
-    while (node) {
-      expect(node.getAttribute('aria-hidden')).not.toBe('true')
-      node = node.parentElement
-    }
+    expect(screen.queryByText(OLD_COMPARISON)).not.toBeInTheDocument()
+    expect(screen.queryByText(/ranks above/i)).not.toBeInTheDocument()
   })
 
   it('renders one ranked list item per move with the skill name and its stat chips verbatim', async () => {
     const TopGapNarration = await loadTopGapNarration()
-    render(<TopGapNarration headline={HEADLINE} moves={THREE_MOVES} />)
+    render(<TopGapNarration moves={THREE_MOVES} />)
 
     const section = screen.getByRole('region', { name: /Rust/ })
     const items = within(section).getAllByRole('listitem')
@@ -101,7 +96,7 @@ describe('<TopGapNarration /> isolated component contract', () => {
 
   it('shows notes for ranks 2+ but not for rank 1 (its rationale is the headline)', async () => {
     const TopGapNarration = await loadTopGapNarration()
-    render(<TopGapNarration headline={HEADLINE} moves={THREE_MOVES} />)
+    render(<TopGapNarration moves={THREE_MOVES} />)
 
     const section = screen.getByRole('region', { name: /Rust/ })
     const items = within(section).getAllByRole('listitem')
@@ -116,7 +111,7 @@ describe('<TopGapNarration /> isolated component contract', () => {
     const solo: TopMove[] = [{ rank: 1, row: makeRow(), note: '', stats: ['Leverage 9.1'] }]
 
     expect(() =>
-      render(<TopGapNarration headline="Rust is the top skill worth learning next." moves={solo} />),
+      render(<TopGapNarration moves={solo} />),
     ).not.toThrow()
     expect(screen.getByRole('region', { name: /Rust/ })).toBeInTheDocument()
   })
@@ -133,7 +128,7 @@ describe('<TopGapNarration /> isolated component contract', () => {
 
     try {
       const TopGapNarration = await loadTopGapNarration()
-      render(<TopGapNarration headline={HEADLINE} moves={THREE_MOVES} />)
+      render(<TopGapNarration moves={THREE_MOVES} />)
       expect(screen.getByRole('region', { name: /Rust/ })).toBeInTheDocument()
     } finally {
       globalThis.fetch = originalFetch
@@ -142,7 +137,7 @@ describe('<TopGapNarration /> isolated component contract', () => {
 
   it('has zero axe violations when the ranked moves are rendered', async () => {
     const TopGapNarration = await loadTopGapNarration()
-    const { container } = render(<TopGapNarration headline={HEADLINE} moves={THREE_MOVES} />)
+    const { container } = render(<TopGapNarration moves={THREE_MOVES} />)
 
     expect(await axe(container)).toHaveNoViolations()
   })

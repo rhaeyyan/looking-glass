@@ -243,20 +243,21 @@ function App() {
 
         <div className="lg-results">
           {hasRows && (
-            <div className="lg-summary-tags">
-              <span className="tag tag-accent" style={{ fontFamily: 'var(--font-heading)', fontSize: '13px', padding: '6px 14px' }}>
-                {selectedRole}
-              </span>
-              <span className="tag tag-neutral">
-                {scoredCount} of {rows.length} scored
-              </span>
-              {topMove && (
-                <span className="tag tag-outline">
-                  Start here: {topMove.skill_name_raw}
-                  {topMove.arbitrage_score !== null && ` · leverage ${formatNum(topMove.arbitrage_score)}`}
+            <header className="lg-results-head">
+              <span className="card-kicker">Target role</span>
+              <h2 className="lg-results-title">Skill profile for {selectedRole}</h2>
+              <div className="lg-summary-tags">
+                <span className="tag tag-neutral">
+                  {scoredCount} of {rows.length} scored
                 </span>
-              )}
-            </div>
+                {topMove && (
+                  <span className="tag tag-outline">
+                    Start here: {topMove.skill_name_raw}
+                    {topMove.arbitrage_score !== null && ` · leverage ${formatNum(topMove.arbitrage_score)}`}
+                  </span>
+                )}
+              </div>
+            </header>
           )}
 
           {analyzed && (
@@ -288,7 +289,7 @@ function App() {
                 </div>
               </div>
               <div className="lg-scorecard-narration">
-                {topGaps && <TopGapNarration headline={topGaps.headline} moves={topGaps.moves} />}
+                {topGaps && <TopGapNarration moves={topGaps.moves} />}
                 {showNoGaps && (
                   <p role="status" style={{ fontSize: '14px', opacity: 0.8, margin: 0 }}>
                     {NO_GAPS_MESSAGE}

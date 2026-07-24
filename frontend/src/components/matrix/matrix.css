@@ -334,6 +334,8 @@
 
 .ladder-name {
   font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ladder-track {
@@ -367,6 +369,51 @@
 @media (prefers-reduced-motion: no-preference) {
   .ladder-item {
     transition: background 120ms ease-out;
+  }
+}
+
+/* Narrow screens: the fixed 5-column ladder grid can't fit ~360px, so collapse to a wrapping flex
+ * row — rank + name + score + status stay on line 1, the score bar wraps full-width below. */
+@media (max-width: 560px) {
+  .ladder-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.6rem;
+  }
+  .ladder-rank {
+    order: 1;
+  }
+  .ladder-name {
+    order: 2;
+    flex: 1 1 auto;
+  }
+  .ladder-score {
+    order: 3;
+  }
+  .ladder-flag {
+    order: 3;
+  }
+  .ladder-have-flag {
+    order: 4;
+  }
+  .ladder-track {
+    order: 5;
+    flex: 1 1 100%;
+  }
+}
+
+/* Narrow screens: shrink the scatter so its 340px plot never dictates a wider-than-viewport
+ * layout, and tuck the zone guide labels tighter. Position + size + glyph + table still carry all
+ * meaning, so a smaller plot loses no information. */
+@media (max-width: 560px) {
+  .matrix-canvas {
+    height: 260px;
+  }
+  .matrix-zone-hi,
+  .matrix-zone-lo {
+    font-size: 0.6rem;
+    max-width: 9rem;
   }
 }
 

@@ -41,6 +41,17 @@
 - **Ran it live** end-to-end (headless Chromium against the real `.env`/Supabase, synthetic resume,
   Backend role) in light + dark, zero page/console errors; screenshots in scratchpad confirm the
   redesign + the fixed scatter.
+- **UI polish pass (via Magnolia + ui-ux-pro-max / dataviz / frontend-design skills)** on three
+  user asks: (1) responsiveness — `.nav` flex-wraps, new `max-width:520px` (gutters+type scale) and
+  `max-width:560px` (ladder 5-col grid → wrapping flex; scatter shrinks 340→260px) breakpoints,
+  `overflow-wrap` on long skill names, `.lg-results` `overflow-x:clip`; verified **no horizontal
+  overflow** at 1440/390px. (2) role visibility — results column now opens with a visible
+  `<h2>Skill profile for {role}</h2>` + "TARGET ROLE" kicker (table `<caption>` kept for a11y).
+  (3) removed the redundant "X ranks above Y on leverage score: A vs B" headline from the top-moves
+  panel — `TopGapNarration` dropped the `headline` prop, replaced with a static value-framing line;
+  `narrate.ts` untouched (still returns `headline`, provenance suite intact). Touched App.tsx,
+  TopGapNarration.tsx + .test, App.test, looking-glass.css, matrix.css. 108/108, tsc/eslint/build
+  clean; re-screenshotted live in light+dark+mobile (Full Stack) — all three asks confirmed.
 
 ### Unfinished / blocked
 - **RESOLVED: the `jest-axe` `tsc` gap is closed** (spec 007). Cedar rejected `@types/jest-axe`
@@ -55,9 +66,9 @@
 - Changes are uncommitted on `main` (user hasn't asked to commit).
 
 ### Next Steps
-- **Uncommitted:** the scatter rebuild (SkillMatrix.tsx/.test.tsx, matrix.css) + this ledger update
-  are staged for a commit — commit/push when ready (spec 007 + the earlier redesign are already
-  pushed on `main`).
+- **Uncommitted:** the Magnolia UI-polish pass (App.tsx, TopGapNarration.tsx + .test, App.test,
+  looking-glass.css, matrix.css) + this ledger update — commit/push when ready (the scatter rebuild,
+  spec 007, and the earlier redesign are already pushed on `main`).
 - Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
 - Note: to screenshot the SPA I installed `playwright-core` + a headless Chromium via `npx
   playwright install` (cached under ~/.cache/ms-playwright). `playwright-core` was `--no-save`, so

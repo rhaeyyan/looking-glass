@@ -327,7 +327,8 @@ textarea.input {
 .nav {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 12px 1rem;
   padding: 16px 32px;
   border-bottom: 1px solid var(--color-divider);
 }
@@ -380,11 +381,34 @@ textarea.input {
   flex-direction: column;
   gap: 22px;
   min-width: 0;
+  /* Safety net: a stray absolutely-positioned scatter label near the plot edge can never push the
+   * page into a horizontal scroll. `clip` (not `hidden`) adds no scroll container. */
+  overflow-x: clip;
+}
+/* Results heading — makes the selected role visible context for the whole results column, not
+ * just an easy-to-miss table caption. */
+.lg-results-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lg-results-head .card-kicker {
+  margin: 0;
+}
+.lg-results-title {
+  margin: 0;
+  font-size: 26px;
+  overflow-wrap: anywhere;
 }
 .lg-summary-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+/* Long "Start here: …" / role tags wrap their own text instead of forcing the row wider. */
+.lg-summary-tags .tag {
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 /* Ready-score donut (share of role skills already covered). Non-color-only: the % and legend
@@ -462,6 +486,29 @@ textarea.input {
   border-left: 1px solid var(--color-divider);
   padding-left: 20px;
   min-width: 0;
+}
+
+/* Adaptive gutters + type scale on small phones (~360px). Tightens the 32px page inset and scales
+ * the oversized display headings so nothing crowds the viewport edge or overflows horizontally. */
+@media (max-width: 520px) {
+  .nav {
+    padding: 12px 16px;
+  }
+  .lg-header {
+    padding: 20px 16px 4px;
+  }
+  .lg-main {
+    padding: 16px 16px 40px;
+  }
+  h1 {
+    font-size: 28px;
+  }
+  .lg-header p {
+    font-size: 14px;
+  }
+  .lg-results-title {
+    font-size: 22px;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -6,10 +6,13 @@ import './matrix.css'
 // already-computed result — no LLM call, no scoring, no reformatting of its numbers here. The
 // component's only job is to give the ranked shortlist a labelled, keyboard-reachable home.
 //
-// `headline` is rendered byte-identically (it IS `narrateTopGap`'s narrative for the #1 move — the
-// Bounded-AI provenance suite validates that string). Each move's stat chips and note likewise come
-// straight from `narrateTopGaps`, already `formatNum`-formatted — never recomputed here.
-export function TopGapNarration({ headline, moves }: { headline: string; moves: TopMove[] }) {
+// The old "X ranks above Y on leverage: A vs B" comparison sentence is intentionally NOT rendered:
+// it just restated the visible ranking (rank 1 is already listed above rank 2). `narrateTopGaps`
+// still returns that string (its Bounded-AI provenance suite is unchanged) — the UI simply doesn't
+// echo it. In its place: one static value-framing line that explains WHAT leverage means, which the
+// ranked list itself can't convey. Each move's stat chips and note come straight from
+// `narrateTopGaps`, already `formatNum`-formatted — never recomputed here.
+export function TopGapNarration({ moves }: { moves: TopMove[] }) {
   const titleId = useId()
   const lead = moves[0]?.row.skill_name_raw ?? ''
 
@@ -18,7 +21,10 @@ export function TopGapNarration({ headline, moves }: { headline: string; moves: 
       <h2 id={titleId} className="narration-title">
         Your top moves — start with {lead}
       </h2>
-      <p className="narration-text">{headline}</p>
+      <p className="narration-text">
+        Ranked by leverage — skills lots of jobs want but few people have, so you compete less for
+        the same payoff.
+      </p>
       <ol className="topmoves-list">
         {moves.map((move) => (
           <li className="topmove" data-rank={move.rank} key={move.row.skill_key ?? move.row.skill_name_raw}>

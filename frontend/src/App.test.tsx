@@ -449,7 +449,7 @@ describe('<App /> top-gap narration (spec 005)', () => {
     expect(screen.queryByText(NO_GAPS_MESSAGE)).not.toBeInTheDocument()
   })
 
-  it('renders the top-gap narration in a labelled section with byte-identical narrative text', async () => {
+  it('renders the top-gap narration in a labelled section with the ranked moves (never the old comparison sentence)', async () => {
     mockFetch.mockResolvedValue(BACKEND_ROWS)
     mockExtract.mockReturnValue([])
     const user = userEvent.setup()
@@ -464,15 +464,17 @@ describe('<App /> top-gap narration (spec 005)', () => {
     expect(expected!.moves[0].row.skill_name_raw).toBe('Rust')
 
     const section = await screen.findByRole('region', { name: /Rust/i })
-    expect(within(section).getByText(expected!.headline)).toBeInTheDocument()
 
-    // Real (not aria-hidden) text.
-    const textNode = within(section).getByText(expected!.headline)
-    let node: HTMLElement | null = textNode
+    // The ranked list carries the message now: the #1 move's name + its provenanced stat chips are
+    // real, non-aria-hidden DOM text. The redundant "ranks above … : A vs B" sentence is gone.
+    const topStat = expected!.moves[0].stats[0]
+    const statNode = within(section).getByText(topStat)
+    let node: HTMLElement | null = statNode
     while (node) {
       expect(node.getAttribute('aria-hidden')).not.toBe('true')
       node = node.parentElement
     }
+    expect(within(section).queryByText(/ranks above/i)).not.toBeInTheDocument()
 
     // Synchronous piggyback on the same submit — no second extraction call triggered by
     // rendering the narration region.
