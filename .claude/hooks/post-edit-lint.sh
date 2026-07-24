@@ -12,12 +12,27 @@ fi
 
 case "$file" in
   *.js|*.jsx|*.ts|*.tsx|*.mjs|*.cjs)
+    # Ensure a `node` binary is on PATH — hooks run with a bare environment that
+    # doesn't source the user's shell profile (nvm) or include ~/.local/bin, so
+    # eslint's `#!/usr/bin/env node` shebang would otherwise fail to resolve.
+    if ! command -v node >/dev/null 2>&1; then
+      for cand in "$HOME/.local/bin" "${NVM_DIR:-}"/versions/node/*/bin "$HOME"/.nvm/versions/node/*/bin; do
+        if [ -x "$cand/node" ]; then
+          PATH="$cand:$PATH"
+          break
+        fi
+      done
+    fi
+    if ! command -v node >/dev/null 2>&1; then
+      echo "post-edit-lint: no 'node' on PATH; skipping eslint for $file" >&2
+      exit 0
+    fi
     # Walk up to the nearest package.json so the project's own eslint config is used.
     dir=$(dirname "$file")
     while [ "$dir" != "/" ]; do
       if [ -f "$dir/package.json" ]; then
-        if [ -x "$dir/node_modules/.bin/eslint" ]; then
-          if ! out=$(cd "$dir" && ./node_modules/.bin/eslint "$file" 2>&1); then
+        if [ -f "$dir/node_modules/.bin/eslint" ]; then
+          if ! out=$(cd "$dir" && node ./node_modules/.bin/eslint "$file" 2>&1); then
             echo "eslint reported problems in $file — fix them:" >&2
             echo "$out" >&2
             exit 2
