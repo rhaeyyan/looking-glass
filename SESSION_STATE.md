@@ -39,16 +39,23 @@
   off that name and requires any shimmer animation to live only inside
   `@media (prefers-reduced-motion: no-preference)`). 5 new tests red, 110 pre-existing green,
   eslint clean. Not yet returned as of this write.
-- **Spec 010: tests dispatched in a second parallel worktree**, agent still running as of this
-  write (no result yet) — legend, touch tap-reveal, and settle-in-transition tests for
-  `SkillMatrix.tsx`/`matrix.css`.
+- **Spec 010: tests written (red), Magnolia now building** in isolated worktree
+  `.claude/worktrees/agent-a9e86a915d5070b75` (branch `worktree-agent-a9e86a915d5070b75`). Cypress
+  wrote `SkillMatrix.legendAndReveal.test.tsx` (13 tests: legend markup, `aria-pressed`/
+  `data-revealed` tap-toggle, per-point isolation, no new tab stops, union with hover/focus,
+  axe-clean, no inline-style animation on initial mount) and
+  `matrix.legend-and-reveal.css.test.ts` (5 tests: tap-reveal selector additive to existing
+  hover/focus rule; settle-in `left`/`bottom` transition gated inside
+  `@media (prefers-reduced-motion: no-preference)`; base `.matrix-point` rule carries zero
+  `transition`). 111 pre-existing tests unaffected, eslint clean. Not yet returned as of this
+  write.
 
 ### Unfinished / blocked
 - **Spec 009**: Magnolia implementing against Cypress's 5 red tests; not yet returned. When done,
   verify `cd frontend && npx vitest run` is 115/115 green (both worktrees currently branch off
   `main` post-008), eslint/tsc clean, then merge the worktree branch back and commit.
-- **Spec 010**: Cypress still writing failing tests in its own worktree; not yet returned. Once red
-  tests land, dispatch Magnolia the same way spec 009 was handled.
+- **Spec 010**: Magnolia implementing against Cypress's 18 red tests (13 behavioral + 5 CSS-
+  structural); not yet returned.
 - Both 009 and 010 are isolated in separate git worktrees under `.claude/worktrees/` — Banyan (or
   the orchestrator) needs to coordinate merging both branches back to `main` once each is green;
   they don't overlap in files so order between them doesn't matter, but each must be verified green
@@ -61,9 +68,9 @@
 1. Check on the backgrounded Magnolia agent (spec 009, worktree `agent-aa08586546afbac7c`); when it
    returns, verify its `[COMPLETION-REPORT]`, then merge that worktree branch into `main` and
    commit (`feat(ui): add empty and loading states to the results column`).
-2. Check on the backgrounded Cypress agent (spec 010); when its red tests land, dispatch Magnolia
-   in the same worktree to implement, verify green, merge, commit
-   (`feat(ui): add scatter legend, touch tap-reveal, and settle-in motion`).
+2. Check on the backgrounded Magnolia agent (spec 010, worktree `agent-a9e86a915d5070b75`); when
+   it returns, verify its `[COMPLETION-REPORT]`, then merge that worktree branch into `main` and
+   commit (`feat(ui): add scatter legend, touch tap-reveal, and settle-in motion`).
 3. After both land, clean up the two worktrees under `.claude/worktrees/` (only after their commits
    are safely merged to `main`).
 4. Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
