@@ -10,7 +10,7 @@
  * The demand×scarcity scatter + ladder marks keep their own tokens in matrix.css, remapped onto
  * the tokens below so the whole surface reads as one system in either theme.
  */
-@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;700&family=Barlow+Condensed:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 /* ── 1. Tokens ─────────────────────────────────────────────────────────── */
 :root {
@@ -45,8 +45,10 @@
   --learn-tone: #8a3b12;
   --learn-tone-surface: #fbe9df;
 
-  --font-heading: 'Barlow Condensed', system-ui, sans-serif;
-  --font-body: 'Barlow', system-ui, sans-serif;
+  --font-heading: 'Poppins', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  /* Numeric/tabular data ONLY (table figures, scores, %s, counts) — never headings or body copy. */
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
   --radius-md: 4px;
 

@@ -338,6 +338,7 @@
 }
 .lev-rank {
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono, monospace);
   color: var(--text-muted);
 }
 .lev-skill,
@@ -393,9 +394,17 @@
 .lev-bar-val {
   min-width: 2.5rem;
   font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono, monospace);
   font-weight: 600;
   color: var(--text-secondary);
   text-align: right;
+}
+
+/* Digit-heavy numeric data cells (demand, scarcity, salary premium %, days-to-fill, % of role) —
+ * mono is used ONLY here for these raw figures, never on headings/body/labels. */
+.lev-metric {
+  font-family: var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
 }
 .lev-status {
   font-size: 0.75rem;

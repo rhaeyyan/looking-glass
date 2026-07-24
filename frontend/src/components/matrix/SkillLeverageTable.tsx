@@ -115,13 +115,15 @@ export function SkillLeverageTable({
                       </span>
                     )}
                   </td>
-                  <td>{formatNum(row.demand_score)}</td>
-                  <td>{formatNum(row.scarcity_index)}</td>
-                  <td>
+                  <td className="lev-metric">{formatNum(row.demand_score)}</td>
+                  <td className="lev-metric">{formatNum(row.scarcity_index)}</td>
+                  <td className="lev-metric">
                     {row.salary_premium_pct == null ? '—' : `${formatNum(row.salary_premium_pct)}%`}
                   </td>
-                  <td>{row.median_days_open == null ? '—' : formatNum(row.median_days_open)}</td>
-                  <td>{row.pct_of_role}%</td>
+                  <td className="lev-metric">
+                    {row.median_days_open == null ? '—' : formatNum(row.median_days_open)}
+                  </td>
+                  <td className="lev-metric">{row.pct_of_role}%</td>
                   <td>{row.d3_corroborated == null ? '—' : row.d3_corroborated ? 'Yes' : 'No'}</td>
                 </tr>
               )
