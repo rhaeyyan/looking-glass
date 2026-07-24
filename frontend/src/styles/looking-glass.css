@@ -45,6 +45,17 @@
   --learn-tone: #8a3b12;
   --learn-tone-surface: #fbe9df;
 
+  /* Glassmorphism accents (spec 017) — translucent, blurred surface treatment for
+   * `.card.blueprint` and `.nav` chrome, light mode only. A white tint keeps every real backdrop
+   * (--color-bg/--color-surface/--color-neutral-100, all light) lightening further under it, so
+   * dark text/accent colors already tuned for AA against those backdrops clear it with more
+   * margin, not less. Dark mode redeclares these as fully inert (alpha 1, blur 0) below so it
+   * renders pixel-identical to today. */
+  --glass-tint: #ffffff;
+  --glass-tint-rgb: 255, 255, 255;
+  --glass-alpha: 0.55;
+  --glass-blur: 12px;
+
   --font-heading: 'Poppins', system-ui, sans-serif;
   --font-body: 'Inter', system-ui, sans-serif;
   /* Numeric/tabular data ONLY (table figures, scores, %s, counts) — never headings or body copy. */
@@ -82,6 +93,11 @@
     --have-tone-surface: #123122;
     --learn-tone: #e8a37e;
     --learn-tone-surface: #33190c;
+
+    /* Glass tokens are inert in dark mode — no translucency, no blur, so dark rendering is
+     * unaffected by the light-mode glass treatment. */
+    --glass-alpha: 1;
+    --glass-blur: 0;
   }
 }
 
@@ -107,6 +123,9 @@
   --have-tone-surface: #123122;
   --learn-tone: #e8a37e;
   --learn-tone-surface: #33190c;
+
+  --glass-alpha: 1;
+  --glass-blur: 0;
 }
 
 /* ── 2. Base ───────────────────────────────────────────────────────────── */
@@ -193,6 +212,22 @@ a {
 .blueprint > .corner.br {
   bottom: -6px;
   right: -6px;
+}
+
+/* Glassmorphism (spec 017) — layered onto the blueprint aesthetic (corner brackets, hairline
+ * border above) rather than replacing it. Scoped to the combined `.card.blueprint` selector only:
+ * bare `.blueprint` (no card) and bare `.card` (no blueprint) stay exactly as before. Dark mode
+ * needs no override here — the tokens themselves go inert (alpha 1, blur 0) above. */
+.card.blueprint {
+  background: rgba(var(--glass-tint-rgb), var(--glass-alpha));
+  backdrop-filter: blur(var(--glass-blur));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .card.blueprint {
+    transition:
+      background 200ms ease-out,
+      backdrop-filter 200ms ease-out;
+  }
 }
 
 .card {
@@ -310,7 +345,9 @@ textarea.input {
 .seg {
   display: inline-flex;
   overflow: hidden;
-  border: 1px solid var(--color-divider);
+  /* An accent (not hairline-divider) border: the theme-toggle control's boundary must stay
+   * legible once the nav behind it goes translucent (spec 017). */
+  border: 1px solid var(--color-accent);
   border-radius: var(--radius-md);
 }
 .seg-opt {
@@ -350,6 +387,17 @@ textarea.input {
   gap: 12px 1rem;
   padding: 16px 32px;
   border-bottom: 1px solid var(--color-divider);
+  /* Glassmorphism (spec 017) — same translucent/blurred surface as `.card.blueprint`. Dark mode
+   * needs no override here; the tokens themselves go inert (alpha 1, blur 0) above. */
+  background: rgba(var(--glass-tint-rgb), var(--glass-alpha));
+  backdrop-filter: blur(var(--glass-blur));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .nav {
+    transition:
+      background 200ms ease-out,
+      backdrop-filter 200ms ease-out;
+  }
 }
 .nav-brand {
   display: flex;
