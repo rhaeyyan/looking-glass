@@ -37,16 +37,33 @@
   option-count assertion updated 7→16. 5 red (as expected — `roles.ts` still only has 6), 29
   pre-existing App tests unaffected, eslint clean. **Redwood now dispatched** to widen
   `roles.ts`; not yet returned.
-- **Learning-resource mapping scoped as a separate, much bigger track** — it needs a new Kaggle
-  dataset not yet in this repo. Recommended candidates via web search (Coursera 2025/2024 skill-
-  tagged datasets, Udemy as fallback); user downloaded **Coursera 2025**
-  (`data/raw/d4/Coursera.csv`, gitignored, same pattern as D1/D2/D3).
-- **Dispatched Birch to validate D4** against the exact same rigor as the original
-  `data/schema-notes.md` D1/D2/D3 pass: real column names, grain, null audit, and critically
-  whether D4's skill representation actually joins against the existing 141-skill vocabulary
-  (exact match + the documented normalization scheme). Not yet returned as of this write — this
-  result gates whether Cedar can even write a viable ingest spec; no ingest spec exists yet and
-  none should be written before Birch reports back.
+- **Learning-resource mapping: investigated, then dropped for now.** User downloaded the
+  Coursera 2025 skills dataset (`data/raw/d4/Coursera.csv`, gitignored, same pattern as D1/D2/D3).
+  Birch's first pass (proxy vocabulary, D1/D2 raw CSVs no longer present locally) flagged real
+  concerns: messy row grain (courses cross-listed across `Subject`, no ID column), no license
+  file, and a naming-convention mismatch (D4 uses expanded/qualified forms — "Amazon Web
+  Services" not "AWS", "Python Programming" not "Python" — that the existing case-fold-only
+  `normalize_skill()` won't bridge).
+  Rather than guess, pulled the **real, authoritative 141-skill vocabulary live from Supabase's
+  `skills_core` table** (`select skill_name` via the anon-key REST endpoint — no new dependency,
+  read-only, same access pattern the frontend already uses) instead of asking the user to
+  re-download/re-extract the original D1/D2 CSVs, and had Birch re-run the join test for real:
+  - Exact match: 33/141 (23.4%). Current normalization: 36/141 (25.5%).
+  - + generic "strip trailing (Qualifier)" rule: 56/141 (39.7%).
+  - + a hand-curated ~27-entry alias table (AWS↔Amazon Web Services, NLP↔Natural Language
+    Processing, etc.): **83/141 (58.9%) — realistic ceiling.**
+  - **41% of the core (58 skills) genuinely absent from D4 under any spelling** — concentrated in
+    exactly the highest-value skills for this audience: modern GenAI (`AI Agents`, `RAG`,
+    `LangChain`, `Prompt Engineering`), data-eng/observability tooling (`Airflow`, `dbt`,
+    `Datadog`, `MLflow`), and current cloud-native tools (`FastAPI`, `Next.js`, `GraphQL`).
+  - Searched for a better-fitting alternative dataset (broader Udemy catalogs, job-skills-taxonomy
+    sets) — nothing found looked meaningfully better; the real problem is structural (a static
+    Kaggle course scrape is a snapshot that lags fast-moving GenAI/tooling vocabulary), not a
+    matter of picking a different file.
+  - **User decision: drop the feature for now** rather than ship at ~59% ceiling or sink more
+    effort chasing a better dataset. `data/raw/d4/Coursera.csv` is left in place (gitignored,
+    harmless) in case a better join strategy or dataset surfaces later — no ingest code was
+    written, nothing to revert.
 
 ### Accomplished (round 2 — whole-app UI/UX + dataviz pass, specs 008–010)
 - User asked for another whole-app UI/UX + data-viz pass and explicitly authorized relaxing the
@@ -101,22 +118,18 @@
   (`a33d59b`) and pushed to `origin/main`.
 
 ### Unfinished / blocked
-- **Spec 011**: Redwood implementing (widening `roles.ts` to 15 roles) against Cypress's 5 red
-  tests; not yet returned. **Spec 012** (docs correction) is blocked on 011 landing.
-- **Coursera D4 validation**: Birch dispatched to audit `data/raw/d4/Coursera.csv`'s real schema
-  and test the join against the 141-skill core; not yet returned. No ingest spec exists yet and
-  none should be written until this lands — it determines whether the learning-resource mapping
-  is even viable with this dataset.
-- Round 2 (specs 008/009/010, `@types/node`, font swap) remains fully merged/pushed — no
-  carryover blockers from that part of the day.
+- None outstanding from round 3. Specs 011 and 012 (15-role expansion + doc correction) are both
+  merged (`f2998b2`, `925c1a0`), 148/148 vitest, eslint/tsc clean. Learning-resource mapping was
+  investigated and explicitly dropped by user decision (see above) — not a blocker, a closed
+  decision. Round 2 (specs 008/009/010, `@types/node`, font swap) remains fully merged/pushed.
+- **Not yet pushed to `origin/main`**: verify before ending the session.
 
 ### Next Steps
-1. Check on the backgrounded Redwood agent (spec 011); when it returns, verify 147+5-ish tests
-   green (confirm exact new total), eslint/tsc clean, then commit and dispatch Redwood for
-   spec 012 (docs correction).
-2. Check on the backgrounded Birch agent (D4 schema/join audit); when it returns, relay findings
-   to Cedar only if the join is viable — do not write an ingest spec on a bad/thin join without
-   surfacing that to the user first.
+1. Push `main` to `origin/main` if not already done (specs 011/012 commits).
+2. If a better learning-resource dataset surfaces later, re-run Birch's join-test methodology
+   (pull the real 141-skill list live from Supabase `skills_core` via the anon-key REST endpoint —
+   don't re-extract D1/D2 raw CSVs, they're gone locally and this is faster) before committing to
+   an ingest spec.
 3. If resume upload is revisited later: route through Cedar first for dependency authorization
    (pdf.js at minimum) before any implementation.
 4. Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
