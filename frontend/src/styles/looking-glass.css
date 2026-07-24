@@ -17,7 +17,7 @@
   --color-bg: #f2f2f3;
   --color-surface: #e9e9ea;
   --color-text: #1d1f20;
-  --color-accent: #5980a6;
+  --color-accent: #416180;
   --color-divider: color-mix(in srgb, #1d1f20 16%, transparent);
 
   --color-neutral-100: #f5f5f8;
@@ -40,7 +40,7 @@
    * have/gap flags, and the leverage table's Status column. Values reused verbatim from
    * matrix.css's pre-unification --status-good/--status-critical (already tuned for AA
    * contrast in both themes). */
-  --have-tone: #1a7f4b;
+  --have-tone: #1a7a4b;
   --have-tone-surface: #e3f5ea;
   --learn-tone: #8a3b12;
   --learn-tone-surface: #fbe9df;
@@ -482,7 +482,7 @@ textarea.input {
 }
 .lg-donut-label {
   font-size: 9px;
-  opacity: 0.6;
+  color: var(--color-text);
 }
 .lg-donut-legend {
   display: flex;

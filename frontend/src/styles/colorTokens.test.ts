@@ -24,11 +24,14 @@ const matrixCss = readFileSync(
   'utf-8',
 )
 
-/** The exact light/dark hex values matrix.css already tuned for AA contrast in both themes,
- * pre-spec-008. The spec requires the new shared tokens reuse these values verbatim rather than
- * inventing new ones — so these constants double as both "what --have-tone/--learn-tone must
- * equal in looking-glass.css" and "what matrix.css must stop hardcoding". */
-const LIGHT_HAVE = '#1a7f4b'
+/** The canonical light/dark hex values for the shared have/learn tokens. Spec 008's invariant is
+ * that looking-glass.css is the single source of truth and matrix.css never re-hardcodes these —
+ * not that the hex values themselves are frozen forever. `LIGHT_HAVE` was updated by spec 015
+ * (from the original #1a7f4b to #1a7a4b) to clear WCAG AA 4.5:1 against --color-bg (the old value
+ * measured ~4.489:1, just under the floor); the rest are untouched by that spec. These constants
+ * double as both "what --have-tone/--learn-tone must equal in looking-glass.css" and "what
+ * matrix.css must stop hardcoding". */
+const LIGHT_HAVE = '#1a7a4b'
 const LIGHT_HAVE_SURFACE = '#e3f5ea'
 const LIGHT_LEARN = '#8a3b12'
 const LIGHT_LEARN_SURFACE = '#fbe9df'
@@ -77,6 +80,279 @@ function customProps(body: string): Record<string, string> {
   }
   return out
 }
+
+// ── Spec 015 — shared WCAG 2.x contrast helper + light-mode contrast-fix tests ──────────────
+//
+// Every fix in spec 015 is a token-level hex change, so the correctness bar is "the resulting
+// hex, parsed live out of the stylesheet (never hardcoded as an expected literal), clears 4.5:1
+// against every real surface it renders over." `contrastRatio` below is intentionally exported
+// as a clean, standalone, well-named utility (not a private inline helper) because specs 016/017
+// are expected to reuse it rather than re-derive the WCAG relative-luminance math a second time.
+
+/** Converts a `#rgb` or `#rrggbb` hex string to an `[r, g, b]` triple (0-255 each). Throws on
+ * anything else (e.g. an unresolved `var(...)`, `oklch(...)`, or `color-mix(...)` — callers must
+ * resolve those to a concrete hex first via {@link resolveToHex}). */
+export function hexToRgb(hex: string): [number, number, number] {
+  const trimmed = hex.trim()
+  const match = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(trimmed)
+  if (!match) {
+    throw new Error(`hexToRgb: expected a #rgb or #rrggbb hex string, got: ${hex}`)
+  }
+  let h = match[1]
+  if (h.length === 3) {
+    h = h
+      .split('')
+      .map((c) => c + c)
+      .join('')
+  }
+  const num = parseInt(h, 16)
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255]
+}
+
+/** WCAG 2.x relative luminance of an sRGB triple (each channel 0-255). */
+function relativeLuminance([r, g, b]: [number, number, number]): number {
+  const channel = (c: number) => {
+    const s = c / 255
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
+  }
+  const [R, G, B] = [r, g, b].map(channel)
+  return 0.2126 * R + 0.7152 * G + 0.0722 * B
+}
+
+/** WCAG 2.x contrast ratio between two hex colors (order-independent — the lighter of the two
+ * always ends up the numerator, per spec). Returns a value in `[1, 21]`; 4.5 is the AA floor for
+ * normal-size text. */
+export function contrastRatio(fg: string, bg: string): number {
+  const L1 = relativeLuminance(hexToRgb(fg))
+  const L2 = relativeLuminance(hexToRgb(bg))
+  const lighter = Math.max(L1, L2)
+  const darker = Math.min(L1, L2)
+  return (lighter + 0.05) / (darker + 0.05)
+}
+
+/** Resolves a raw CSS declaration value to a concrete hex string: passes a literal hex straight
+ * through, or looks up a single-level `var(--token-name)` reference in the supplied token map
+ * (recursing up to a small hop limit in case the referenced token is itself a `var(...)`, as
+ * matrix.css's `--status-good: var(--have-tone)` aliasing pattern does). Throws if the value
+ * can't be resolved to a hex within the hop limit, so a test fails loudly rather than silently
+ * comparing garbage. */
+export function resolveToHex(raw: string, tokens: Record<string, string>, maxHops = 5): string {
+  let value = raw.trim()
+  for (let hop = 0; hop < maxHops; hop++) {
+    if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value)) {
+      return value
+    }
+    const varMatch = /^var\(\s*--([\w-]+)\s*\)$/.exec(value)
+    if (!varMatch) {
+      throw new Error(`resolveToHex: could not resolve "${raw}" to a hex color (stuck at "${value}")`)
+    }
+    const next = tokens[varMatch[1]]
+    if (next === undefined) {
+      throw new Error(`resolveToHex: "${raw}" references undefined token --${varMatch[1]}`)
+    }
+    value = next.trim()
+  }
+  throw new Error(`resolveToHex: "${raw}" did not resolve to a hex within ${maxHops} hops`)
+}
+
+const AA_NORMAL_TEXT = 4.5
+
+describe('contrastRatio (shared WCAG 2.x helper)', () => {
+  it('is 21:1 for pure black on pure white (the theoretical max)', () => {
+    expect(contrastRatio('#000000', '#ffffff')).toBeCloseTo(21, 1)
+  })
+
+  it('is 1:1 for identical colors', () => {
+    expect(contrastRatio('#5980a6', '#5980a6')).toBeCloseTo(1, 5)
+  })
+
+  it('is order-independent (fg/bg swapped gives the same ratio)', () => {
+    const a = contrastRatio('#1a7a4b', '#f2f2f3')
+    const b = contrastRatio('#f2f2f3', '#1a7a4b')
+    expect(a).toBeCloseTo(b, 10)
+  })
+
+  it('expands 3-digit hex the same as its 6-digit equivalent', () => {
+    expect(contrastRatio('#000', '#fff')).toBeCloseTo(contrastRatio('#000000', '#ffffff'), 10)
+  })
+})
+
+describe('spec 015 — light-mode contrast fixes (all below are RED until Redwood/Magnolia edit the CSS)', () => {
+  describe('fix 1 — --color-accent (looking-glass.css, light :root) vs --color-bg', () => {
+    it('clears 4.5:1 (currently ~3.71:1 at #5980a6 vs #f2f2f3)', () => {
+      const light = customProps(block(lookingGlassCss, /^:root \{/m))
+      expect(contrastRatio(light['color-accent'], light['color-bg'])).toBeGreaterThanOrEqual(
+        AA_NORMAL_TEXT,
+      )
+    })
+  })
+
+  describe('fix 2 — --have-tone (looking-glass.css, light :root ONLY) vs --color-bg', () => {
+    it('clears 4.5:1 (fixed at #1a7a4b vs #f2f2f3, ~4.777:1 — the old #1a7f4b measured ~4.489:1, just under the floor)', () => {
+      const light = customProps(block(lookingGlassCss, /^:root \{/m))
+      expect(contrastRatio(light['have-tone'], light['color-bg'])).toBeGreaterThanOrEqual(
+        AA_NORMAL_TEXT,
+      )
+    })
+
+    it('does NOT touch the dark --have-tone value (constraint: dark tokens are off-limits)', () => {
+      const media = customProps(block(lookingGlassCss, /:root:not\(\[data-theme='light'\]\) \{/))
+      const explicitDark = customProps(block(lookingGlassCss, /^:root\[data-theme='dark'\] \{/m))
+      expect(media['have-tone']).toBe('#63d69a')
+      expect(explicitDark['have-tone']).toBe('#63d69a')
+    })
+  })
+
+  describe('fix 3 — .lg-donut-label loses its opacity dimming for a token-driven color', () => {
+    it('no longer sets an opacity property', () => {
+      const body = block(lookingGlassCss, /\.lg-donut-label \{/)
+      expect(body).not.toMatch(/opacity\s*:/)
+    })
+
+    it('sets an explicit color (literal hex or var(...)) that clears 4.5:1 against --color-bg', () => {
+      const body = block(lookingGlassCss, /\.lg-donut-label \{/)
+      const colorMatch = /color\s*:\s*([^;]+);/.exec(body)
+      expect(colorMatch).not.toBeNull()
+      const light = customProps(block(lookingGlassCss, /^:root \{/m))
+      const resolved = resolveToHex(colorMatch![1], light)
+      expect(contrastRatio(resolved, light['color-bg'])).toBeGreaterThanOrEqual(AA_NORMAL_TEXT)
+    })
+
+    it('does not touch the unrelated .lg-header p opacity (regression guard against overcorrection)', () => {
+      const body = block(lookingGlassCss, /^\.lg-header p \{/m)
+      expect(body).toMatch(/opacity:\s*0\.75/)
+    })
+  })
+
+  describe('fix 4 — --text-muted (matrix.css, light rule only) vs all three real surfaces it renders over', () => {
+    // The plot itself (.matrix-canvas/.matrix-plot/.matrix-root) sets no solid background-color
+    // of its own (.matrix-root's background is `transparent`, and it sits inside App.tsx's
+    // `.card.blueprint`, whose background is also `transparent` per looking-glass.css) — so the
+    // backdrop that actually shows through behind plot-area text (e.g. `.matrix-zone-lo`) is the
+    // page body's `--color-bg`. That is the third surface the SPEC calls "the plot background",
+    // distinct from matrix.css's own `--page-plane` and `--surface-1` tokens.
+    it('clears 4.5:1 against --page-plane, --surface-1, and the plot backdrop (--color-bg)', () => {
+      const matrixLight = customProps(block(matrixCss, /^\.matrix-root,/m))
+      const lgLight = customProps(block(lookingGlassCss, /^:root \{/m))
+      const textMuted = matrixLight['text-muted']
+      expect(contrastRatio(textMuted, matrixLight['page-plane'])).toBeGreaterThanOrEqual(
+        AA_NORMAL_TEXT,
+      )
+      expect(contrastRatio(textMuted, matrixLight['surface-1'])).toBeGreaterThanOrEqual(
+        AA_NORMAL_TEXT,
+      )
+      expect(contrastRatio(textMuted, lgLight['color-bg'])).toBeGreaterThanOrEqual(AA_NORMAL_TEXT)
+    })
+
+    it('does NOT touch the dark --text-muted value (constraint: dark tokens are off-limits)', () => {
+      const media = customProps(
+        block(matrixCss, /:not\(\[data-theme='light'\]\) \.matrix-root,/),
+      )
+      const explicitDark = customProps(block(matrixCss, /:root\[data-theme='dark'\] \.matrix-root,/))
+      expect(media['text-muted']).toBe('#898781')
+      expect(explicitDark['text-muted']).toBe('#898781')
+    })
+  })
+
+  describe('fix 5 — .matrix-zone-hi repoints color from --series-1 to --text-secondary', () => {
+    it('no longer colors itself with var(--series-1)', () => {
+      const body = block(matrixCss, /^\.matrix-zone-hi \{/m)
+      expect(body).not.toMatch(/color:\s*var\(--series-1\)/)
+    })
+
+    it('uses var(--text-secondary) instead', () => {
+      const body = block(matrixCss, /^\.matrix-zone-hi \{/m)
+      expect(body).toMatch(/color:\s*var\(--text-secondary\)/)
+    })
+
+    it('the resulting light color clears 4.5:1 against the plot backdrop (--series-1 currently fails at ~3.5-3.9:1; --text-secondary already clears it)', () => {
+      const matrixLight = customProps(block(matrixCss, /^\.matrix-root,/m))
+      const lgLight = customProps(block(lookingGlassCss, /^:root \{/m))
+      expect(
+        contrastRatio(matrixLight['text-secondary'], matrixLight['page-plane']),
+      ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT)
+      expect(
+        contrastRatio(matrixLight['text-secondary'], matrixLight['surface-1']),
+      ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT)
+      expect(
+        contrastRatio(matrixLight['text-secondary'], lgLight['color-bg']),
+      ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT)
+    })
+  })
+
+  describe('constraints — nothing else in the token system moves', () => {
+    it('--learn-tone is unchanged in both light and dark', () => {
+      const light = customProps(block(lookingGlassCss, /^:root \{/m))
+      const dark = customProps(block(lookingGlassCss, /^:root\[data-theme='dark'\] \{/m))
+      expect(light['learn-tone']).toBe('#8a3b12')
+      expect(dark['learn-tone']).toBe('#e8a37e')
+    })
+
+    it('matrix.css --text-secondary is unchanged in both light and dark', () => {
+      const light = customProps(block(matrixCss, /^\.matrix-root,/m))
+      const dark = customProps(block(matrixCss, /:root\[data-theme='dark'\] \.matrix-root,/))
+      expect(light['text-secondary']).toBe('#52514e')
+      expect(dark['text-secondary']).toBe('#c3c2b7')
+    })
+
+    it('the whole looking-glass.css dark :root block (media + explicit) is byte-identical to the pre-spec-015 snapshot — a diff-style guard against any dark-token drift, not just have-tone', () => {
+      const expectedDarkRoot = {
+        'color-bg': '#16181b',
+        'color-surface': '#1f2226',
+        'color-text': '#eceef0',
+        'color-divider': "color-mix(in srgb, #eceef0 18%, transparent)",
+        'color-accent': '#7fb0e0',
+        'color-neutral-100': '#26292e',
+        'color-neutral-400': '#565a60',
+        'color-neutral-800': '#cfd2d6',
+        'color-accent-100': '#1d2d3d',
+        'color-accent-400': '#4f7295',
+        'color-accent-600': '#94bce3',
+        'color-accent-700': '#b5d9fd',
+        'color-accent-800': '#d6ebff',
+        good: 'oklch(72% 0.13 152)',
+        'good-tint': 'oklch(28% 0.05 152)',
+        'gap-tone': 'oklch(75% 0.13 42)',
+        'gap-tint': 'oklch(28% 0.05 42)',
+        'have-tone': '#63d69a',
+        'have-tone-surface': '#123122',
+        'learn-tone': '#e8a37e',
+        'learn-tone-surface': '#33190c',
+      }
+      const media = customProps(block(lookingGlassCss, /:root:not\(\[data-theme='light'\]\) \{/))
+      const explicitDark = customProps(block(lookingGlassCss, /^:root\[data-theme='dark'\] \{/m))
+      expect(media).toEqual(expectedDarkRoot)
+      expect(explicitDark).toEqual(expectedDarkRoot)
+    })
+
+    it('the whole matrix.css dark block (media + explicit) is byte-identical to the pre-spec-015 snapshot — a diff-style guard against any dark-token drift, not just text-muted', () => {
+      const expectedMatrixDark = {
+        'surface-1': '#1a1a19',
+        'page-plane': '#0d0d0d',
+        'text-primary': '#ffffff',
+        'text-secondary': '#c3c2b7',
+        'text-muted': '#898781',
+        gridline: '#2c2c2a',
+        baseline: '#383835',
+        border: 'rgba(255, 255, 255, 0.1)',
+        'series-1': '#3987e5',
+        'series-2': '#d95926',
+        'series-3': '#199e70',
+        'series-4': '#c98500',
+        'status-good': 'var(--have-tone)',
+        'status-good-surface': 'var(--have-tone-surface)',
+        'status-critical': 'var(--learn-tone)',
+        'status-critical-surface': 'var(--learn-tone-surface)',
+      }
+      const media = customProps(
+        block(matrixCss, /:not\(\[data-theme='light'\]\) \.matrix-root,/),
+      )
+      const explicitDark = customProps(block(matrixCss, /:root\[data-theme='dark'\] \.matrix-root,/))
+      expect(media).toEqual(expectedMatrixDark)
+      expect(explicitDark).toEqual(expectedMatrixDark)
+    })
+  })
+})
 
 describe('spec 008 — shared --have-tone / --learn-tone tokens', () => {
   describe('looking-glass.css is the single source of truth', () => {
