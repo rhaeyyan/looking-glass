@@ -11,69 +11,63 @@
 > the History section below for the full build narrative, including this same day's earlier
 > redesign/de-jargon/top-3-moves round.
 
-### Accomplished
-- User asked for another whole-app UI/UX + data-viz pass and explicitly authorized relaxing the
-  standing `Simplicity > Pattern purity` [FORCES] default for it. Routed through Cedar (per
-  Workflow Rule 1 — "another pass" was too ambiguous to skip straight to Magnolia) rather than
-  dispatching Magnolia directly as first requested.
-- **Cedar investigated the relaxed-forces permission and declined to use it**: read the whole
-  frontend (App.tsx, SkillMatrix, SkillLeverageTable, both stylesheets) and found no genuine
-  repeated variance (one chart, one table, one donut, each already at the right abstraction
-  level) — so all three specs below keep `Design Pattern: none` and `Simplicity > Pattern purity`.
-  This is Rule 7 working as intended: permission to use a pattern isn't an instruction to use one.
-- **Three [SPEC]s written, approved by the user, and persisted**:
-  - [specs/008-unify-status-color-tokens.md](specs/008-unify-status-color-tokens.md) — the donut
-    (`--color-accent`/`--gap-tone`) and the scatter/table (`--status-good`/`--status-critical`)
-    currently code the same "have vs. learn" meaning via two disjoint token systems — same failure
-    class as the dark-theme desync fixed earlier this session. Unifies into one shared
-    `--have-tone`/`--learn-tone` pair. Touches `looking-glass.css`, `matrix.css`, `App.tsx`.
-  - [specs/009-results-empty-loading-states.md](specs/009-results-empty-loading-states.md) — adds
-    a real empty state (no role picked yet) and a loading skeleton to `.lg-results`, gated on the
-    existing `status` enum already in `App.tsx`. Touches `App.tsx`, `looking-glass.css`.
-  - [specs/010-scatter-legend-touch-motion.md](specs/010-scatter-legend-touch-motion.md) — adds a
-    visible on-screen legend for the scatter's color/glyph encoding (currently only in
-    `aria-label`), a touch tap-reveal path for crowded-point labels (today hover/focus-only), and a
-    settle-in transition when the role changes. Touches `SkillMatrix.tsx`, `matrix.css`.
-  - Sequencing: **008 must land first** (matrix.css/App.tsx overlap with both 009 and 010); 009 and
-    010 have no file overlap with each other and can then run in parallel worktrees, Banyan
-    coordinating the merge.
-- **Cypress wrote spec 008's failing tests** (red state, as intended): new
-  `frontend/src/styles/colorTokens.test.ts` (CSS-content contract tests against
-  `looking-glass.css`/`matrix.css` — token existence/values across the light `:root`, the
-  `prefers-color-scheme: dark` media block, and the unconditional `[data-theme='dark']` block,
-  plus a "no third naming scheme" guard and a neutral-token-untouched guard) and new
-  `frontend/src/App.colorTokens.test.tsx` (black-box: drives `App` through role-select →
-  resume-submit and asserts `.lg-donut`/`.lg-swatch` inline styles reference
-  `var(--have-tone)`/`var(--learn-tone)`, not the old `--color-accent`/`--gap-tone` pair). 10 new
-  tests fail as expected; the other 109 pre-existing tests stayed green; eslint clean. Locked in
-  the exact AA-contrast hex values to reuse verbatim (light `#1a7f4b`/`#e3f5ea`/`#8a3b12`/
-  `#fbe9df`; dark `#63d69a`/`#123122`/`#e8a37e`/`#33190c`) — no new colors need inventing.
-- Dispatched Magnolia (background agent) to implement spec 008 against those tests, touching only
-  the 3 spec-authorized files. Not yet returned as of this write.
-
 > Same-day earlier round (UI redesign, de-jargon copy pass, top-3 moves, table merge, dark-theme
 > desync fix) and the 2026-07-23 milestone session are archived in
 > [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-- **Spec 008 shipped, fully green.** Cypress wrote failing tests, Magnolia implemented the token
-  unification (117/119 — 2 failures traced to an ambiguous `getByText` match against spec 007's
-  leverage-table `.lev-status` cells, not a token defect), sent back to the same Cypress agent
-  (continuation, not respawn) to scope the query with `within('.lg-donut-legend')`. Final:
-  **119/119 pass, eslint clean, Cypress `[COMPLIANCE-REPORT]` PASS.** Ready to commit.
+### Accomplished
+- User asked for another whole-app UI/UX + data-viz pass and explicitly authorized relaxing the
+  standing `Simplicity > Pattern purity` [FORCES] default. Routed through Cedar first (Workflow
+  Rule 1 — "another pass" was too ambiguous to skip straight to Magnolia).
+- **Cedar investigated the relaxed-forces permission and declined to use it**: no genuine repeated
+  variance in the frontend (one chart, one table, one donut, each already at the right abstraction
+  level) — all three specs below keep `Design Pattern: none` / `Simplicity > Pattern purity`. Rule
+  7 working as intended: permission to use a pattern isn't an instruction to use one.
+- **Three [SPEC]s written, user-approved, persisted**: [specs/008](specs/008-unify-status-color-tokens.md)
+  (unify have/learn color tokens across donut/scatter/table), [specs/009](specs/009-results-empty-loading-states.md)
+  (empty + loading states for `.lg-results`), [specs/010](specs/010-scatter-legend-touch-motion.md)
+  (scatter legend, touch tap-reveal, settle-in motion). Sequencing: 008 first (file overlap with
+  both), then 009/010 in parallel worktrees.
+- **Spec 008: shipped and merged to `main`** (commit `dd04372`). Cypress → red (10 tests) → Magnolia
+  implemented the `--have-tone`/`--learn-tone` (+surface) token pair → one ambiguous-`getByText`
+  test fix (continuation on the same Cypress agent, ordinary DOM-query scoping, not a token defect)
+  → **119/119 green, eslint clean, Cypress `[COMPLIANCE-REPORT]` PASS.**
+- **Spec 009: tests written (red), Magnolia now building** in isolated worktree
+  `.claude/worktrees/agent-aa08586546afbac7c` (branch `worktree-agent-aa08586546afbac7c`). Cypress
+  locked two conventions into the tests: idle placeholder text must contain "Step 1"; skeleton CSS
+  class must be named `.lg-skeleton`/`.lg-skeleton*` (load-bearing — a static CSS parser test keys
+  off that name and requires any shimmer animation to live only inside
+  `@media (prefers-reduced-motion: no-preference)`). 5 new tests red, 110 pre-existing green,
+  eslint clean. Not yet returned as of this write.
+- **Spec 010: tests dispatched in a second parallel worktree**, agent still running as of this
+  write (no result yet) — legend, touch tap-reveal, and settle-in-transition tests for
+  `SkillMatrix.tsx`/`matrix.css`.
 
 ### Unfinished / blocked
-- **Specs 009 and 010: not yet dispatched.** Now that 008 is green, dispatch both in parallel
-  worktrees (no file overlap between them), Banyan coordinating the merge back to `main`.
+- **Spec 009**: Magnolia implementing against Cypress's 5 red tests; not yet returned. When done,
+  verify `cd frontend && npx vitest run` is 115/115 green (both worktrees currently branch off
+  `main` post-008), eslint/tsc clean, then merge the worktree branch back and commit.
+- **Spec 010**: Cypress still writing failing tests in its own worktree; not yet returned. Once red
+  tests land, dispatch Magnolia the same way spec 009 was handled.
+- Both 009 and 010 are isolated in separate git worktrees under `.claude/worktrees/` — Banyan (or
+  the orchestrator) needs to coordinate merging both branches back to `main` once each is green;
+  they don't overlap in files so order between them doesn't matter, but each must be verified green
+  independently before merge.
 - No Claude-in-Chrome connection in this environment; any live verification of 009/010 will need
   the scripted headless-Chromium (`playwright-core`) driver used in an earlier session, or the
   user driving it themselves.
 
 ### Next Steps
-1. Commit spec 008 (tests + implementation together — `feat(ui): unify have/learn color tokens
-   across donut, scatter, table`) and mark task #1 completed.
-2. Dispatch Cypress+Magnolia for 009 and 010 in parallel worktrees; Banyan coordinates the merge.
-3. Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
-4. Note: `playwright-core` (headless Chromium driver used for live screenshots) was installed
+1. Check on the backgrounded Magnolia agent (spec 009, worktree `agent-aa08586546afbac7c`); when it
+   returns, verify its `[COMPLETION-REPORT]`, then merge that worktree branch into `main` and
+   commit (`feat(ui): add empty and loading states to the results column`).
+2. Check on the backgrounded Cypress agent (spec 010); when its red tests land, dispatch Magnolia
+   in the same worktree to implement, verify green, merge, commit
+   (`feat(ui): add scatter legend, touch tap-reveal, and settle-in motion`).
+3. After both land, clean up the two worktrees under `.claude/worktrees/` (only after their commits
+   are safely merged to `main`).
+4. Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
+5. Note: `playwright-core` (headless Chromium driver used for live screenshots) was installed
    `--no-save`, so it is **not** in `package.json` — reinstall it (`npm install --no-save
    playwright-core@1.50.0`) if another live screenshot pass is needed.
 
