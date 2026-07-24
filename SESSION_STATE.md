@@ -45,18 +45,21 @@
   exported `contrastRatio`/`hexToRgb`/`resolveToHex` WCAG helper (specs 016/017 will reuse it, not
   re-derive), 7 red tests confirming the exact failing ratios above, 181 pre-existing tests
   unaffected.
-- **Magnolia implemented the fixes**: `--color-accent` → `#416180` (reused the existing
+- **Spec 015: shipped and merged** (`716971a`). `--color-accent` → `#416180` (reused the existing
   `--color-accent-700` hex rather than inventing a new one, 5.78:1), `--have-tone` → `#1a7a4b`
   (4.78:1), `.lg-donut-label` dropped its opacity dimming for `var(--color-text)` (14.79:1),
   `--text-muted` → `#6b6862` (matrix.css, clears all 3 real surfaces, tightest at 4.96:1),
   `.matrix-zone-hi` repointed to `--text-secondary` (7.53:1). All dark-mode blocks left
   byte-identical, verified by snapshot guards.
-  **Found a real, expected conflict, correctly did not silently fix it**: an old spec-008
-  regression-guard test hardcoded the *old* `--have-tone` value (`#1a7f4b`) as a "matrix.css
-  reuses looking-glass.css's tuned value" check — spec 015 legitimately moved that value, so the
-  old constant was stale, not a sign of a defect. Sent back to the same Cypress agent (continuation)
-  to update the constant to the new value/ratio while preserving the real invariant (both files
-  must still reference the *same* have-tone value as each other). Not yet returned.
+  Along the way, Magnolia found a real, expected conflict and correctly did not silently fix it:
+  an old spec-008 regression-guard test hardcoded the *old* `--have-tone` value (`#1a7f4b`) as a
+  "matrix.css reuses looking-glass.css's tuned value" check — spec 015 legitimately moved that
+  value, so the old constant was stale, not a defect. Cypress (continuation) updated it while
+  preserving the real invariant. **188/188 vitest, eslint/tsc clean.**
+- **Spec 016: Cypress's failing tests landed** — new `responsiveText.test.ts` (5 red: `.topmove`'s
+  grid column, `.topmove-name`/`.topmove-note` overflow-wrap, `.nav-brand`'s min-width/flex-wrap;
+  4 passing regression guards confirming unrelated selectors stay untouched). **Magnolia now
+  dispatched** to implement the 2 audited fixes; not yet returned.
 
 ### Accomplished (round 4 — salary-premium clarity, specs 013–014)
 - User asked what a negative `salary_premium_pct` means. Explained: it's a raw D1 field (no floor
@@ -102,22 +105,19 @@
   **169/169 vitest, eslint/tsc clean.** Committed (`04c6d91`).
 
 ### Unfinished / blocked
-- **Spec 015**: implementation done (7/7 fixes green); waiting on Cypress to update one stale
-  test constant (old `--have-tone` hex hardcoded in a spec-008 regression guard) before final
-  verification/commit. Not yet returned. Specs 016 and 017 are blocked on 015 (016 shares files;
-  017 needs 015's corrected tokens).
+- **Spec 016**: Magnolia implementing the 2 audited wrapping fixes against Cypress's 5 red tests;
+  not yet returned. **Spec 017** (glassmorphism) is blocked on 016 (shares files, and needs a
+  `dataviz`-skill sanity check per Cedar's note before the `.matrix-zone-hi` reassignment context
+  and before scoping the glass treatment away from matrix.css's surfaces).
 - Rounds 1-4 (specs 001-014, `@types/node`, font swap, 15-role expansion, salary-premium clarity)
-  remain fully merged/pushed — no carryover blockers from earlier in the day.
-- **Uncommitted on disk**: `looking-glass.css`, `matrix.css` (spec 015's fixes) and
-  `colorTokens.test.ts` (pending Cypress update) — commit all together once Cypress confirms
-  188/188 green.
+  plus spec 015 (contrast fixes, `716971a`) remain fully merged — no carryover blockers.
 
 ### Next Steps
-1. Check on the backgrounded Cypress agent (updating the stale have-tone test constant); once it
-   confirms 188/188 green and eslint clean, commit spec 015 in full (CSS fixes + test update).
-2. Dispatch Cypress→Magnolia for spec 016 (the 2 audited wrapping bugs), then spec 017
-   (glassmorphism, needs a `dataviz`-skill sanity check per Cedar's note before the `.matrix-zone-hi`
-   color reassignment and before scoping the glass treatment away from matrix.css's surfaces).
+1. Check on the backgrounded Magnolia agent (spec 016); when it returns, verify the 5
+   previously-red tests flip green with zero regressions (188 baseline), eslint/tsc clean, then
+   commit.
+2. Dispatch Cypress→Magnolia for spec 017 (glassmorphism) — consult the `dataviz` skill first per
+   Cedar's note.
 3. Push `main` to `origin/main` once all three specs land.
 4. If a better learning-resource dataset surfaces later, re-run Birch's join-test methodology
    (pull the real 141-skill list live from Supabase `skills_core` via the anon-key REST endpoint —
