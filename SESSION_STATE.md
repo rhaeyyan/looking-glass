@@ -70,32 +70,32 @@
   `narrate.ts` untouched (still returns `headline`, provenance suite intact). Touched App.tsx,
   TopGapNarration.tsx + .test, App.test, looking-glass.css, matrix.css. 108/108, tsc/eslint/build
   clean; re-screenshotted live in light+dark+mobile (Full Stack) — all three asks confirmed.
+- **Fixed the `matrix.css` dark-theme desync** flagged above: its tokens now react to
+  `:root[data-theme='dark']`/`[data-theme='light']` (mirroring `looking-glass.css`'s two-block
+  pattern — a media-query block guarded against an explicit light override, plus an unconditional
+  block for explicit dark), not just `prefers-color-scheme`. Verified live: OS color scheme forced
+  to **light**, then clicked the in-app Dark toggle — `--surface-1`/`--text-primary` on
+  `.matrix-root` flipped to dark values and the full page (including scatter + ranked table)
+  rendered dark, confirming the toggle no longer desyncs from data-viz components. 105/105,
+  tsc/eslint/build clean.
+- Spec 007 (jest-axe local type shim, no new dependency) and the Magnolia UI-polish pass are both
+  committed and pushed to `main` earlier this session (see `git log`).
 
 ### Unfinished / blocked
-- **RESOLVED: the `jest-axe` `tsc` gap is closed** (spec 007). Cedar rejected `@types/jest-axe`
-  (DefinitelyTyped only tracks v3; runtime is v9 — wrong-major types) and authorized a local
-  ambient shim instead: `src/types/jest-axe.d.ts` (script-context `declare module 'jest-axe'`) +
-  `src/types/vitest-axe.d.ts` (module-context vitest matcher augmentation). Removed the
-  `@ts-expect-error` from `src/test/setup.ts`. `tsc --noEmit` clean, `npm run build` now passes,
-  108/108 vitest still green. No new dependency.
-- Not visually verified in a live browser this session (no Chrome connection, app needs live
-  Supabase env) — behavior + a11y are covered by the passing test suite + build; a user screenshot
-  would confirm the visual result.
-- Changes are uncommitted on `main` (user hasn't asked to commit).
+- None outstanding from this session — the table merge, the sticky-column overflow fix, and the
+  dark-theme desync fix are all committed and verified (105/105, tsc/eslint/build clean, live
+  screenshots in light/dark/mobile).
+- No Claude-in-Chrome connection in this environment; live verification this session used a
+  scripted headless-Chromium (`playwright-core`) driver instead — see the note below.
 
 ### Next Steps
-- **Uncommitted:** the table-merge (new SkillLeverageTable.tsx/.test.tsx; deleted
-  ArbitrageLadder.tsx/.test.tsx + SkillDataTable.tsx; App.tsx, App.test.tsx, SkillMatrix.tsx/.test,
-  matrix.css updated) + this ledger update — commit/push when ready. (The Magnolia polish pass,
-  scatter rebuild, spec 007, and the earlier redesign are already pushed on `main`.)
-- **Worth a follow-up if the user wants it**: fix the `matrix.css` dark-theme gap noted above so
-  its tokens react to `[data-theme='dark']` too, not just `prefers-color-scheme`, matching
-  `looking-glass.css`'s pattern — otherwise the in-app theme toggle can visually desync from the
-  data-viz components when it disagrees with the OS setting.
+- No specific next step is queued. Future work would be new/unspecced (further polish, or a
+  genuinely new feature).
 - Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
-- Note: to screenshot the SPA I installed `playwright-core` + a headless Chromium via `npx
-  playwright install` (cached under ~/.cache/ms-playwright). `playwright-core` was `--no-save`, so
-  it's not in package.json; re-install it if another live screenshot pass is needed.
+- Note: to screenshot the SPA this session, `playwright-core` + a headless Chromium were installed
+  via `npx playwright install` (cached under `~/.cache/ms-playwright`). `playwright-core` was
+  installed `--no-save`, so it is **not** in `package.json` — reinstall it (`npm install --no-save
+  playwright-core@1.50.0`) if another live screenshot pass is needed.
 
 ---
 

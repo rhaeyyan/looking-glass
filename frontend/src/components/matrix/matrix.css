@@ -39,11 +39,20 @@
   background: transparent;
 }
 
+/* Dark theme: applied both by system preference and by the in-app toggle stamping
+ * data-theme="dark" on <html> (mirrors looking-glass.css's pattern). The explicit toggle must win
+ * over the system default in both directions:
+ *   - OS prefers dark AND the user hasn't explicitly chosen light -> dark tokens.
+ *   - The user explicitly chose dark, regardless of OS preference -> dark tokens (unconditional
+ *     block below, so it also fires when the OS is in light mode).
+ * Before this, these tokens only reacted to prefers-color-scheme, so clicking the in-app Dark
+ * toggle while the OS was in light mode left the scatter/table on light colors under a dark page
+ * shell. */
 @media (prefers-color-scheme: dark) {
-  .matrix-root,
-  .ladder-root,
-  .narration-root,
-  .leverage-root {
+  :root:not([data-theme='light']) .matrix-root,
+  :root:not([data-theme='light']) .ladder-root,
+  :root:not([data-theme='light']) .narration-root,
+  :root:not([data-theme='light']) .leverage-root {
     color-scheme: dark;
     --surface-1: #1a1a19;
     --page-plane: #0d0d0d;
@@ -62,6 +71,29 @@
     --status-critical: #e8a37e;
     --status-critical-surface: #33190c;
   }
+}
+
+:root[data-theme='dark'] .matrix-root,
+:root[data-theme='dark'] .ladder-root,
+:root[data-theme='dark'] .narration-root,
+:root[data-theme='dark'] .leverage-root {
+  color-scheme: dark;
+  --surface-1: #1a1a19;
+  --page-plane: #0d0d0d;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --gridline: #2c2c2a;
+  --baseline: #383835;
+  --border: rgba(255, 255, 255, 0.1);
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --status-good: #63d69a;
+  --status-good-surface: #123122;
+  --status-critical: #e8a37e;
+  --status-critical-surface: #33190c;
 }
 
 .matrix-title,
