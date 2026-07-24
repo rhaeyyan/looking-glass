@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import type { RoleSkillRow } from '../../lib/supabaseClient'
 import { formatNum } from '../../lib/format'
 import { normalizeSkillName } from '../../lib/normalize'
@@ -53,6 +53,21 @@ export function SkillMatrix({
   const reduced = prefersReducedMotion()
   const scored = rows.filter(isScored)
 
+  // Tap-accessible reveal (spec 010): additive local UI state, keyed by the same identifier used
+  // for `haveSkillKeys` lookups. Purely presentational — never derived from/written back to any
+  // score/gap data. A point that has been tapped stays revealed through hover/focus changes; only
+  // an explicit second tap clears it (the CSS union with :hover/:focus-visible means this state
+  // only ever ADDS a reveal trigger, never removes one that hover/focus is already providing).
+  const [tapRevealed, setTapRevealed] = useState<ReadonlySet<string>>(() => new Set())
+  const toggleTapRevealed = (key: string) => {
+    setTapRevealed((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
   // Axis extents (raw), used only to normalize positions for display.
   const demands = scored.map((r) => r.demand_score)
   const scarcities = scored.map((r) => r.scarcity_index)
@@ -94,6 +109,19 @@ export function SkillMatrix({
         table below. Hover a crowded point to see its name.
       </p>
 
+      <div className="matrix-legend" data-testid="matrix-legend">
+        <span className="matrix-legend-item">
+          Color shows the leverage tier — darker blue means a higher-leverage skill; lighter means
+          lower leverage.
+        </span>
+        {haveSkillKeys !== undefined && (
+          <span className="matrix-legend-item">
+            <span aria-hidden="true">✓</span> already have this skill &nbsp;&middot;&nbsp;
+            <span aria-hidden="true">✕</span> worth learning — a gap
+          </span>
+        )}
+      </div>
+
       <div className="matrix-canvas">
         <span className="matrix-axis-y">&larr; Harder to hire &nbsp;·&nbsp; Scarcity</span>
         <div className="matrix-plot">
@@ -129,12 +157,17 @@ export function SkillMatrix({
                     : 'color-mix(in srgb, var(--series-1) 42%, var(--surface-1))'
             }
 
+            const revealed = tapRevealed.has(key)
+
             return (
               <button
                 key={row.skill_key ?? row.skill_name_raw}
                 type="button"
                 data-testid="scatter-point"
                 data-have={have === undefined ? undefined : have ? 'true' : 'false'}
+                data-revealed={revealed ? 'true' : 'false'}
+                aria-pressed={revealed}
+                onClick={() => toggleTapRevealed(key)}
                 className="matrix-point"
                 aria-label={`${row.skill_name_raw}: demand ${formatNum(row.demand_score)}, scarcity ${formatNum(row.scarcity_index)}, market share ${row.pct_of_role}% of role postings${
                   row.arbitrage_score !== null ? `, leverage score ${formatNum(row.arbitrage_score)}` : ''

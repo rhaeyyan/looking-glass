@@ -228,13 +228,16 @@
   opacity: 1;
 }
 .matrix-point:hover .matrix-point-label,
-.matrix-point:focus-visible .matrix-point-label {
+.matrix-point:focus-visible .matrix-point-label,
+.matrix-point[data-revealed='true'] .matrix-point-label {
   opacity: 1;
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .matrix-point {
     transition:
+      left 200ms ease-out,
+      bottom 200ms ease-out,
       transform 140ms ease-out,
       opacity 140ms ease-out;
   }
