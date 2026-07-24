@@ -7,7 +7,7 @@
 
 ## Current Session — 2026-07-24 (round 5: light-mode contrast, responsive wrapping, glass-ui)
 
-> Specs 001–007, the same-day earlier rounds (redesign/de-jargon/top-3-moves; UI/UX+dataviz pass
+> Specs 001–014, the same-day earlier rounds (redesign/de-jargon/top-3-moves; UI/UX+dataviz pass
 > 008-010; 15-role expansion 011-012; salary-premium clarity 013-014), and the 2026-07-23 milestone
 > session are archived in [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
@@ -74,49 +74,6 @@
   file exists on disk. This is a session-wide rate limit, not a task failure — will retry once
   the limit resets rather than immediately re-spawning into the same wall.
 
-### Accomplished (round 4 — salary-premium clarity, specs 013–014)
-- User asked what a negative `salary_premium_pct` means. Explained: it's a raw D1 field (no floor
-  clip in `src/scoring/arbitrage.py` — only `min(value, 100)` upper-clips), so a negative value is
-  genuine evidence the skill pays *below* baseline, not a data error or "no premium" — and it
-  genuinely pulls `scarcity_index` down, unlike a missing value (which renormalizes weights
-  instead).
-- User asked to make this concept clearer in the UI. Chose **both** plain-language reframing
-  ("12% above typical pay" instead of bare "+12%") **and** an accessible baseline-definition
-  affordance, applied consistently to the leverage table AND the narration text (not table-only).
-- **Routed through Cedar** (touches `narrate.ts`'s Bounded-AI narration logic + a real
-  accessibility-pattern decision, not just cosmetic). Cedar found the D1 dataset's own manifest
-  (which would state the exact baseline `salary_premium_pct` is measured against) is gitignored
-  and absent from this repo — chose conservative, sourced wording ("typical pay for that skill's
-  job category") rather than inventing precision. Found no existing tooltip/disclosure pattern
-  anywhere in the app to reuse, and ruled out native `title` (not WCAG-2.2-AA-sufficient for
-  meaningful content) — spec'd an always-visible footnote + `aria-describedby` instead of a new
-  interactive popover (Simplicity > Pattern purity: a static sentence didn't earn new JS state
-  machinery). Also caught a real risk before it became a bug: the frozen Bounded-AI provenance
-  suite (spec 005's `assertEveryNumberIsProvenanced`) would fail once negative values render via
-  `Math.abs()` instead of their signed form — authorized a narrow, field-scoped extension of that
-  check (salary_premium_pct only), not a general loosening.
-  **Two SPECs written, user-approved, persisted**:
-  [specs/013](specs/013-salary-premium-phrase-helper.md) (a `formatSalaryPremiumPhrase` helper +
-  narrate.ts wiring, Cypress→Redwood) and
-  [specs/014](specs/014-salary-premium-table-footnote.md) (table cell + accessible footnote,
-  Cypress→Magnolia, sequenced after 013 since it imports 013's helper). Committed (`e3d28f0`).
-- **Spec 013: shipped and merged** (`362d080`). Cypress wrote 13 failing tests
-  (format.test.ts new, narrate.test.ts extended with a narrow allowedNumbers carve-out for
-  salary_premium_pct only, fixture extended with a negative-salary-premium row); Redwood
-  implemented `formatSalaryPremiumPhrase` in format.ts and wired it into narrate.ts's
-  scoreClauses/statChips. **Verified: 162/162 vitest, eslint/tsc clean.**
-- **Spec 014: Cypress wrote failing tests, Magnolia implemented** — plain-language phrase in the
-  table cell + a visible `*` marker + `aria-describedby`-linked always-visible footnote (no
-  `title` tooltip, no color-only signaling, `useId()` convention reused). 168/169 vitest,
-  eslint/tsc clean, axe-clean.
-- **Cross-spec regression found, fixed, and merged**: spec 009's App.test.tsx had a brittle
-  assertion — "fewer than 3 `[aria-hidden=\"true\"]` descendants of `.lg-results`" — used as a
-  proxy for "the loading skeleton is gone." Spec 014's legitimate new `aria-hidden` footnote
-  marker (always present once the table renders) coincidentally broke that threshold. Cypress
-  rescoped all 5 affected assertions to the real `.lg-skeleton`/`.lg-skeleton-block` selectors
-  spec 009 introduced, instead of a generic aria-hidden count — immune to future collisions.
-  **169/169 vitest, eslint/tsc clean.** Committed (`04c6d91`).
-
 ### Unfinished / blocked
 - **Spec 017**: Cypress's failing tests are committed; Magnolia's implementation attempt hit the
   account session limit (resets 3pm America/New_York) before writing any code — `looking-glass.css`
@@ -133,17 +90,14 @@
    `.card.blueprint` rule and on `.nav`) is already pinned in that test file — read it first.
 2. Verify 12 previously-red tests flip green with zero regressions (236 baseline), eslint/tsc
    clean, then commit and push all of round 5 (specs 015-017) to `origin/main`.
-2. Dispatch Cypress→Magnolia for spec 017 (glassmorphism) — consult the `dataviz` skill first per
-   Cedar's note.
-3. Push `main` to `origin/main` once all three specs land.
-4. If a better learning-resource dataset surfaces later, re-run Birch's join-test methodology
+3. If a better learning-resource dataset surfaces later, re-run Birch's join-test methodology
    (pull the real 141-skill list live from Supabase `skills_core` via the anon-key REST endpoint —
    don't re-extract D1/D2 raw CSVs, they're gone locally and this is faster) before committing to
    an ingest spec.
-5. If resume upload is revisited later: route through Cedar first for dependency authorization
+4. If resume upload is revisited later: route through Cedar first for dependency authorization
    (pdf.js at minimum) before any implementation.
-6. Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
-7. Note: `playwright-core` (headless Chromium driver used for live screenshots in an earlier
+5. Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
+6. Note: `playwright-core` (headless Chromium driver used for live screenshots in an earlier
    session) was installed `--no-save`, so it is **not** in `package.json` — reinstall it
    (`npm install --no-save playwright-core@1.50.0`) if another live screenshot pass is needed. A
    live browser pass on round 2's UI work, round 4's salary-premium phrasing/footnote, and round

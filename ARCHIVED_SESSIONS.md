@@ -263,3 +263,32 @@
     (gitignored, harmless) in case a better dataset/approach surfaces later — no ingest code
     written, nothing to revert.
 - Both rounds pushed to `origin/main`.
+
+### 2026-07-24 (round 4) — Salary-premium clarity, specs 013–014
+
+- User asked what a negative `salary_premium_pct` means. Explained: it's a raw D1 field (no floor
+  clip in `src/scoring/arbitrage.py` — only `min(value, 100)` upper-clips), so a negative value is
+  genuine evidence the skill pays *below* baseline, not a data error, and it genuinely pulls
+  `scarcity_index` down, unlike a missing value (which renormalizes weights instead).
+- User asked to make this concept clearer in the UI. Chose both plain-language reframing ("12%
+  above typical pay" instead of bare "+12%") and an accessible baseline-definition affordance,
+  applied consistently to the leverage table AND the narration text.
+- **Routed through Cedar** (touches `narrate.ts`'s Bounded-AI narration logic + an accessibility-
+  pattern decision). Cedar found the D1 dataset's own manifest (which would state the exact
+  baseline) is gitignored and absent from this repo — chose conservative, sourced wording
+  ("typical pay for that skill's job category") rather than inventing precision. Found no existing
+  tooltip/disclosure pattern to reuse, ruled out native `title` (not WCAG-2.2-AA-sufficient) —
+  spec'd an always-visible footnote + `aria-describedby` instead of a new interactive popover.
+  Also caught a real risk before it became a bug: the frozen Bounded-AI provenance suite (spec
+  005's `assertEveryNumberIsProvenanced`) would fail once negative values render via `Math.abs()`
+  instead of their signed form — authorized a narrow, field-scoped extension of that check
+  (salary_premium_pct only), not a general loosening.
+  **Two SPECs (013, 014) written, approved, shipped**: `formatSalaryPremiumPhrase` helper +
+  narrate.ts wiring (`362d080`, 162/162 vitest); table cell + accessible footnote (168/169,
+  eslint/tsc clean, axe-clean).
+- **Cross-spec regression found, fixed, and merged**: spec 009's App.test.tsx had a brittle
+  assertion — "fewer than 3 `[aria-hidden=\"true\"]` descendants of `.lg-results`" — used as a
+  proxy for "the loading skeleton is gone." Spec 014's legitimate new `aria-hidden` footnote
+  marker coincidentally broke that threshold. Cypress rescoped all 5 affected assertions to the
+  real `.lg-skeleton`/`.lg-skeleton-block` selectors spec 009 introduced, immune to future
+  collisions. **169/169 vitest, eslint/tsc clean.** Committed (`04c6d91`), pushed.
