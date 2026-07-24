@@ -56,10 +56,23 @@
   "matrix.css reuses looking-glass.css's tuned value" check — spec 015 legitimately moved that
   value, so the old constant was stale, not a defect. Cypress (continuation) updated it while
   preserving the real invariant. **188/188 vitest, eslint/tsc clean.**
-- **Spec 016: Cypress's failing tests landed** — new `responsiveText.test.ts` (5 red: `.topmove`'s
-  grid column, `.topmove-name`/`.topmove-note` overflow-wrap, `.nav-brand`'s min-width/flex-wrap;
-  4 passing regression guards confirming unrelated selectors stay untouched). **Magnolia now
-  dispatched** to implement the 2 audited fixes; not yet returned.
+- **Spec 016: shipped and merged** (`116bb90`). Cypress wrote `responsiveText.test.ts` (5 red +
+  4 passing regression guards); Magnolia fixed `.topmove`'s grid column (`minmax(0, 1fr)`) and
+  added `overflow-wrap: anywhere` to `.topmove-name`/`.topmove-note`, plus `min-width: 0` +
+  `flex-wrap: wrap` on `.nav-brand`. **197/197 vitest, eslint/tsc clean.**
+- **Spec 017 (glassmorphism): dataviz-skill sanity check done** — confirmed keeping matrix.css's
+  chart surfaces fully opaque/untouched (glass scoped only to `.card.blueprint`/`.nav` chrome) is
+  correct: the dataviz skill requires chart surfaces to be fixed, validated background colors for
+  its own contrast checks to hold, and "text wears text tokens, never the series color."
+  Cypress wrote `glassmorphism.test.ts` (12 red: new `--glass-tint`/`--glass-tint-rgb`/
+  `--glass-alpha`/`--glass-blur` tokens, a new `.card.blueprint` combined-selector rule using
+  `rgba(var(--glass-tint-rgb), var(--glass-alpha))` + `backdrop-filter: blur(...)`, applied to
+  `.nav` too; dark-mode-untouched and reduced-motion-gated regression guards). 236 pre-existing
+  tests unaffected.
+  **Magnolia's build attempt hit the account session limit mid-task (resets 3pm America/
+  New_York) before making any changes** — `looking-glass.css` is untouched, only Cypress's test
+  file exists on disk. This is a session-wide rate limit, not a task failure — will retry once
+  the limit resets rather than immediately re-spawning into the same wall.
 
 ### Accomplished (round 4 — salary-premium clarity, specs 013–014)
 - User asked what a negative `salary_premium_pct` means. Explained: it's a raw D1 field (no floor
@@ -105,17 +118,21 @@
   **169/169 vitest, eslint/tsc clean.** Committed (`04c6d91`).
 
 ### Unfinished / blocked
-- **Spec 016**: Magnolia implementing the 2 audited wrapping fixes against Cypress's 5 red tests;
-  not yet returned. **Spec 017** (glassmorphism) is blocked on 016 (shares files, and needs a
-  `dataviz`-skill sanity check per Cedar's note before the `.matrix-zone-hi` reassignment context
-  and before scoping the glass treatment away from matrix.css's surfaces).
+- **Spec 017**: Cypress's failing tests are committed; Magnolia's implementation attempt hit the
+  account session limit (resets 3pm America/New_York) before writing any code — `looking-glass.css`
+  is untouched. Needs a fresh Magnolia dispatch after the limit resets.
 - Rounds 1-4 (specs 001-014, `@types/node`, font swap, 15-role expansion, salary-premium clarity)
-  plus spec 015 (contrast fixes, `716971a`) remain fully merged — no carryover blockers.
+  plus specs 015/016 (contrast + wrapping fixes, `716971a`, `116bb90`) remain fully merged — no
+  carryover blockers.
 
 ### Next Steps
-1. Check on the backgrounded Magnolia agent (spec 016); when it returns, verify the 5
-   previously-red tests flip green with zero regressions (188 baseline), eslint/tsc clean, then
-   commit.
+1. After the session limit resets (3pm America/New_York), dispatch Magnolia to implement spec 017
+   against Cypress's 12 red tests in `frontend/src/styles/glassmorphism.test.ts` — the exact token
+   contract (`--glass-tint`, `--glass-tint-rgb`, `--glass-alpha`, `--glass-blur`,
+   `rgba(var(--glass-tint-rgb), var(--glass-alpha))` + `backdrop-filter: blur(...)` on a new
+   `.card.blueprint` rule and on `.nav`) is already pinned in that test file — read it first.
+2. Verify 12 previously-red tests flip green with zero regressions (236 baseline), eslint/tsc
+   clean, then commit and push all of round 5 (specs 015-017) to `origin/main`.
 2. Dispatch Cypress→Magnolia for spec 017 (glassmorphism) — consult the `dataviz` skill first per
    Cedar's note.
 3. Push `main` to `origin/main` once all three specs land.
