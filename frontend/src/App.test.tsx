@@ -66,15 +66,15 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('<App /> walking skeleton', () => {
-  it('renders the role picker with an accessible name and all six roles plus a placeholder', () => {
+  it('renders the role picker with an accessible name and all fifteen roles plus a placeholder', () => {
     render(<App />)
 
     const select = screen.getByRole('combobox', { name: 'Target role' })
     expect(select).toBeInTheDocument()
 
     const options = within(select).getAllByRole('option')
-    // Placeholder + six roles.
-    expect(options).toHaveLength(7)
+    // Placeholder + fifteen roles (spec 011 widens ROLES from 6 to all 15 role_family values).
+    expect(options).toHaveLength(16)
     expect(within(select).getByRole('option', { name: 'Select a role' })).toBeInTheDocument()
     for (const role of [
       'Backend',
@@ -83,6 +83,15 @@ describe('<App /> walking skeleton', () => {
       'Data Engineer',
       'Software Engineer',
       'DevOps / Cloud / SRE',
+      'Frontend',
+      'Data Analyst / BI',
+      'Mobile',
+      'Security',
+      'QA / Test',
+      'Business Analyst',
+      'Designer (UX/UI)',
+      'Product Manager',
+      'Project / Program Mgr',
     ]) {
       expect(within(select).getByRole('option', { name: role })).toBeInTheDocument()
     }

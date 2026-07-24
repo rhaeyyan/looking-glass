@@ -5,13 +5,50 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-24 (round 2: whole-app UI/UX + dataviz pass, specs 008–010)
+## Current Session — 2026-07-24 (round 3: 15-role expansion + Coursera learning-resource scoping)
 
 > Specs 001–007, the same-day earlier round (redesign, de-jargon, top-3 moves, table merge,
 > dark-theme desync fix), and the 2026-07-23 milestone session are archived in
 > [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-### Accomplished
+### Accomplished (round 3, this section)
+- User asked what other Kaggle datasets/features could help career changers, and whether the DB
+  supports more target roles. **Investigated and confirmed: yes, already does.** The ingest
+  pipeline loads D3's full `skills-2026-by-role.csv` unfiltered (450 rows / 15 roles) into
+  `skill_role_profile`, and `role_skill_arbitrage` joins across all 15 with no role filter. The
+  6-role limit lives in exactly one place: `frontend/src/lib/roles.ts`'s `ROLES` const.
+- User asked to add all 9 remaining roles (Frontend, Data Analyst/BI, Mobile, Security, QA,
+  Business Analyst, Designer, Product Manager, Project/Program Mgr — confirmed PM and
+  Project/Program Mgr are distinct role_family rows, not duplicates) and to prioritize a
+  skills → learning-resource mapping feature.
+- **Routed the role expansion through Cedar** (Rule 1 — touches docs asserting a "6-role" ship
+  gate, not just cosmetic). Cedar confirmed via `tests/test_data_invariants.py` that the
+  backend/ingest layer is already fully tested for all 15 roles — this is pure frontend enum
+  widening, zero scoring/schema changes. Resolved one open design question without inventing new
+  UI: the existing per-skill "demand only, scarcity unknown" flag already handles thin-coverage
+  ("Weak" tier) roles role-agnostically, so no role-level coverage-tier badge is needed.
+  **Two SPECs written, user-approved, persisted**:
+  [specs/011](specs/011-widen-roles-to-fifteen.md) (widen `ROLES` to all 15 verbatim
+  `role_family` strings, Cypress→Redwood) and
+  [specs/012](specs/012-correct-role-coverage-docs.md) (correct README/AGENTS' stale "V1 ships
+  six roles" framing, Redwood, sequenced after 011 lands). Committed (`fed6f8b`).
+- **Spec 011: Cypress's failing tests landed** — `roles.test.ts` rewritten to a 15-role
+  set-equality/no-duplicates/slash-spacing/Designer-parenthetical contract, `App.test.tsx`'s
+  option-count assertion updated 7→16. 5 red (as expected — `roles.ts` still only has 6), 29
+  pre-existing App tests unaffected, eslint clean. **Redwood now dispatched** to widen
+  `roles.ts`; not yet returned.
+- **Learning-resource mapping scoped as a separate, much bigger track** — it needs a new Kaggle
+  dataset not yet in this repo. Recommended candidates via web search (Coursera 2025/2024 skill-
+  tagged datasets, Udemy as fallback); user downloaded **Coursera 2025**
+  (`data/raw/d4/Coursera.csv`, gitignored, same pattern as D1/D2/D3).
+- **Dispatched Birch to validate D4** against the exact same rigor as the original
+  `data/schema-notes.md` D1/D2/D3 pass: real column names, grain, null audit, and critically
+  whether D4's skill representation actually joins against the existing 141-skill vocabulary
+  (exact match + the documented normalization scheme). Not yet returned as of this write — this
+  result gates whether Cedar can even write a viable ingest spec; no ingest spec exists yet and
+  none should be written before Birch reports back.
+
+### Accomplished (round 2 — whole-app UI/UX + dataviz pass, specs 008–010)
 - User asked for another whole-app UI/UX + data-viz pass and explicitly authorized relaxing the
   standing `Simplicity > Pattern purity` [FORCES] default. Routed through Cedar first (Workflow
   Rule 1). **Cedar investigated and declined to use the relaxed permission**: no genuine repeated
@@ -64,22 +101,31 @@
   (`a33d59b`) and pushed to `origin/main`.
 
 ### Unfinished / blocked
-- None outstanding from this round. All three UI/UX specs (008/009/010), the `@types/node`
-  cleanup, and the font-system swap are merged, pushed, and green. Whole tree: 147/147 vitest,
-  eslint clean, tsc clean.
+- **Spec 011**: Redwood implementing (widening `roles.ts` to 15 roles) against Cypress's 5 red
+  tests; not yet returned. **Spec 012** (docs correction) is blocked on 011 landing.
+- **Coursera D4 validation**: Birch dispatched to audit `data/raw/d4/Coursera.csv`'s real schema
+  and test the join against the 141-skill core; not yet returned. No ingest spec exists yet and
+  none should be written until this lands — it determines whether the learning-resource mapping
+  is even viable with this dataset.
+- Round 2 (specs 008/009/010, `@types/node`, font swap) remains fully merged/pushed — no
+  carryover blockers from that part of the day.
 
 ### Next Steps
-- No specific next step queued — this round's scope (whole-app UI/UX + data-viz pass, plus the
-  font swap) is complete. Future work would be new/unspecced.
-- If resume upload is revisited later: route through Cedar first for dependency authorization
-  (pdf.js at minimum) before any implementation.
-- Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
-- Note: `playwright-core` (headless Chromium driver used for live screenshots in an earlier
-  session) was installed `--no-save`, so it is **not** in `package.json` — reinstall it
-  (`npm install --no-save playwright-core@1.50.0`) if another live screenshot pass is needed. A
-  live browser pass on 009/010/font-swap (empty/loading states, scatter legend/tap-reveal/motion,
-  new typography) hasn't been done yet this round — only automated tests — worth doing before
-  considering this fully verified.
+1. Check on the backgrounded Redwood agent (spec 011); when it returns, verify 147+5-ish tests
+   green (confirm exact new total), eslint/tsc clean, then commit and dispatch Redwood for
+   spec 012 (docs correction).
+2. Check on the backgrounded Birch agent (D4 schema/join audit); when it returns, relay findings
+   to Cedar only if the join is viable — do not write an ingest spec on a bad/thin join without
+   surfacing that to the user first.
+3. If resume upload is revisited later: route through Cedar first for dependency authorization
+   (pdf.js at minimum) before any implementation.
+4. Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
+5. Note: `playwright-core` (headless Chromium driver used for live screenshots in an earlier
+   session) was installed `--no-save`, so it is **not** in `package.json` — reinstall it
+   (`npm install --no-save playwright-core@1.50.0`) if another live screenshot pass is needed. A
+   live browser pass on round 2's UI work (empty/loading states, scatter legend/tap-reveal/motion,
+   new typography) hasn't been done yet — only automated tests — worth doing before considering
+   that round fully verified.
 
 ---
 
