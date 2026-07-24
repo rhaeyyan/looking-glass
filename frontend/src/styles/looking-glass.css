@@ -355,6 +355,8 @@ textarea.input {
   display: flex;
   align-items: baseline;
   gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
   font-family: var(--font-heading);
   font-weight: 600;
   font-size: 18px;

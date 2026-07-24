@@ -475,7 +475,7 @@
 
 .topmove {
   display: grid;
-  grid-template-columns: 1.5rem 1fr;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
   gap: 0.6rem;
   align-items: start;
 }
@@ -505,6 +505,7 @@
 .topmove-name {
   font-weight: 600;
   font-size: 0.9375rem;
+  overflow-wrap: anywhere;
 }
 
 .topmove-note {
@@ -512,6 +513,7 @@
   font-size: 0.8125rem;
   color: var(--text-secondary);
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .topmove-stats {
