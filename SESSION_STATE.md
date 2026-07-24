@@ -47,21 +47,39 @@
   (required — one is already explicitly declared as `["vite/client"]`, so TS won't auto-include
   new `@types/*` packages without being listed). **`tsc --noEmit` now 0 errors (was 9); vitest
   147/147 and eslint stayed clean.** Committed (`4f35f4c`).
+- All of the above pushed to `origin/main` (`369a20a`).
+- User asked about a resume-upload option (PDF/DOCX) as a low-lift check — **declined for this
+  build**: a new client-side parsing dependency (pdf.js/mammoth) needs Cedar dependency
+  authorization (Rule 8) and expands the Zero-Trust surface (parsing untrusted file content), so
+  it's a real feature, not a quick swap. User chose to keep the paste-box as-is.
+- **Font system swap (Poppins/Inter/JetBrains Mono), user-approved directly** (cosmetic-only, no
+  Cedar SPEC needed): used the `ui-ux-pro-max` skill's typography domain to find the "Modern
+  Professional" pairing, user picked **Poppins (headings) + Inter (body)** over the recommended
+  Open Sans body, then approved a third token, **JetBrains Mono**, applied only to digit-heavy
+  table cells (rank, leverage-bar readout, demand/scarcity/salary-premium/days-to-fill — NOT
+  headings/body/categorical columns). Replaces the old Barlow/Barlow Condensed pair. Preserves the
+  `var(--font-heading, inherit)`/`var(--font-body, system-ui)` fallback chains verbatim. Magnolia
+  built it (3 files: looking-glass.css, matrix.css, SkillLeverageTable.tsx); verified independently
+  (147/147 vitest, eslint clean, tsc clean, zero remaining "Barlow" references). Committed
+  (`a33d59b`) and pushed to `origin/main`.
 
 ### Unfinished / blocked
-- None outstanding from this round. All three UI/UX specs (008/009/010) are merged and green, and
-  the `@types/node` cleanup that fell out of them is closed. Whole tree: 147/147 vitest, eslint
-  clean, tsc clean.
+- None outstanding from this round. All three UI/UX specs (008/009/010), the `@types/node`
+  cleanup, and the font-system swap are merged, pushed, and green. Whole tree: 147/147 vitest,
+  eslint clean, tsc clean.
 
 ### Next Steps
-- No specific next step queued — this round's scope (whole-app UI/UX + data-viz pass) is complete.
-  Future work would be new/unspecced.
+- No specific next step queued — this round's scope (whole-app UI/UX + data-viz pass, plus the
+  font swap) is complete. Future work would be new/unspecced.
+- If resume upload is revisited later: route through Cedar first for dependency authorization
+  (pdf.js at minimum) before any implementation.
 - Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
 - Note: `playwright-core` (headless Chromium driver used for live screenshots in an earlier
   session) was installed `--no-save`, so it is **not** in `package.json` — reinstall it
   (`npm install --no-save playwright-core@1.50.0`) if another live screenshot pass is needed. A
-  live browser pass on 009/010 (empty/loading states, scatter legend/tap-reveal/motion) hasn't been
-  done yet this round — only automated tests — worth doing before considering this fully verified.
+  live browser pass on 009/010/font-swap (empty/loading states, scatter legend/tap-reveal/motion,
+  new typography) hasn't been done yet this round — only automated tests — worth doing before
+  considering this fully verified.
 
 ---
 
