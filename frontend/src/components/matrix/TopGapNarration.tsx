@@ -1,32 +1,46 @@
 import { useId } from 'react'
-import type { RoleSkillRow } from '../../lib/supabaseClient'
+import type { TopMove } from '../../lib/narrate'
 import './matrix.css'
 
-// Top-gap narration (spec 005, Task 6): a small, single-purpose display of `narrateTopGap`'s
+// Top-moves display (spec 005, extended): a small, single-purpose render of `narrateTopGaps`'s
 // already-computed result — no LLM call, no scoring, no reformatting of its numbers here. The
-// component's only job is to give the narrative a labelled, keyboard-reachable home in the DOM.
+// component's only job is to give the ranked shortlist a labelled, keyboard-reachable home.
 //
-// `runnerUpGap` is accepted (not merely `topGap` + `narrative`) to keep the prop shape matched to
-// `narrateTopGap`'s return value 1:1 — the Tipping Point note in the SPEC calls out revisiting
-// this shape before adding per-row rationale; it is intentionally unused in the rendered output
-// today (the sentence itself, built in `narrate.ts`, already folds any runner-up comparison into
-// `narrative`).
-export function TopGapNarration({
-  topGap,
-  narrative,
-}: {
-  topGap: RoleSkillRow
-  runnerUpGap: RoleSkillRow | null
-  narrative: string
-}) {
+// `headline` is rendered byte-identically (it IS `narrateTopGap`'s narrative for the #1 move — the
+// Bounded-AI provenance suite validates that string). Each move's stat chips and note likewise come
+// straight from `narrateTopGaps`, already `formatNum`-formatted — never recomputed here.
+export function TopGapNarration({ headline, moves }: { headline: string; moves: TopMove[] }) {
   const titleId = useId()
+  const lead = moves[0]?.row.skill_name_raw ?? ''
 
   return (
     <section className="narration-root" aria-labelledby={titleId}>
       <h2 id={titleId} className="narration-title">
-        Your top gap: {topGap.skill_name_raw}
+        Your top moves — start with {lead}
       </h2>
-      <p className="narration-text">{narrative}</p>
+      <p className="narration-text">{headline}</p>
+      <ol className="topmoves-list">
+        {moves.map((move) => (
+          <li className="topmove" data-rank={move.rank} key={move.row.skill_key ?? move.row.skill_name_raw}>
+            <span className="topmove-rank" aria-hidden="true">
+              {move.rank}
+            </span>
+            <div>
+              <span className="topmove-name">{move.row.skill_name_raw}</span>
+              {move.note && <p className="topmove-note">{move.note}</p>}
+              {move.stats.length > 0 && (
+                <div className="topmove-stats">
+                  {move.stats.map((stat) => (
+                    <span className="topmove-stat" key={stat}>
+                      {stat}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
     </section>
   )
 }

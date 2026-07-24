@@ -36,13 +36,18 @@ export function ArbitrageLadder({
   const topScore = ranked.reduce((max, r) => Math.max(max, r.arbitrage_score ?? 0), 0)
 
   return (
-    <section className="ladder-root" aria-labelledby={titleId}>
+    <section className="ladder-root card blueprint elev-md" aria-labelledby={titleId}>
+      <i className="corner tl" />
+      <i className="corner tr" />
+      <i className="corner bl" />
+      <i className="corner br" />
       <h2 id={titleId} className="ladder-title">
-        Arbitrage ladder
+        Every skill, ranked by leverage
       </h2>
       <p className="ladder-hint">
-        Skills ranked by arbitrage score (highest leverage first). Bar length shows each score
-        relative to the top move; the demand-only skill is listed last and flagged.
+        Every skill this role needs, ranked by leverage score (most worth learning first). Bar
+        length shows each score next to the top move; a skill we only have demand data for is listed
+        last and flagged.
       </p>
 
       <ol className="ladder-list">
@@ -58,11 +63,11 @@ export function ArbitrageLadder({
               ? ''
               : have
                 ? ', you already have this skill'
-                : ', gap — you do not have this skill yet'
+                : ', worth learning — not on your resume yet'
           const label =
             (demandOnly
               ? `Rank ${i + 1}: ${row.skill_name_raw}, ${DEMAND_ONLY_FLAG}`
-              : `Rank ${i + 1}: ${row.skill_name_raw}, arbitrage score ${formatNum(row.arbitrage_score)}`) +
+              : `Rank ${i + 1}: ${row.skill_name_raw}, leverage score ${formatNum(row.arbitrage_score)}`) +
             haveSuffix
           return (
             <li key={row.skill_key ?? row.skill_name_raw}>
@@ -91,7 +96,7 @@ export function ArbitrageLadder({
                 )}
                 {have !== undefined && (
                   <span className="ladder-have-flag" data-testid="have-flag" aria-hidden="true">
-                    {have ? 'Have' : 'Gap'}
+                    {have ? 'Already have' : 'Worth learning'}
                   </span>
                 )}
                 {/* A real (but visually hidden) text node mirroring the aria-label's have/gap
@@ -101,7 +106,7 @@ export function ArbitrageLadder({
                     assertion), not because sighted users need to see it twice. */}
                 {have !== undefined && (
                   <span className="visually-hidden" aria-hidden="true">
-                    {have ? 'you already have this skill' : 'gap — you do not have this skill yet'}
+                    {have ? 'you already have this skill' : 'worth learning — not on your resume yet'}
                   </span>
                 )}
               </button>

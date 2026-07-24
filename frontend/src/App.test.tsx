@@ -10,7 +10,7 @@ import type { RoleSkillRow } from './lib/supabaseClient'
 // return value" (the Bounded-AI boundary this SPEC locks) is checked against — never a hand-typed
 // expected string that could drift from the real function's actual output.
 import { computeSkillGap } from './lib/gap'
-import { narrateTopGap } from './lib/narrate'
+import { narrateTopGaps } from './lib/narrate'
 
 // Characterization tests (SPIKE path): freeze the observed behavior of the walking-skeleton <App />.
 // `./lib/supabaseClient` is mocked wholesale so no network/credentials load and `createClient`
@@ -332,7 +332,7 @@ describe('<App /> resume input + have/gap', () => {
     // verbatim through the real computeSkillGap, never a raw extraction field rendered directly.
     await screen.findByText(/you already have this skill/i)
     expect(screen.getByText(/you already have this skill/i)).toBeInTheDocument()
-    expect(screen.getByText(/you do not have this skill yet/i)).toBeInTheDocument()
+    expect(screen.getByText(/worth learning — not on your resume yet/i)).toBeInTheDocument()
   })
 
   it('has no axe violations in the populated have/gap state', async () => {
@@ -433,7 +433,7 @@ const FULL_STACK_ROWS: RoleSkillRow[] = [
  * only meaningful if the expected value comes from the same functions, not a hand-typed string. */
 function expectedNarration(rows: RoleSkillRow[], resumeSkills: string[]) {
   const gap = computeSkillGap(rows, resumeSkills)
-  return narrateTopGap(gap.rows, gap.haveSkillKeys)
+  return narrateTopGaps(gap.rows, gap.haveSkillKeys)
 }
 
 describe('<App /> top-gap narration (spec 005)', () => {
@@ -461,13 +461,13 @@ describe('<App /> top-gap narration (spec 005)', () => {
 
     const expected = expectedNarration(BACKEND_ROWS, [])
     expect(expected).not.toBeNull()
-    expect(expected!.topGap.skill_name_raw).toBe('Rust')
+    expect(expected!.moves[0].row.skill_name_raw).toBe('Rust')
 
     const section = await screen.findByRole('region', { name: /Rust/i })
-    expect(within(section).getByText(expected!.narrative)).toBeInTheDocument()
+    expect(within(section).getByText(expected!.headline)).toBeInTheDocument()
 
     // Real (not aria-hidden) text.
-    const textNode = within(section).getByText(expected!.narrative)
+    const textNode = within(section).getByText(expected!.headline)
     let node: HTMLElement | null = textNode
     while (node) {
       expect(node.getAttribute('aria-hidden')).not.toBe('true')

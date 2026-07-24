@@ -2,26 +2,18 @@ import { describe, it, expect } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import { axe } from 'jest-axe'
 import type { RoleSkillRow } from '../../lib/supabaseClient'
+import type { TopMove } from '../../lib/narrate'
 
-// RED phase (spec 005 Task 5) — `<TopGapNarration>` does NOT exist yet. Dynamic import + a
-// `/* @vite-ignore */` specifier keeps a missing module a per-test failure, not a collection
-// abort — the exact convention already established in ArbitrageLadder.test.tsx (spec 003 Task 6 /
-// spec 004 Task 5) for this same RED-phase situation. Do not switch to a static import: that would
-// turn every test in this file into one undifferentiated "failed to resolve import" collection
-// error instead of clean, individually-attributable RED failures.
-//
-// Component contract Magnolia MUST honor (see [COMPLIANCE-REPORT]):
-//   - named export `TopGapNarration`, props:
-//       `topGap: RoleSkillRow`
-//       `runnerUpGap: RoleSkillRow | null`
-//       `narrative: string`
-//   - renders a `<section>` (implicit `role="region"`, via `aria-labelledby`/a heading) whose
-//     ACCESSIBLE NAME references `topGap.skill_name_raw` (exact heading wording is Magnolia's
-//     call; the skill name must appear in it).
-//   - the section contains `narrative` as REAL (not `aria-hidden`), byte-identical DOM text — no
-//     truncation, no re-wording, no re-derivation. Do not reformat/recompute/round narrative's
-//     numbers; render the string exactly as received.
-//   - `runnerUpGap: null` must render without throwing (solo-top-gap case).
+// `<TopGapNarration>` is a pure display of `narrateTopGaps`'s already-computed result — no LLM,
+// no scoring, no reformatting. Contract it MUST honor:
+//   - named export `TopGapNarration`, props `headline: string` and `moves: TopMove[]`.
+//   - renders a `<section>` (implicit `role="region"` via `aria-labelledby`) whose accessible name
+//     references `moves[0].row.skill_name_raw`.
+//   - renders `headline` as REAL (not `aria-hidden`), byte-identical DOM text — no truncation, no
+//     re-wording, no re-derivation of its numbers.
+//   - renders one ranked list item per move, each surfacing the skill name + its stat chips
+//     verbatim; ranks 2+ also show their `note`, rank 1 does not (its rationale is the headline).
+//   - a single-move `moves` array renders without throwing.
 //   - zero axe violations.
 const TOP_GAP_NARRATION_MODULE = './TopGapNarration'
 async function loadTopGapNarration() {
@@ -48,36 +40,41 @@ function makeRow(overrides: Partial<RoleSkillRow> = {}): RoleSkillRow {
   }
 }
 
-// Deliberately "ugly" — an em dash, a colon, decimals, a percent sign — so a byte-identical
-// assertion actually proves something beyond a friendly plain-English sentence.
-const NARRATIVE =
-  'Rust ranks above PostgreSQL on arbitrage score: 9.1 vs 4.2 — a 22.6% salary premium besides.'
+// Deliberately "ugly" — an em dash, a colon, decimals — so a byte-identical assertion proves
+// something beyond a friendly plain sentence.
+const HEADLINE = 'Rust ranks above PostgreSQL on leverage score: 9.1 vs 4.2.'
+
+const THREE_MOVES: TopMove[] = [
+  { rank: 1, row: makeRow(), note: '', stats: ['Leverage 9.1', 'Demand 63'] },
+  {
+    rank: 2,
+    row: makeRow({ skill_name_raw: 'PostgreSQL', skill_key: 'postgresql', arbitrage_score: 4.2 }),
+    note: 'Wanted in 18% of Backend postings, with a leverage score of 4.2.',
+    stats: ['Leverage 4.2'],
+  },
+  {
+    rank: 3,
+    row: makeRow({ skill_name_raw: 'Kafka', skill_key: 'kafka', arbitrage_score: 3.1 }),
+    note: 'Wanted in 18% of Backend postings, with a leverage score of 3.1.',
+    stats: ['Leverage 3.1'],
+  },
+]
 
 describe('<TopGapNarration /> isolated component contract', () => {
-  it('renders a labelled section whose accessible name references the top gap skill', async () => {
+  it('renders a labelled section whose accessible name references the lead move skill', async () => {
     const TopGapNarration = await loadTopGapNarration()
-    const topGap = makeRow()
-    const runnerUpGap = makeRow({ skill_name_raw: 'PostgreSQL', skill_key: 'postgresql', arbitrage_score: 4.2 })
-
-    render(<TopGapNarration topGap={topGap} runnerUpGap={runnerUpGap} narrative={NARRATIVE} />)
+    render(<TopGapNarration headline={HEADLINE} moves={THREE_MOVES} />)
 
     expect(screen.getByRole('region', { name: /Rust/ })).toBeInTheDocument()
   })
 
-  it('renders the narrative string as byte-identical, real (non aria-hidden) DOM text', async () => {
+  it('renders the headline as byte-identical, real (non aria-hidden) DOM text', async () => {
     const TopGapNarration = await loadTopGapNarration()
-    const topGap = makeRow()
-    const runnerUpGap = makeRow({ skill_name_raw: 'PostgreSQL', skill_key: 'postgresql', arbitrage_score: 4.2 })
+    render(<TopGapNarration headline={HEADLINE} moves={THREE_MOVES} />)
 
-    render(<TopGapNarration topGap={topGap} runnerUpGap={runnerUpGap} narrative={NARRATIVE} />)
+    const textNode = screen.getByText(HEADLINE)
+    expect(textNode.textContent).toBe(HEADLINE)
 
-    // Exact match (no regex, no substring/partial-text fallback) — proves no truncation or
-    // re-wording. getByText's default exact-match mode fails if the DOM text differs by even one
-    // character.
-    const textNode = screen.getByText(NARRATIVE)
-    expect(textNode).toBeInTheDocument()
-
-    // Real text, not aria-hidden: walk every ancestor and assert none hides it from AT.
     let node: HTMLElement | null = textNode
     while (node) {
       expect(node.getAttribute('aria-hidden')).not.toBe('true')
@@ -85,28 +82,42 @@ describe('<TopGapNarration /> isolated component contract', () => {
     }
   })
 
-  it('does not append, prepend, or otherwise alter the narrative text', async () => {
+  it('renders one ranked list item per move with the skill name and its stat chips verbatim', async () => {
     const TopGapNarration = await loadTopGapNarration()
-    const topGap = makeRow()
-    const runnerUpGap = makeRow({ skill_name_raw: 'PostgreSQL', skill_key: 'postgresql', arbitrage_score: 4.2 })
+    render(<TopGapNarration headline={HEADLINE} moves={THREE_MOVES} />)
 
-    render(<TopGapNarration topGap={topGap} runnerUpGap={runnerUpGap} narrative={NARRATIVE} />)
+    const section = screen.getByRole('region', { name: /Rust/ })
+    const items = within(section).getAllByRole('listitem')
+    expect(items).toHaveLength(3)
 
-    const textNode = screen.getByText(NARRATIVE)
-    // The narrative-bearing element's own text content is exactly the narrative — not the
-    // narrative plus extra decoration/prefix/suffix text baked into the same node.
-    expect(textNode.textContent).toBe(NARRATIVE)
+    for (const move of THREE_MOVES) {
+      const item = items[move.rank - 1]
+      expect(within(item).getByText(move.row.skill_name_raw)).toBeInTheDocument()
+      for (const stat of move.stats) {
+        expect(within(item).getByText(stat)).toBeInTheDocument()
+      }
+    }
   })
 
-  it('renders without throwing when runnerUpGap is null (solo top-gap case)', async () => {
+  it('shows notes for ranks 2+ but not for rank 1 (its rationale is the headline)', async () => {
     const TopGapNarration = await loadTopGapNarration()
-    const topGap = makeRow()
-    const solo = 'Rust is your top gap to close, with an arbitrage score of 9.1.'
+    render(<TopGapNarration headline={HEADLINE} moves={THREE_MOVES} />)
+
+    const section = screen.getByRole('region', { name: /Rust/ })
+    const items = within(section).getAllByRole('listitem')
+
+    expect(within(items[0]).queryByText(/Wanted in/)).not.toBeInTheDocument()
+    expect(within(items[1]).getByText(THREE_MOVES[1].note)).toBeInTheDocument()
+    expect(within(items[2]).getByText(THREE_MOVES[2].note)).toBeInTheDocument()
+  })
+
+  it('renders without throwing when there is only a single move', async () => {
+    const TopGapNarration = await loadTopGapNarration()
+    const solo: TopMove[] = [{ rank: 1, row: makeRow(), note: '', stats: ['Leverage 9.1'] }]
 
     expect(() =>
-      render(<TopGapNarration topGap={topGap} runnerUpGap={null} narrative={solo} />),
+      render(<TopGapNarration headline="Rust is the top skill worth learning next." moves={solo} />),
     ).not.toThrow()
-    expect(screen.getByText(solo)).toBeInTheDocument()
     expect(screen.getByRole('region', { name: /Rust/ })).toBeInTheDocument()
   })
 
@@ -122,50 +133,17 @@ describe('<TopGapNarration /> isolated component contract', () => {
 
     try {
       const TopGapNarration = await loadTopGapNarration()
-      const topGap = makeRow()
-      const runnerUpGap = makeRow({ skill_name_raw: 'PostgreSQL', skill_key: 'postgresql', arbitrage_score: 4.2 })
-
-      // Synchronous availability: no `findBy`/await-for-async-update needed — the section is
-      // present the instant render() returns.
-      render(<TopGapNarration topGap={topGap} runnerUpGap={runnerUpGap} narrative={NARRATIVE} />)
+      render(<TopGapNarration headline={HEADLINE} moves={THREE_MOVES} />)
       expect(screen.getByRole('region', { name: /Rust/ })).toBeInTheDocument()
     } finally {
       globalThis.fetch = originalFetch
     }
   })
 
-  it('has zero axe violations when a real top gap is narrated', async () => {
+  it('has zero axe violations when the ranked moves are rendered', async () => {
     const TopGapNarration = await loadTopGapNarration()
-    const topGap = makeRow()
-    const runnerUpGap = makeRow({ skill_name_raw: 'PostgreSQL', skill_key: 'postgresql', arbitrage_score: 4.2 })
-
-    const { container } = render(
-      <TopGapNarration topGap={topGap} runnerUpGap={runnerUpGap} narrative={NARRATIVE} />,
-    )
+    const { container } = render(<TopGapNarration headline={HEADLINE} moves={THREE_MOVES} />)
 
     expect(await axe(container)).toHaveNoViolations()
-  })
-
-  it('has zero axe violations in the solo top-gap (no runner-up) case', async () => {
-    const TopGapNarration = await loadTopGapNarration()
-    const topGap = makeRow()
-    const solo = 'Rust is your top gap to close, with an arbitrage score of 9.1.'
-
-    const { container } = render(
-      <TopGapNarration topGap={topGap} runnerUpGap={null} narrative={solo} />,
-    )
-
-    expect(await axe(container)).toHaveNoViolations()
-  })
-
-  it('scopes the narrative text inside the labelled section (not floating outside it)', async () => {
-    const TopGapNarration = await loadTopGapNarration()
-    const topGap = makeRow()
-    const runnerUpGap = makeRow({ skill_name_raw: 'PostgreSQL', skill_key: 'postgresql', arbitrage_score: 4.2 })
-
-    render(<TopGapNarration topGap={topGap} runnerUpGap={runnerUpGap} narrative={NARRATIVE} />)
-
-    const section = screen.getByRole('region', { name: /Rust/ })
-    expect(within(section).getByText(NARRATIVE)).toBeInTheDocument()
   })
 })

@@ -221,11 +221,11 @@ describe('<SkillMatrix /> have/gap rendering (haveSkillKeys prop)', () => {
     render(<SkillMatrix rows={roleSkillProfileFixture} haveSkillKeys={HAVE_SKILL_KEYS} />)
 
     const kubernetesPoint = screen.getByRole('button', { name: /^Kubernetes:/ })
-    expect(within(kubernetesPoint).getByTestId('have-flag')).toHaveTextContent('Have')
+    expect(within(kubernetesPoint).getByTestId('have-flag')).toHaveTextContent('Already have')
 
     for (const skill of GAP_SKILLS) {
       const point = screen.getByRole('button', { name: new RegExp(`^${skill}:`) })
-      expect(within(point).getByTestId('have-flag')).toHaveTextContent('Gap')
+      expect(within(point).getByTestId('have-flag')).toHaveTextContent('Worth learning')
     }
   })
 
@@ -240,7 +240,7 @@ describe('<SkillMatrix /> have/gap rendering (haveSkillKeys prop)', () => {
     for (const skill of GAP_SKILLS) {
       expect(
         screen.getByRole('button', {
-          name: new RegExp(`^${skill}:.*you do not have this skill yet`),
+          name: new RegExp(`^${skill}:.*worth learning — not on your resume yet`),
         }),
       ).toBeInTheDocument()
     }
@@ -252,17 +252,17 @@ describe('<SkillMatrix /> have/gap rendering (haveSkillKeys prop)', () => {
 
     const table = screen.getByRole('table')
     const columnHeaders = within(table).getAllByRole('columnheader')
-    expect(columnHeaders.some((th) => /have.*gap/i.test(th.textContent ?? ''))).toBe(true)
+    expect(columnHeaders.some((th) => /status/i.test(th.textContent ?? ''))).toBe(true)
 
     for (const skill of HAVE_SKILLS) {
       const rowHeader = within(table).getByRole('rowheader', { name: skill })
       const row = rowHeader.closest('tr')!
-      expect(within(row).getByText('Have')).toBeInTheDocument()
+      expect(within(row).getByText('Already have')).toBeInTheDocument()
     }
     for (const skill of GAP_SKILLS) {
       const rowHeader = within(table).getByRole('rowheader', { name: skill })
       const row = rowHeader.closest('tr')!
-      expect(within(row).getByText('Gap')).toBeInTheDocument()
+      expect(within(row).getByText('Worth learning')).toBeInTheDocument()
     }
   })
 
@@ -275,8 +275,8 @@ describe('<SkillMatrix /> have/gap rendering (haveSkillKeys prop)', () => {
       expect(within(point).queryByTestId('have-flag')).not.toBeInTheDocument()
     }
     const table = screen.getByRole('table')
-    expect(within(table).queryByText('Have')).not.toBeInTheDocument()
-    expect(within(table).queryByText('Gap')).not.toBeInTheDocument()
+    expect(within(table).queryByText('Already have')).not.toBeInTheDocument()
+    expect(within(table).queryByText('Worth learning')).not.toBeInTheDocument()
   })
 
   it('has zero axe violations on the fully mounted matrix with have/gap state populated', async () => {

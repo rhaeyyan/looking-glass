@@ -133,17 +133,19 @@ describe('<ArbitrageLadder /> have/gap rendering (haveSkillKeys prop)', () => {
 
     for (const skill of HAVE_SKILLS) {
       const item = screen.getByRole('button', { name: new RegExp(`${skill},`) })
-      expect(within(item).getByTestId('have-flag')).toHaveTextContent('Have')
+      expect(within(item).getByTestId('have-flag')).toHaveTextContent('Already have')
     }
     for (const skill of GAP_SKILLS) {
       const item = screen.getByRole('button', { name: new RegExp(`${skill},`) })
-      expect(within(item).getByTestId('have-flag')).toHaveTextContent('Gap')
+      expect(within(item).getByTestId('have-flag')).toHaveTextContent('Worth learning')
     }
 
     // gRPC (DEMAND_ONLY_SKILL) is in HAVE_SKILL_KEYS via its normalized skill_name_raw fallback.
     const demandOnlyItem = screen.getByText(/demand only/i).closest('[data-testid="ladder-item"]')!
     expect(demandOnlyItem).toHaveAttribute('data-have', 'true')
-    expect(within(demandOnlyItem as HTMLElement).getByTestId('have-flag')).toHaveTextContent('Have')
+    expect(within(demandOnlyItem as HTMLElement).getByTestId('have-flag')).toHaveTextContent(
+      'Already have',
+    )
     expect(demandOnlyItem.textContent).toContain(DEMAND_ONLY_SKILL)
   })
 
@@ -161,7 +163,7 @@ describe('<ArbitrageLadder /> have/gap rendering (haveSkillKeys prop)', () => {
     for (const skill of GAP_SKILLS) {
       expect(
         screen.getByRole('button', {
-          name: new RegExp(`${skill},.*you do not have this skill yet`),
+          name: new RegExp(`${skill},.*worth learning — not on your resume yet`),
         }),
       ).toBeInTheDocument()
     }

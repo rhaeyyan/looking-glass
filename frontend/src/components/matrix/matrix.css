@@ -32,12 +32,10 @@
   --status-critical-surface: #fbe9df;
 
   color: var(--text-primary);
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1.25rem 1.5rem 1.5rem;
-  margin: 1.25rem 0;
+  font-family: var(--font-body, system-ui), sans-serif;
+  /* No card chrome of their own — App.tsx frames each section in a .card.blueprint so the whole
+   * surface reads as one design system. These roots only carry the data-viz color tokens. */
+  background: transparent;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -334,27 +332,94 @@
   }
 }
 
-/* ---------- Top-gap narration (spec 005) ----------
- * A quiet, text-only surface — no chart, so no non-color-encoding channel is needed here. The
- * accent bar reinforces "this is the one headline move" without relying on color alone: the
- * heading text ("Your top gap: <skill>") already carries that meaning for assistive tech.
+/* ---------- Top moves (spec 005, extended to a ranked top-3) ----------
+ * A text-only surface — no chart, so no non-color-encoding channel is needed here. The headline
+ * sentence + the numbered rank badges carry "start with this one"; rank is a real number, never
+ * color alone.
  */
 
 .narration-root {
-  border-left: 4px solid var(--series-1);
-  padding-left: calc(1.5rem - 3px); /* offset the 4px accent so text stays optically aligned */
+  min-width: 0;
 }
 
 .narration-title {
   font-size: 1rem;
+  margin: 0 0 0.35rem;
 }
 
 .narration-text {
-  margin: 0;
+  margin: 0 0 0.75rem;
   color: var(--text-primary);
   font-size: 0.9375rem;
   line-height: 1.55;
-  max-width: 65ch;
+  max-width: 60ch;
+}
+
+.topmoves-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.topmove {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr;
+  gap: 0.6rem;
+  align-items: start;
+}
+
+.topmove-rank {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-heading, inherit);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.topmove[data-rank='1'] .topmove-rank {
+  background: var(--series-1);
+  color: #fff;
+  border-color: var(--series-1);
+}
+
+.topmove-name {
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.topmove-note {
+  margin: 0.1rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.topmove-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
+
+.topmove-stat {
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  padding: 0.1rem 0.45rem;
+  border-radius: 3px;
+  background: var(--page-plane);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
 }
 
 /* ---------- Shared data table (text alternative) ---------- */

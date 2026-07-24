@@ -36,10 +36,10 @@ export function SkillDataTable({
           <th scope="col">Postings with skill</th>
           <th scope="col">Demand score</th>
           <th scope="col">Scarcity index</th>
-          <th scope="col">Arbitrage score</th>
-          <th scope="col">D3 corroborated</th>
+          <th scope="col">Leverage score</th>
+          <th scope="col">Confirmed across postings</th>
           <th scope="col">Notes</th>
-          {haveSkillKeys && <th scope="col">Have or gap</th>}
+          {haveSkillKeys && <th scope="col">Status</th>}
         </tr>
       </thead>
       <tbody>
@@ -59,7 +59,7 @@ export function SkillDataTable({
                 {row.d3_corroborated === null ? '—' : row.d3_corroborated ? 'Yes' : 'No'}
               </td>
               <td>{demandOnly ? DEMAND_ONLY_FLAG : ''}</td>
-              {haveSkillKeys && <td>{have ? 'Have' : 'Gap'}</td>}
+              {haveSkillKeys && <td>{have ? 'Already have' : 'Worth learning'}</td>}
             </tr>
           )
         })}

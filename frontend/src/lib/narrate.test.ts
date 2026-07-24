@@ -36,7 +36,7 @@ import {
 //
 // No network/LLM mock is defined anywhere in this file — narrateTopGap takes plain in-memory data
 // and must work with zero mocks, proving it is genuinely synchronous and I/O-free.
-import { narrateTopGap } from './narrate'
+import { narrateTopGap, narrateTopGaps } from './narrate'
 
 // ---------------------------------------------------------------------------------------------
 // Test helpers — generic Bounded-AI number-provenance check, reused across every scenario below.
@@ -263,5 +263,94 @@ describe('narrateTopGap — Bounded-AI boundary (generic number-provenance guard
     expect(result).not.toBeNull()
     expect(result!.topGap).toEqual(TIE_DEMAND_DECIDES_ROWS[0])
     expect(result!.runnerUpGap).toEqual(TIE_DEMAND_DECIDES_ROWS[1])
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// narrateTopGaps — the ranked top-3 shortlist built on top of narrateTopGap.
+// ---------------------------------------------------------------------------------------------
+
+function makeRow(overrides: Partial<RoleSkillRow> = {}): RoleSkillRow {
+  return {
+    role_family: 'Backend',
+    skill_name_raw: 'Rust',
+    skill_key: 'rust',
+    pct_of_role: 18,
+    postings_with_skill: 420,
+    demand_score: 63,
+    scarcity_index: 88,
+    arbitrage_score: 9.1,
+    scarcity_data_completeness: 'complete',
+    d3_corroborated: false,
+    d3_pct_of_all_postings: 1.4,
+    salary_premium_pct: 22.6,
+    median_days_open: 45,
+    ...overrides,
+  }
+}
+
+// Five gap rows, already sorted descending by arbitrage_score (computeSkillGap's convention).
+const FIVE_GAP_ROWS: RoleSkillRow[] = [
+  makeRow({ skill_name_raw: 'Kubernetes', skill_key: 'kubernetes', arbitrage_score: 9.1 }),
+  makeRow({ skill_name_raw: 'Terraform', skill_key: 'terraform', arbitrage_score: 8.2 }),
+  makeRow({ skill_name_raw: 'Go', skill_key: 'go', arbitrage_score: 7.4 }),
+  makeRow({ skill_name_raw: 'Kafka', skill_key: 'kafka', arbitrage_score: 6.0 }),
+  makeRow({ skill_name_raw: 'Redis', skill_key: 'redis', arbitrage_score: 5.5 }),
+]
+
+describe('narrateTopGaps — ranked top-3 shortlist', () => {
+  it('returns null in exactly the same case narrateTopGap does (no gap rows at all)', () => {
+    expect(narrateTopGaps(ALL_HAVE_ROWS, ALL_HAVE_KEYS)).toBeNull()
+    expect(narrateTopGaps([] as RoleSkillRow[], new Set())).toBeNull()
+  })
+
+  it('surfaces at most three moves, ranked in input order, skipping "have" rows', () => {
+    const haveKeys = new Set(['terraform']) // Terraform is a "have", so it drops out.
+    const result = narrateTopGaps(FIVE_GAP_ROWS, haveKeys)
+
+    expect(result).not.toBeNull()
+    expect(result!.moves.map((m) => m.row.skill_name_raw)).toEqual(['Kubernetes', 'Go', 'Kafka'])
+    expect(result!.moves.map((m) => m.rank)).toEqual([1, 2, 3])
+  })
+
+  it('uses narrateTopGap\'s narrative verbatim as the headline, and leaves move #1 note empty', () => {
+    const result = narrateTopGaps(FIVE_GAP_ROWS, new Set())
+    const base = narrateTopGap(FIVE_GAP_ROWS, new Set())
+
+    expect(result).not.toBeNull()
+    expect(result!.headline).toBe(base!.narrative)
+    expect(result!.moves[0].note).toBe('')
+    expect(result!.moves[1].note).not.toBe('')
+  })
+
+  it('provenances every number in each move\'s note + stats to a real field on that row', () => {
+    const result = narrateTopGaps(FIVE_GAP_ROWS, new Set())
+    expect(result).not.toBeNull()
+
+    for (const move of result!.moves) {
+      const text = move.note + ' ' + move.stats.join(' ')
+      assertEveryNumberIsProvenanced(text, [move.row])
+    }
+  })
+
+  it('degrades a demand-only (null arbitrage_score) move to a demand framing without fabricating numbers', () => {
+    const rows: RoleSkillRow[] = [
+      makeRow({
+        skill_name_raw: 'Vault',
+        skill_key: null,
+        demand_score: null,
+        scarcity_index: null,
+        arbitrage_score: null,
+        salary_premium_pct: null,
+        median_days_open: null,
+      }),
+    ]
+    const result = narrateTopGaps(rows, new Set())
+
+    expect(result).not.toBeNull()
+    expect(result!.moves).toHaveLength(1)
+    expect(result!.moves[0].stats).toEqual([]) // no numeric fields to cite
+    expect(result!.headline).not.toMatch(/\bnull\b/i)
+    expect(result!.headline).not.toContain('—')
   })
 })

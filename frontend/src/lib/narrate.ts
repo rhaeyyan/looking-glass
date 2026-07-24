@@ -24,7 +24,7 @@ const TIE_PRECEDENCE = [
 type ComparableField = (typeof TIE_PRECEDENCE)[number]
 
 const FIELD_LABEL: Record<ComparableField, string> = {
-  arbitrage_score: 'arbitrage score',
+  arbitrage_score: 'leverage score',
   demand_score: 'demand',
   scarcity_index: 'scarcity',
   salary_premium_pct: 'salary premium',
@@ -47,7 +47,7 @@ function findDecidingField(top: RoleSkillRow, runnerUp: RoleSkillRow): Comparabl
 function scoreClauses(row: RoleSkillRow): string[] {
   const clauses: string[] = []
   if (typeof row.arbitrage_score === 'number') {
-    clauses.push(`an arbitrage score of ${formatNum(row.arbitrage_score)}`)
+    clauses.push(`a leverage score of ${formatNum(row.arbitrage_score)}`)
   }
   if (typeof row.demand_score === 'number') {
     clauses.push(`demand ${formatNum(row.demand_score)}`)
@@ -70,15 +70,15 @@ function scoreClauses(row: RoleSkillRow): string[] {
 // cite; never hardcode a null field as the citation source.
 function demandOnlySentence(row: RoleSkillRow): string {
   return (
-    `${row.skill_name_raw} is your top gap to close: arbitrage and scarcity data are ` +
-    `unavailable for it yet, but it already appears in ${formatNum(row.pct_of_role)}% of role ` +
-    `postings, a strong raw demand signal.`
+    `${row.skill_name_raw} is the top skill worth learning next: leverage and scarcity data ` +
+    `aren't in yet, but it already appears in ${formatNum(row.pct_of_role)}% of role postings, ` +
+    `a strong raw demand signal.`
   )
 }
 
 function soloSentence(row: RoleSkillRow): string {
   const clauses = scoreClauses(row)
-  return `${row.skill_name_raw} is your top gap to close, with ${clauses.join(', ')}.`
+  return `${row.skill_name_raw} is the top skill worth learning next, with ${clauses.join(', ')}.`
 }
 
 function comparisonSentence(top: RoleSkillRow, runnerUp: RoleSkillRow, field: ComparableField): string {
@@ -134,4 +134,79 @@ export function narrateTopGap(
   const runnerUpGap = gaps[1] ?? null
 
   return { topGap, runnerUpGap, narrative: buildNarrative(topGap, runnerUpGap) }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Top-N moves (deterministic, ranked). Extends the single-headline `narrateTopGap` above into the
+// ranked shortlist the UI shows ("your top three moves"). Still zero-I/O, zero-LLM: the ranking is
+// `computeSkillGap`'s existing sort (this reads `rows` in the order it receives them, never
+// re-sorting), and every number in a move's stats/note is `formatNum(...)` of a real field read
+// verbatim — same Bounded-AI boundary the provenance suite locks for `narrateTopGap`.
+
+/** How many gap rows the shortlist surfaces. */
+const TOP_MOVES_LIMIT = 3
+
+/** Provenanced, non-null stat chips for one row — every value is `formatNum` of a real field. */
+function statChips(row: RoleSkillRow): string[] {
+  const chips: string[] = []
+  if (typeof row.arbitrage_score === 'number') chips.push(`Leverage ${formatNum(row.arbitrage_score)}`)
+  if (typeof row.demand_score === 'number') chips.push(`Demand ${formatNum(row.demand_score)}`)
+  if (typeof row.scarcity_index === 'number') chips.push(`Scarcity ${formatNum(row.scarcity_index)}`)
+  if (typeof row.salary_premium_pct === 'number') chips.push(`+${formatNum(row.salary_premium_pct)}% salary`)
+  if (typeof row.median_days_open === 'number') chips.push(`${formatNum(row.median_days_open)}d to fill`)
+  return chips
+}
+
+/** Short plain-English note for a runner-up move (ranks 2+). The #1 move's rationale is the
+ *  headline sentence, so its note is empty to avoid repeating it in the list. */
+function moveNote(row: RoleSkillRow): string {
+  if (row.arbitrage_score === null) {
+    return (
+      `Leverage data isn't in yet, but it already shows up in ${formatNum(row.pct_of_role)}% of ` +
+      `${row.role_family} postings.`
+    )
+  }
+  return (
+    `Wanted in ${formatNum(row.pct_of_role)}% of ${row.role_family} postings, with a leverage ` +
+    `score of ${formatNum(row.arbitrage_score)}.`
+  )
+}
+
+export interface TopMove {
+  rank: number
+  row: RoleSkillRow
+  /** Empty for rank 1 (its rationale is the headline); a short sentence for ranks 2+. */
+  note: string
+  stats: string[]
+}
+
+/**
+ * Ranked shortlist of the user's top gap moves (up to {@link TOP_MOVES_LIMIT}). Reuses
+ * `narrateTopGap` verbatim for `headline` (the #1-vs-#2 comparison sentence, byte-identical to what
+ * the provenance suite validates), then attaches per-move stat chips + a short note for the rest.
+ * Returns `null` in exactly the same case `narrateTopGap` does: no gap rows at all.
+ */
+export function narrateTopGaps(
+  rows: RoleSkillRow[],
+  haveSkillKeys: Set<string>,
+): { headline: string; moves: TopMove[] } | null {
+  const base = narrateTopGap(rows, haveSkillKeys)
+  if (base === null) return null
+
+  const gaps: RoleSkillRow[] = []
+  for (const row of rows) {
+    const key = row.skill_key ?? normalizeSkillName(row.skill_name_raw)
+    if (haveSkillKeys.has(key)) continue
+    gaps.push(row)
+    if (gaps.length === TOP_MOVES_LIMIT) break
+  }
+
+  const moves: TopMove[] = gaps.map((row, i) => ({
+    rank: i + 1,
+    row,
+    note: i === 0 ? '' : moveNote(row),
+    stats: statChips(row),
+  }))
+
+  return { headline: base.narrative, moves }
 }

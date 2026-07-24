@@ -1,0 +1,481 @@
+/* Looking Glass — Industry design system (ported from the claude.ai/design prototype
+ * "Looking Glass UI Redesign") plus the app-shell layout. One stylesheet, no build step, no JS.
+ *
+ * Structure:
+ *   1. Tokens (light) + dark-theme overrides (both prefers-color-scheme AND [data-theme])
+ *   2. Base element styles
+ *   3. Design-system components: blueprint cards, buttons, inputs, tags, seg control, table, nav
+ *   4. App-shell layout: header, two-column main, donut, high-leverage scatter zone helpers
+ *
+ * The demand×scarcity scatter + ladder marks keep their own tokens in matrix.css, remapped onto
+ * the tokens below so the whole surface reads as one system in either theme.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;700&family=Barlow+Condensed:wght@400;600&display=swap');
+
+/* ── 1. Tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --color-bg: #f2f2f3;
+  --color-surface: #e9e9ea;
+  --color-text: #1d1f20;
+  --color-accent: #5980a6;
+  --color-divider: color-mix(in srgb, #1d1f20 16%, transparent);
+
+  --color-neutral-100: #f5f5f8;
+  --color-neutral-400: #b7b7ba;
+  --color-neutral-800: #424244;
+
+  --color-accent-100: #eef6ff;
+  --color-accent-400: #94bce3;
+  --color-accent-600: #597ea3;
+  --color-accent-700: #416180;
+  --color-accent-800: #2c455d;
+
+  /* Semantic status tones — "already have" (calm green) vs "worth learning" (warm amber). */
+  --good: oklch(52% 0.12 152);
+  --good-tint: oklch(94% 0.03 152);
+  --gap-tone: oklch(50% 0.14 42);
+  --gap-tint: oklch(94% 0.035 42);
+
+  --font-heading: 'Barlow Condensed', system-ui, sans-serif;
+  --font-body: 'Barlow', system-ui, sans-serif;
+
+  --radius-md: 4px;
+
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #2b2b2d 14%, transparent);
+  --shadow-md: 0 3px 10px color-mix(in srgb, #2b2b2d 16%, transparent);
+}
+
+/* Dark theme: applied both by system preference and by the in-app toggle stamping
+ * data-theme="dark" on the root. The explicit toggle must win over the system default, so the
+ * [data-theme] selectors come last and both directions are covered. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-bg: #16181b;
+    --color-surface: #1f2226;
+    --color-text: #eceef0;
+    --color-divider: color-mix(in srgb, #eceef0 18%, transparent);
+    --color-accent: #7fb0e0;
+    --color-neutral-100: #26292e;
+    --color-neutral-400: #565a60;
+    --color-neutral-800: #cfd2d6;
+    --color-accent-100: #1d2d3d;
+    --color-accent-400: #4f7295;
+    --color-accent-600: #94bce3;
+    --color-accent-700: #b5d9fd;
+    --color-accent-800: #d6ebff;
+    --good: oklch(72% 0.13 152);
+    --good-tint: oklch(28% 0.05 152);
+    --gap-tone: oklch(75% 0.13 42);
+    --gap-tint: oklch(28% 0.05 42);
+  }
+}
+
+:root[data-theme='dark'] {
+  --color-bg: #16181b;
+  --color-surface: #1f2226;
+  --color-text: #eceef0;
+  --color-divider: color-mix(in srgb, #eceef0 18%, transparent);
+  --color-accent: #7fb0e0;
+  --color-neutral-100: #26292e;
+  --color-neutral-400: #565a60;
+  --color-neutral-800: #cfd2d6;
+  --color-accent-100: #1d2d3d;
+  --color-accent-400: #4f7295;
+  --color-accent-600: #94bce3;
+  --color-accent-700: #b5d9fd;
+  --color-accent-800: #d6ebff;
+  --good: oklch(72% 0.13 152);
+  --good-tint: oklch(28% 0.05 152);
+  --gap-tone: oklch(75% 0.13 42);
+  --gap-tint: oklch(28% 0.05 42);
+}
+
+/* ── 2. Base ───────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  margin: 0 0 0.5rem;
+}
+h1 {
+  font-size: 38px;
+}
+h2 {
+  font-size: 22px;
+}
+
+a {
+  color: var(--color-accent);
+}
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ── 3. Components ─────────────────────────────────────────────────────── */
+.blueprint {
+  position: relative;
+  border: 1px solid var(--color-divider);
+}
+.blueprint > .corner {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+.blueprint > .corner::before,
+.blueprint > .corner::after {
+  content: '';
+  position: absolute;
+  background: currentColor;
+}
+.blueprint > .corner::before {
+  left: 5px;
+  top: 0;
+  width: 1px;
+  height: 100%;
+}
+.blueprint > .corner::after {
+  top: 5px;
+  left: 0;
+  width: 100%;
+  height: 1px;
+}
+.blueprint > .corner.tl {
+  top: -6px;
+  left: -6px;
+}
+.blueprint > .corner.tr {
+  top: -6px;
+  right: -6px;
+}
+.blueprint > .corner.bl {
+  bottom: -6px;
+  left: -6px;
+}
+.blueprint > .corner.br {
+  bottom: -6px;
+  right: -6px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: transparent;
+  border: 1px solid var(--color-divider);
+}
+.card-kicker {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+.card-title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 17px;
+  line-height: 1.2;
+}
+.elev-sm {
+  box-shadow: var(--shadow-sm);
+}
+.elev-md {
+  box-shadow: var(--shadow-md);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.2;
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid var(--color-divider);
+  padding: 8px 15px;
+  border-radius: var(--radius-md);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border-color: var(--color-accent);
+}
+.btn-primary:hover {
+  background: var(--color-accent-600);
+  border-color: var(--color-accent-600);
+}
+.btn-block {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.field > label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 5px;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+.input {
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+  caret-color: var(--color-accent);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+}
+.input:hover {
+  border-color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+.input:focus-visible {
+  border-color: var(--color-accent);
+  outline-offset: 0;
+}
+textarea.input {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  padding: 3px 10px;
+  border-radius: 3px;
+}
+.tag-accent {
+  background: var(--color-accent-100);
+  color: var(--color-accent-800);
+}
+.tag-neutral {
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-800);
+}
+.tag-outline {
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+}
+
+.seg {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+}
+.seg-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.seg-opt input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.seg-opt + .seg-opt {
+  border-left: 1px solid var(--color-divider);
+}
+.seg-opt:has(input:checked) {
+  background: var(--color-accent);
+  color: var(--color-bg);
+}
+.seg-opt:not(:has(input:checked)):hover {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+.seg-opt:has(input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--color-divider);
+}
+.nav-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 18px;
+  margin-right: auto;
+}
+
+/* ── 4. App-shell layout ──────────────────────────────────────────────── */
+.lg-header {
+  padding: 28px 32px 8px;
+  max-width: 920px;
+}
+.lg-header p {
+  opacity: 0.75;
+  font-size: 15px;
+  max-width: 64ch;
+  margin: 6px 0 0;
+}
+
+.lg-main {
+  display: grid;
+  grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
+  gap: 24px;
+  padding: 20px 32px 48px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .lg-main {
+    grid-template-columns: 1fr;
+  }
+  .lg-sidebar {
+    position: static !important;
+  }
+}
+.lg-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: sticky;
+  top: 20px;
+}
+.lg-results {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
+}
+.lg-summary-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Ready-score donut (share of role skills already covered). Non-color-only: the % and legend
+ * text carry the meaning; the ring is reinforcement. */
+.lg-scorecard {
+  padding: 20px 22px;
+  gap: 16px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+@media (max-width: 520px) {
+  .lg-scorecard {
+    grid-template-columns: 1fr;
+  }
+  .lg-scorecard-narration {
+    border-left: 0 !important;
+    border-top: 1px solid var(--color-divider);
+    padding-left: 0 !important;
+    padding-top: 16px;
+  }
+}
+.lg-donut-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.lg-donut {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lg-donut-hole {
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.lg-donut-pct {
+  font-family: var(--font-heading);
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1;
+}
+.lg-donut-label {
+  font-size: 9px;
+  opacity: 0.6;
+}
+.lg-donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+}
+.lg-donut-legend > div {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.lg-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.lg-scorecard-narration {
+  border-left: 1px solid var(--color-divider);
+  padding-left: 20px;
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lg-fade {
+    animation: lg-rise 360ms ease-out both;
+  }
+}
+@keyframes lg-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

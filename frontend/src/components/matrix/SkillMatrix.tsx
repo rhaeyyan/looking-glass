@@ -56,22 +56,28 @@ export function SkillMatrix({
 
   return (
     <section
-      className="matrix-root"
+      className="matrix-root card blueprint elev-md"
       aria-labelledby={titleId}
       data-testid="skill-matrix"
       data-reduced-motion={reduced ? 'true' : 'false'}
     >
+      <i className="corner tl" />
+      <i className="corner tr" />
+      <i className="corner bl" />
+      <i className="corner br" />
       <h2 id={titleId} className="matrix-title">
-        Demand versus scarcity matrix
+        Where each skill sits
       </h2>
       <p className="matrix-hint">
-        Each skill is plotted by market demand (left to right) and talent scarcity (bottom to top);
-        bubble size is its share of role postings. Points are distinguished by shape and label, not
-        color alone. The same figures are listed in the table below.
+        Each skill is placed by how many jobs want it (left to right) and how few people have it
+        (bottom to top). The top-right corner is where a skill is both in demand and hard to hire
+        for — the highest-leverage place to aim. Bubble size is how often the skill shows up in this
+        role. Points are told apart by shape and label, not color alone, and the same numbers are in
+        the table below.
       </p>
 
       <div className="matrix-canvas">
-        <span className="matrix-axis-y">Scarcity index &uarr;</span>
+        <span className="matrix-axis-y">Fewer people have it &uarr;</span>
         <div className="matrix-plot">
           {scored.map((row, i) => {
             const shape = SHAPES[i % SHAPES.length]
@@ -83,7 +89,7 @@ export function SkillMatrix({
                 ? ''
                 : have
                   ? ', you already have this skill'
-                  : ', gap — you do not have this skill yet'
+                  : ', worth learning — not on your resume yet'
             return (
               <button
                 key={row.skill_key ?? row.skill_name_raw}
@@ -93,7 +99,7 @@ export function SkillMatrix({
                 data-have={have === undefined ? undefined : have ? 'true' : 'false'}
                 className="matrix-point"
                 aria-label={`${row.skill_name_raw}: demand ${formatNum(row.demand_score)}, scarcity ${formatNum(row.scarcity_index)}, market share ${row.pct_of_role}% of role postings${
-                  row.arbitrage_score !== null ? `, arbitrage score ${formatNum(row.arbitrage_score)}` : ''
+                  row.arbitrage_score !== null ? `, leverage score ${formatNum(row.arbitrage_score)}` : ''
                 }${haveSuffix}`}
                 style={{
                   left: `${row.demand_score}%`,
@@ -106,14 +112,14 @@ export function SkillMatrix({
               >
                 {have !== undefined && (
                   <span className="matrix-point-flag" data-testid="have-flag" aria-hidden="true">
-                    {have ? 'Have' : 'Gap'}
+                    {have ? 'Already have' : 'Worth learning'}
                   </span>
                 )}
               </button>
             )
           })}
         </div>
-        <span className="matrix-axis-x">Demand score &rarr;</span>
+        <span className="matrix-axis-x">More jobs want it &rarr;</span>
       </div>
 
       <SkillDataTable rows={rows} caption={caption} haveSkillKeys={haveSkillKeys} />
