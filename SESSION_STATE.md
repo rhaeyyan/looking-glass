@@ -84,36 +84,36 @@
   to allow-list `--glass-*` keys specifically (mirroring `glassmorphism.test.ts`'s own inert-check
   pattern), while still rejecting any change to a non-glass token or a non-inert glass value.
   Verified: exact same 236-passed/12-failed baseline before and after the test fix (no test
-  flipped either direction) — a pure reconciliation, not a scope change. **Re-dispatched Magnolia**
-  to implement spec 017 now that it's unblocked; not yet returned.
+  flipped either direction) — a pure reconciliation, not a scope change.
+- **Spec 017: shipped and merged** (`9e7cbe2`). `.card.blueprint`/`.nav` render a translucent,
+  blurred surface (`rgba(255,255,255,0.55)` + `backdrop-filter: blur(12px)`) layered onto the
+  existing blueprint corner-bracket aesthetic. Every text/UI-indicator color that can sit on the
+  new glass surface was alpha-composited against the worst case of all three real backdrops:
+  `--color-text` 15.19:1, `--color-accent` (kickers/outline-tags/focus-ring/seg-border) 5.94:1 —
+  both comfortably clear their WCAG floors. `.seg`'s border was also switched from a translucent
+  `color-mix()` (not contrast-checkable) to the opaque `--color-accent` for legibility against the
+  new glass nav. Dark mode redeclares only inert glass tokens (`--glass-alpha: 1`,
+  `--glass-blur: 0`) — pixel-identical to today. Blur-in transitions gated behind
+  `prefers-reduced-motion`. `matrix.css` untouched. **248/248 vitest, eslint/tsc clean.**
 
 ### Unfinished / blocked
-- **Spec 017**: test conflict resolved, Magnolia re-dispatched with vetted candidate token values
-  (`--glass-tint: #ffffff`, `--glass-alpha: 0.55`, `--glass-blur: 12px`); not yet returned.
-  `looking-glass.css` should still be untouched as of this write (only `colorTokens.test.ts`'s
-  reconciliation fix is on disk so far).
+- None outstanding from round 5. Specs 015, 016, and 017 are all merged (`716971a`, `116bb90`,
+  `9e7cbe2`), 248/248 vitest, eslint/tsc clean.
 - Rounds 1-4 (specs 001-014, `@types/node`, font swap, 15-role expansion, salary-premium clarity)
-  plus specs 015/016 (contrast + wrapping fixes, `716971a`, `116bb90`) remain fully merged — no
-  carryover blockers.
-- **Uncommitted on disk**: `colorTokens.test.ts` (the dark-mode allow-list reconciliation fix) —
-  commit together with spec 017's implementation once Magnolia returns, since they're one logical
-  unit (the test fix only exists to unblock this spec).
+  remain fully merged — no carryover blockers.
+- **Not yet pushed to `origin/main`** — verify before ending the session.
 
 ### Next Steps
-1. Check on the backgrounded Magnolia agent (spec 017, re-dispatched after the test-conflict
-   fix); when it returns, verify the 12 previously-red tests flip green with zero regressions
-   (236 baseline, 248 total), eslint/tsc clean.
-2. Commit `colorTokens.test.ts`'s reconciliation fix together with spec 017's implementation
-   (`looking-glass.css` + `glassmorphism.test.ts`), then push all of round 5 (specs 015-017) to
-   `origin/main`.
-3. If a better learning-resource dataset surfaces later, re-run Birch's join-test methodology
+1. Push `main` to `origin/main` (round 5's commits: specs 015-017, the cross-spec test
+   reconciliation, session-state updates).
+2. If a better learning-resource dataset surfaces later, re-run Birch's join-test methodology
    (pull the real 141-skill list live from Supabase `skills_core` via the anon-key REST endpoint —
    don't re-extract D1/D2 raw CSVs, they're gone locally and this is faster) before committing to
    an ingest spec.
-4. If resume upload is revisited later: route through Cedar first for dependency authorization
+3. If resume upload is revisited later: route through Cedar first for dependency authorization
    (pdf.js at minimum) before any implementation.
-5. Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
-6. Note: `playwright-core` (headless Chromium driver used for live screenshots in an earlier
+4. Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
+5. Note: `playwright-core` (headless Chromium driver used for live screenshots in an earlier
    session) was installed `--no-save`, so it is **not** in `package.json` — reinstall it
    (`npm install --no-save playwright-core@1.50.0`) if another live screenshot pass is needed. A
    live browser pass on round 2's UI work, round 4's salary-premium phrasing/footnote, and round
