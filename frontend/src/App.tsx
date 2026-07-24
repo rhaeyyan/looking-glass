@@ -242,6 +242,29 @@ function App() {
         </div>
 
         <div className="lg-results">
+          {status === 'idle' && (
+            <section className="card blueprint elev-sm lg-empty-state">
+              <i className="corner tl" />
+              <i className="corner tr" />
+              <i className="corner bl" />
+              <i className="corner br" />
+              <div className="card-kicker">Get started</div>
+              <div className="card-title">Your leverage matrix appears here</div>
+              <p style={{ margin: 0, fontSize: '14px', opacity: 0.75 }}>
+                Complete Step 1 — pick a target role — and this column fills in with the
+                demand&nbsp;×&nbsp;scarcity matrix and ranked skill gaps for that role.
+              </p>
+            </section>
+          )}
+
+          {status === 'loading' && (
+            <div className="lg-skeleton" aria-hidden="true">
+              <div className="card blueprint elev-sm lg-skeleton-block lg-skeleton-scorecard" aria-hidden="true" />
+              <div className="card blueprint elev-sm lg-skeleton-block lg-skeleton-scatter" aria-hidden="true" />
+              <div className="card blueprint elev-sm lg-skeleton-block lg-skeleton-table" aria-hidden="true" />
+            </div>
+          )}
+
           {hasRows && (
             <header className="lg-results-head">
               <span className="card-kicker">Target role</span>

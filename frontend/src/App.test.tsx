@@ -591,3 +591,158 @@ describe('<App /> top-gap narration (spec 005)', () => {
     expect(await axe(container)).toHaveNoViolations()
   })
 })
+
+// RED phase (spec 009 — `.lg-results` empty + loading states). `.lg-results` currently renders
+// nothing at all in the idle state (blank space before any role is chosen) and only the sidebar's
+// bare `<p role="status">Loading skill profile…</p>` while loading — no shaped placeholder in the
+// results column itself. This describe block locks the NEW contract Redwood must build to:
+//   - idle (`status === 'idle'`, i.e. before any role is selected): `.lg-results` contains a new
+//     placeholder card reusing the existing `.card.blueprint` visual language, whose text
+//     references "Step 1" (the SPEC's own words: "inviting the user to complete Step 1") — this
+//     exact concept-lock (not a verbatim string) is the authoritative wording requirement, chosen
+//     the same way spec 005's NO_GAPS_MESSAGE was locked verbatim where the SPEC gave an exact
+//     string and left free where it didn't.
+//   - loading (`status === 'loading'`): `.lg-results` contains >= 3 shaped placeholder blocks
+//     (scorecard/scatter/table stand-ins), each `aria-hidden="true"` (SPEC: "must not read as real
+//     content to a screen reader"), reusing `.card`/`.blueprint` classes, and the page-wide
+//     `role="status"` count stays at exactly 1 (SPEC: "a single role="status" live-region text …
+//     carrying the actual announcement" — the skeleton itself must never add a second live region).
+//   - both new blocks are gated purely on `status`: the idle placeholder disappears the instant a
+//     role is picked (loading/success/error), and never reappears alongside them; the skeleton
+//     disappears the instant loading resolves into success/error.
+//   - the already-shipped `error` and `success && rows.length === 0` messages are not duplicated or
+//     replaced by either new block.
+const STEP_1_PATTERN = /step\s*1/i
+
+/** Holds `fetchRoleSkillProfile` pending indefinitely so `status` can be observed mid-`'loading'`,
+ * exactly like a real in-flight Supabase call. Call the returned resolver to let it settle. */
+function mockPendingFetch() {
+  let resolve: (rows: RoleSkillRow[]) => void = () => undefined
+  mockFetch.mockImplementation(
+    () =>
+      new Promise<RoleSkillRow[]>((res) => {
+        resolve = res
+      }),
+  )
+  return (rows: RoleSkillRow[] = []) => resolve(rows)
+}
+
+describe('<App /> results-column empty + loading states (spec 009)', () => {
+  it('renders a Step-1 placeholder card inside .lg-results in the idle state, before any role is selected', () => {
+    const { container } = render(<App />)
+
+    const results = container.querySelector('.lg-results')
+    expect(results).not.toBeNull()
+
+    // Reuses the existing card/blueprint visual language (SPEC constraint), not a bespoke idiom.
+    const placeholderCard = within(results as HTMLElement).getByText(STEP_1_PATTERN).closest('.card')
+    expect(placeholderCard).not.toBeNull()
+    expect(placeholderCard).toHaveClass('blueprint')
+  })
+
+  it('removes the idle placeholder the instant a role is selected (loading state), and does not stack it with the skeleton', async () => {
+    const settle = mockPendingFetch()
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Target role' }), 'Backend')
+    await vi.waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'Target role' })).toHaveValue('Backend'),
+    )
+
+    const results = container.querySelector('.lg-results') as HTMLElement
+    expect(within(results).queryByText(STEP_1_PATTERN)).not.toBeInTheDocument()
+
+    settle([])
+  })
+
+  it('renders shaped, aria-hidden skeleton blocks in .lg-results while loading, without adding a second live region', async () => {
+    const settle = mockPendingFetch()
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Target role' }), 'Backend')
+
+    // Sidebar's existing, unchanged loading announcement — regression guard (must not be removed
+    // or duplicated by the new skeleton).
+    const status = await screen.findByRole('status')
+    expect(status).toHaveTextContent('Loading skill profile…')
+    expect(screen.getAllByRole('status')).toHaveLength(1)
+
+    const results = container.querySelector('.lg-results') as HTMLElement
+    // At least 3 distinct shaped placeholders (scorecard/scatter/table stand-ins per the SPEC),
+    // none of them exposed to the accessibility tree as real content.
+    const skeletonBlocks = results.querySelectorAll('[aria-hidden="true"]')
+    expect(skeletonBlocks.length).toBeGreaterThanOrEqual(3)
+
+    // Reuses the card/blueprint visual language rather than a new visual idiom.
+    expect(results.querySelectorAll('.card.blueprint').length).toBeGreaterThanOrEqual(1)
+
+    // No real table/matrix content renders yet — the skeleton is a stand-in, not the real thing.
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+
+    settle([])
+  })
+
+  it('replaces the loading skeleton with the real content once the fetch resolves (no stacking)', async () => {
+    const settle = mockPendingFetch()
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Target role' }), 'Backend')
+    await screen.findByRole('status')
+
+    const resultsWhileLoading = container.querySelector('.lg-results') as HTMLElement
+    expect(resultsWhileLoading.querySelectorAll('[aria-hidden="true"]').length).toBeGreaterThanOrEqual(3)
+
+    settle([makeRow({ skill_name_raw: 'PostgreSQL' })])
+    await screen.findByRole('table')
+
+    const resultsAfter = container.querySelector('.lg-results') as HTMLElement
+    // The skeleton must not linger once real rows have rendered.
+    expect(resultsAfter.querySelectorAll('[aria-hidden="true"]').length).toBeLessThan(3)
+  })
+
+  it('does not show the idle placeholder or the loading skeleton once an error has occurred (no state collision)', async () => {
+    mockFetch.mockRejectedValue(new Error('permission denied'))
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Target role' }), 'Backend')
+    await screen.findByRole('alert')
+
+    const results = container.querySelector('.lg-results') as HTMLElement
+    expect(within(results).queryByText(STEP_1_PATTERN)).not.toBeInTheDocument()
+    expect(results.querySelectorAll('[aria-hidden="true"]').length).toBeLessThan(3)
+  })
+
+  it('does not show the idle placeholder or the loading skeleton once a role resolves to zero skills (no state collision)', async () => {
+    mockFetch.mockResolvedValue([])
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Target role' }), 'Backend')
+    await screen.findByText('No skills found for this role.')
+
+    const results = container.querySelector('.lg-results') as HTMLElement
+    expect(within(results).queryByText(STEP_1_PATTERN)).not.toBeInTheDocument()
+    expect(results.querySelectorAll('[aria-hidden="true"]').length).toBeLessThan(3)
+  })
+
+  it('has no axe violations with the idle placeholder card rendered', async () => {
+    const { container } = render(<App />)
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('has no axe violations with the loading skeleton rendered', async () => {
+    const settle = mockPendingFetch()
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Target role' }), 'Backend')
+    await screen.findByRole('status')
+
+    expect(await axe(container)).toHaveNoViolations()
+    settle([])
+  })
+})

@@ -543,3 +543,58 @@ textarea.input {
     transform: translateY(0);
   }
 }
+
+/* Idle-state placeholder ("Step 1" invitation) — reuses the .card.blueprint visual language
+ * rather than inventing a new empty-state idiom. */
+.lg-empty-state {
+  padding: 28px 24px;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* Loading skeleton — shaped stand-ins for the scorecard/scatter/table that will replace them once
+ * the fetch resolves. Every block is `aria-hidden="true"` in the markup (never real content), so
+ * the static (non-animated) look below is itself a perfectly valid reduced-motion state — the
+ * shimmer is a pure enhancement gated behind `prefers-reduced-motion: no-preference`. */
+.lg-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.lg-skeleton-block {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  border-radius: var(--radius-md);
+}
+.lg-skeleton-scorecard {
+  height: 132px;
+}
+.lg-skeleton-scatter {
+  height: 320px;
+}
+.lg-skeleton-table {
+  height: 220px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lg-skeleton-block::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--color-text) 10%, transparent) 50%,
+      transparent 100%
+    );
+    animation: lg-skeleton-shimmer 1.6s ease-in-out infinite;
+  }
+}
+@keyframes lg-skeleton-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
