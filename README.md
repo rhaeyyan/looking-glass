@@ -104,7 +104,7 @@ Rather than force a lossy three-way join (which would discard 83 good skills), L
 
 All three datasets contribute; none is thrown away.
 
-### Role coverage (why V1 is scoped to technical roles)
+### Role coverage (why arbitrage-score density varies by role)
 
 A target role's 30 skills come from D3's coarse vocabulary, so how many of them carry a real
 Arbitrage Score varies by role. Technical/engineering roles are dense with hard skills that
@@ -113,13 +113,12 @@ doesn't score:
 
 | Coverage | Roles | Skills with an arbitrage score |
 |---|---|---|
-| **Strong (V1)** | Backend, Full Stack, Data Scientist/ML, Data Engineer, Software Engineer, DevOps/Cloud/SRE | 15–22 of 30 |
-| Moderate (later) | Frontend, Data Analyst/BI, Mobile | 8–9 of 30 |
-| Weak (V2+) | Security, QA, Business Analyst, Designer, Product Manager, Project/Program Mgr | 3–6 of 30 |
+| **Strong** | Backend, Full Stack, Data Scientist/ML, Data Engineer, Software Engineer, DevOps/Cloud/SRE | 15–22 of 30 |
+| Moderate | Frontend, Data Analyst/BI, Mobile | 8–9 of 30 |
+| Weak | Security, QA, Business Analyst, Designer, Product Manager, Project/Program Mgr | 3–6 of 30 |
 
-**V1 ships the six "Strong" technical roles** — which is exactly the Pursuit career-changer-into-tech
-audience. A skill that appears in a role but has no arbitrage score still surfaces as a gap,
-flagged *"demand only, scarcity unknown"* rather than silently dropped.
+**All 15 `role_family` values ship.** A skill that appears in a role but has no arbitrage score
+still surfaces as a gap, flagged *"demand only, scarcity unknown"* rather than silently dropped.
 
 ## MVP scope (walking skeleton)
 
@@ -130,7 +129,7 @@ core value hypothesis, in build order:
 1. **Ingest** the three CSVs into Supabase; resolve the D1+D2 skill join (141-skill core) and
    the D3 per-role skill profiles.
 2. **Compute** a deterministic `arbitrage_score` view (demand × scarcity), with D3 confidence badges.
-3. **Role picker** — select one of the six V1 technical roles; show its skill profile on the
+3. **Role picker** — select any of the 15 `role_family` values; show its skill profile on the
    demand × scarcity matrix.
 4. **Resume gap layer** — paste a resume → extract skills → subtract from the role profile →
    highlight *your* gaps on the matrix, ranked by Arbitrage Score.
