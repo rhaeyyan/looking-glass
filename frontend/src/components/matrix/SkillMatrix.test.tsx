@@ -75,16 +75,18 @@ describe('<SkillMatrix /> demand×scarcity scatter', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('encodes each point with a non-color shape attribute (not color-only)', async () => {
+  it('encodes each point with position + an accessible name (not color-only)', async () => {
     const SkillMatrix = await loadSkillMatrix()
     render(<SkillMatrix rows={roleSkillProfileFixture} />)
 
     const points = screen.getAllByTestId('scatter-point')
     expect(points).toHaveLength(SCORED_COUNT)
     for (const point of points) {
-      // A distinguishing encoding that survives color-blindness / grayscale.
-      expect(point).toHaveAttribute('data-shape')
-      expect(point.getAttribute('data-shape')).toBeTruthy()
+      // Position (demand→x, scarcity→y) is the load-bearing, non-color channel; it survives
+      // color-blindness / grayscale. Each point is placed via inline left/bottom.
+      const el = point as HTMLElement
+      expect(el.style.left).not.toBe('')
+      expect(el.style.bottom).not.toBe('')
       // Every point is announceable — accessible name, never a bare glyph.
       expect(point).toHaveAccessibleName()
     }
@@ -205,27 +207,31 @@ describe('<SkillMatrix /> have/gap rendering (haveSkillKeys prop)', () => {
     }
   })
 
-  it('preserves the existing per-skill shape encoding alongside the new have/gap attribute (never replaces it)', async () => {
+  it('keeps the position + accessible-name channels alongside the new have/gap attribute (never color-only)', async () => {
     const SkillMatrix = await loadSkillMatrix()
     render(<SkillMatrix rows={roleSkillProfileFixture} haveSkillKeys={HAVE_SKILL_KEYS} />)
 
     for (const point of screen.getAllByTestId('scatter-point')) {
-      expect(point).toHaveAttribute('data-shape')
-      expect(point.getAttribute('data-shape')).toBeTruthy()
+      const el = point as HTMLElement
+      expect(el.style.left).not.toBe('')
+      expect(el.style.bottom).not.toBe('')
+      expect(point).toHaveAccessibleName()
       expect(point).toHaveAttribute('data-have')
     }
   })
 
-  it('renders a non-color "Have"/"Gap" glyph/label on every scored scatter point', async () => {
+  it('renders a non-color ✓/✕ glyph on every scored scatter point', async () => {
     const SkillMatrix = await loadSkillMatrix()
     render(<SkillMatrix rows={roleSkillProfileFixture} haveSkillKeys={HAVE_SKILL_KEYS} />)
 
+    // A symbol channel for the have/"worth learning" state — the readable wording lives in the
+    // accessible name (asserted separately) and the table's Status column.
     const kubernetesPoint = screen.getByRole('button', { name: /^Kubernetes:/ })
-    expect(within(kubernetesPoint).getByTestId('have-flag')).toHaveTextContent('Already have')
+    expect(within(kubernetesPoint).getByTestId('have-flag')).toHaveTextContent('✓')
 
     for (const skill of GAP_SKILLS) {
       const point = screen.getByRole('button', { name: new RegExp(`^${skill}:`) })
-      expect(within(point).getByTestId('have-flag')).toHaveTextContent('Worth learning')
+      expect(within(point).getByTestId('have-flag')).toHaveTextContent('✕')
     }
   })
 

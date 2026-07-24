@@ -30,6 +30,17 @@
   provenanced. `<TopGapNarration>` now renders the ranked shortlist.
 - **Green:** vitest 108/108 (incl. axe), eslint clean, `vite build` clean. Updated the coupled
   tests (App, SkillMatrix, ArbitrageLadder, TopGapNarration, narrate) to the new copy/behavior.
+- **Rebuilt the scatter to match the mockup** (user flagged the old clip-path "shapes" as
+  unreadable and the points as crushed into the corner): removed the per-index shape channel
+  (it encoded no real variable), switched to circular bubbles on **min-max-normalized** axes so
+  points spread into the plot (raw scores span a narrow low range; raw numbers still show verbatim
+  in labels + table — only positioning is scaled), added the mockup's high-leverage-zone diagonal
+  gradient + guide labels + hover-reveal name pills, and replaced the have/gap text pill with a
+  compact ✓/✕ glyph badge. WCAG non-color intent preserved via glyph + position + accessible name
+  + table Status column. Updated the three `SkillMatrix` tests that were pinned to `data-shape`.
+- **Ran it live** end-to-end (headless Chromium against the real `.env`/Supabase, synthetic resume,
+  Backend role) in light + dark, zero page/console errors; screenshots in scratchpad confirm the
+  redesign + the fixed scatter.
 
 ### Unfinished / blocked
 - **RESOLVED: the `jest-axe` `tsc` gap is closed** (spec 007). Cedar rejected `@types/jest-axe`
@@ -44,9 +55,13 @@
 - Changes are uncommitted on `main` (user hasn't asked to commit).
 
 ### Next Steps
-- A live-browser/screenshot pass would confirm the redesign visually; prefer synthetic resume text
-  (Zero-Trust "no real user PII").
-- Spec 007's shim + the redesign changes are uncommitted — commit/push when ready.
+- **Uncommitted:** the scatter rebuild (SkillMatrix.tsx/.test.tsx, matrix.css) + this ledger update
+  are staged for a commit — commit/push when ready (spec 007 + the earlier redesign are already
+  pushed on `main`).
+- Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
+- Note: to screenshot the SPA I installed `playwright-core` + a headless Chromium via `npx
+  playwright install` (cached under ~/.cache/ms-playwright). `playwright-core` was `--no-save`, so
+  it's not in package.json; re-install it if another live screenshot pass is needed.
 
 ---
 
