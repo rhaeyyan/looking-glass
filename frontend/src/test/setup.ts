@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom/vitest'
 import { afterEach, expect } from 'vitest'
 import { cleanup } from '@testing-library/react'
-// jest-axe ships no bundled type declarations and none are in the approved dependency list.
-// @ts-expect-error jest-axe has no type declarations
+// jest-axe ships no bundled type declarations; the narrow surface we use is typed locally in
+// src/types/jest-axe.d.ts (spec 007), so no dependency and no @ts-expect-error is needed.
 import { toHaveNoViolations } from 'jest-axe'
 
 expect.extend(toHaveNoViolations)

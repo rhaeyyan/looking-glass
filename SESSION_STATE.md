@@ -32,19 +32,21 @@
   tests (App, SkillMatrix, ArbitrageLadder, TopGapNarration, narrate) to the new copy/behavior.
 
 ### Unfinished / blocked
-- `@types/jest-axe` STILL not added — the only `tsc --noEmit` errors are that pre-existing
-  declaration gap in the `*.test.tsx` files (so `npm run build`'s `tsc &&` step still trips on it;
-  `vite build` alone is clean). Needs Cedar's dependency sign-off (Workflow Rule 8) before adding.
+- **RESOLVED: the `jest-axe` `tsc` gap is closed** (spec 007). Cedar rejected `@types/jest-axe`
+  (DefinitelyTyped only tracks v3; runtime is v9 — wrong-major types) and authorized a local
+  ambient shim instead: `src/types/jest-axe.d.ts` (script-context `declare module 'jest-axe'`) +
+  `src/types/vitest-axe.d.ts` (module-context vitest matcher augmentation). Removed the
+  `@ts-expect-error` from `src/test/setup.ts`. `tsc --noEmit` clean, `npm run build` now passes,
+  108/108 vitest still green. No new dependency.
 - Not visually verified in a live browser this session (no Chrome connection, app needs live
   Supabase env) — behavior + a11y are covered by the passing test suite + build; a user screenshot
   would confirm the visual result.
 - Changes are uncommitted on `main` (user hasn't asked to commit).
 
 ### Next Steps
-- If the user wants `@types/jest-axe` resolved, route it to Cedar for dependency authorization
-  first (Workflow Rule 8) — don't add it directly.
 - A live-browser/screenshot pass would confirm the redesign visually; prefer synthetic resume text
   (Zero-Trust "no real user PII").
+- Spec 007's shim + the redesign changes are uncommitted — commit/push when ready.
 
 ---
 
