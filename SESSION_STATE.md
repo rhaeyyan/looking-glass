@@ -5,12 +5,42 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-24 (UI redesign + de-jargon copy pass + top-3 moves)
+## Current Session — 2026-07-24 (round 2: whole-app UI/UX + dataviz pass, specs 008–010)
 
-> Specs 001–006 (ingest through the deterministic-extraction pivot) are complete and archived —
-> see [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md) for the full build narrative.
+> Specs 001–007 are complete and archived — see [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md) and
+> the History section below for the full build narrative, including this same day's earlier
+> redesign/de-jargon/top-3-moves round.
 
 ### Accomplished
+- User asked for another whole-app UI/UX + data-viz pass and explicitly authorized relaxing the
+  standing `Simplicity > Pattern purity` [FORCES] default for it. Routed through Cedar (per
+  Workflow Rule 1 — "another pass" was too ambiguous to skip straight to Magnolia) rather than
+  dispatching Magnolia directly as first requested.
+- **Cedar investigated the relaxed-forces permission and declined to use it**: read the whole
+  frontend (App.tsx, SkillMatrix, SkillLeverageTable, both stylesheets) and found no genuine
+  repeated variance (one chart, one table, one donut, each already at the right abstraction
+  level) — so all three specs below keep `Design Pattern: none` and `Simplicity > Pattern purity`.
+  This is Rule 7 working as intended: permission to use a pattern isn't an instruction to use one.
+- **Three [SPEC]s written, approved by the user, and persisted**:
+  - [specs/008-unify-status-color-tokens.md](specs/008-unify-status-color-tokens.md) — the donut
+    (`--color-accent`/`--gap-tone`) and the scatter/table (`--status-good`/`--status-critical`)
+    currently code the same "have vs. learn" meaning via two disjoint token systems — same failure
+    class as the dark-theme desync fixed earlier this session. Unifies into one shared
+    `--have-tone`/`--learn-tone` pair. Touches `looking-glass.css`, `matrix.css`, `App.tsx`.
+  - [specs/009-results-empty-loading-states.md](specs/009-results-empty-loading-states.md) — adds
+    a real empty state (no role picked yet) and a loading skeleton to `.lg-results`, gated on the
+    existing `status` enum already in `App.tsx`. Touches `App.tsx`, `looking-glass.css`.
+  - [specs/010-scatter-legend-touch-motion.md](specs/010-scatter-legend-touch-motion.md) — adds a
+    visible on-screen legend for the scatter's color/glyph encoding (currently only in
+    `aria-label`), a touch tap-reveal path for crowded-point labels (today hover/focus-only), and a
+    settle-in transition when the role changes. Touches `SkillMatrix.tsx`, `matrix.css`.
+  - Sequencing: **008 must land first** (matrix.css/App.tsx overlap with both 009 and 010); 009 and
+    010 have no file overlap with each other and can then run in parallel worktrees, Banyan
+    coordinating the merge.
+- Dispatched Cypress (background agent) to write failing tests for spec 008 from the persisted
+  spec text. Not yet returned as of this write.
+
+### Prior Accomplished (same-day, earlier round — UI redesign + de-jargon copy pass + top-3 moves)
 - **Fixed the lint hook** (`post-edit-lint.sh`): it now resolves `node` from `~/.local/bin` or
   nvm under the hook's bare PATH and guards `set -u` on `$NVM_DIR`. Verified end-to-end (catches a
   real eslint error → exit 2). This clears a long-standing session-carried gap.
@@ -82,20 +112,28 @@
   committed and pushed to `main` earlier this session (see `git log`).
 
 ### Unfinished / blocked
-- None outstanding from this session — the table merge, the sticky-column overflow fix, and the
-  dark-theme desync fix are all committed and verified (105/105, tsc/eslint/build clean, live
-  screenshots in light/dark/mobile).
-- No Claude-in-Chrome connection in this environment; live verification this session used a
-  scripted headless-Chromium (`playwright-core`) driver instead — see the note below.
+- **Spec 008 (color tokens): Cypress dispatched, not yet returned.** Once it lands (red-state
+  tests committed), hand off to Magnolia to build, then re-invoke Cypress to confirm PASS
+  (`[COMPLIANCE-REPORT]`), then commit. Only after 008 merges can 009/010 proceed.
+- **Specs 009 and 010: not yet dispatched.** Waiting on 008 to land first (file overlap on
+  `matrix.css`/`App.tsx`). Once 008 is merged, dispatch both in parallel worktrees (no file overlap
+  between them), Banyan coordinating the merge back to `main`.
+- Prior round (redesign/de-jargon/top-3-moves, table merge, sticky-column fix, dark-theme desync
+  fix) is fully committed and verified — no carryover blockers from that part of the day.
+- No Claude-in-Chrome connection in this environment; any live verification of 008/009/010 will
+  need the scripted headless-Chromium (`playwright-core`) driver used earlier this session, or the
+  user driving it themselves.
 
 ### Next Steps
-- No specific next step is queued. Future work would be new/unspecced (further polish, or a
-  genuinely new feature).
-- Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
-- Note: to screenshot the SPA this session, `playwright-core` + a headless Chromium were installed
-  via `npx playwright install` (cached under `~/.cache/ms-playwright`). `playwright-core` was
-  installed `--no-save`, so it is **not** in `package.json` — reinstall it (`npm install --no-save
-  playwright-core@1.50.0`) if another live screenshot pass is needed.
+1. Check on the backgrounded Cypress agent for spec 008; when it returns, review its
+   `[COMPLIANCE-REPORT]`-style summary (red-state tests) and hand off to Magnolia to implement.
+2. After Magnolia's `[COMPLETION-REPORT]` for 008, re-run Cypress to confirm PASS, then commit
+   (`feat(ui): unify have/learn color tokens across donut, scatter, table`).
+3. Dispatch Cypress+Magnolia for 009 and 010 in parallel worktrees; Banyan coordinates the merge.
+4. Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
+5. Note: `playwright-core` (headless Chromium driver used for live screenshots) was installed
+   `--no-save`, so it is **not** in `package.json` — reinstall it (`npm install --no-save
+   playwright-core@1.50.0`) if another live screenshot pass is needed.
 
 ---
 
