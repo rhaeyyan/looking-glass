@@ -2,7 +2,6 @@ import { useId } from 'react'
 import type { RoleSkillRow } from '../../lib/supabaseClient'
 import { formatNum } from '../../lib/format'
 import { normalizeSkillName } from '../../lib/normalize'
-import { SkillDataTable } from './SkillDataTable'
 import './matrix.css'
 
 // Demand×scarcity bubble scatter (matches the approved design mockup): x = demand, y = scarcity,
@@ -53,7 +52,6 @@ export function SkillMatrix({
   const titleId = useId()
   const reduced = prefersReducedMotion()
   const scored = rows.filter(isScored)
-  const caption = `Skill profile for ${rows[0]?.role_family ?? 'selected role'}`
 
   // Axis extents (raw), used only to normalize positions for display.
   const demands = scored.map((r) => r.demand_score)
@@ -167,7 +165,9 @@ export function SkillMatrix({
         <span className="matrix-axis-x">Demand &nbsp;·&nbsp; more jobs want it &rarr;</span>
       </div>
 
-      <SkillDataTable rows={rows} caption={caption} haveSkillKeys={haveSkillKeys} />
+      <p className="matrix-alt-note">
+        Prefer the numbers? Every skill&rsquo;s figures are in the ranked table below.
+      </p>
     </section>
   )
 }

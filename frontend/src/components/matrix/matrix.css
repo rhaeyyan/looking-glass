@@ -12,7 +12,8 @@
 
 .matrix-root,
 .ladder-root,
-.narration-root {
+.narration-root,
+.leverage-root {
   color-scheme: light;
   --surface-1: #fcfcfb;
   --page-plane: #f9f9f7;
@@ -41,7 +42,8 @@
 @media (prefers-color-scheme: dark) {
   .matrix-root,
   .ladder-root,
-  .narration-root {
+  .narration-root,
+  .leverage-root {
     color-scheme: dark;
     --surface-1: #1a1a19;
     --page-plane: #0d0d0d;
@@ -261,146 +263,112 @@
   border-color: var(--status-critical);
 }
 
-.ladder-have-flag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  font-size: 0.6875rem;
-  font-weight: 700;
+/* Scatter → "prefer the numbers" pointer to the ranked table below. */
+.matrix-alt-note {
+  margin: 0.75rem 0 0;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+/* ---------- Merged "every skill, ranked by leverage" table ----------
+ * Replaces the old standalone data table + arbitrage ladder with one ranked, detailed table that
+ * also serves as the scatter's accessible numeric alternative. Wide (10 columns of real numbers),
+ * so it scrolls inside its own card (the page never scrolls horizontally) — but the columns a user
+ * actually scans at a glance (rank, skill name, status) are PINNED via position:sticky so they
+ * never scroll out of view while the deeper metric columns do. Fixed widths on the pinned columns
+ * make their sticky `left` offsets predictable. */
+.leverage-tablewrap {
+  margin-top: 0.25rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.leverage-table {
+  min-width: 660px; /* keep every column readable; the wrap scrolls on narrow screens */
+}
+.leverage-table th,
+.leverage-table td {
   white-space: nowrap;
-  color: var(--status-critical);
-  background: var(--status-critical-surface);
-  border: 1px solid var(--status-critical);
 }
-
-.ladder-have-flag::before {
-  content: '\2715'; /* ✕ */
-}
-
-.ladder-item[data-have='true'] .ladder-have-flag {
-  color: var(--status-good);
-  background: var(--status-good-surface);
-  border-color: var(--status-good);
-}
-
-.ladder-item[data-have='true'] .ladder-have-flag::before {
-  content: '\2713'; /* ✓ */
-}
-
-/* ---------- Arbitrage ladder ---------- */
-
-.ladder-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-
-.ladder-item {
-  display: grid;
-  grid-template-columns: 1.75rem 8rem 1fr 5rem auto;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  min-height: 40px; /* > 24px min target (WCAG 2.2 AA 2.5.8) */
-  padding: 0.4rem 0.6rem;
-  text-align: left;
+.lev-num {
+  width: 2.25rem;
+  text-align: right;
+  position: sticky;
+  left: 0;
   background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-primary);
-  cursor: pointer;
-  font: inherit;
+  z-index: 2;
 }
-
-.ladder-item:hover {
-  background: var(--page-plane);
-}
-
-.ladder-item:focus-visible {
-  outline: 3px solid var(--text-primary);
-  outline-offset: 2px;
-}
-
-.ladder-rank {
+.lev-rank {
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
-  font-size: 0.8125rem;
 }
-
-.ladder-name {
-  font-weight: 600;
-  min-width: 0;
+.lev-skill,
+.lev-skill-h {
+  width: 9rem;
+  white-space: normal;
   overflow-wrap: anywhere;
+  position: sticky;
+  left: 2.25rem;
+  background: var(--surface-1);
+  z-index: 2;
 }
-
-.ladder-track {
+.lev-status,
+.lev-status-h {
+  min-width: 7rem;
+  position: sticky;
+  left: calc(2.25rem + 9rem);
+  background: var(--surface-1);
+  z-index: 2;
+  border-right: 1px solid var(--border); /* visual seam marking the end of the pinned columns */
+}
+.lev-demandonly {
+  display: block;
+  margin-top: 1px;
+  font-size: 0.6875rem;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+.lev-leverage {
+  min-width: 9rem;
+}
+.lev-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.lev-bar-track {
   position: relative;
-  height: 12px;
+  flex: 1;
+  min-width: 48px;
+  height: 8px;
   background: var(--gridline);
-  border-radius: 6px;
+  border-radius: 99px;
   overflow: hidden;
 }
-
-.ladder-bar {
+.lev-bar {
+  display: block;
   height: 100%;
-  border-radius: 6px 0 0 6px; /* 4px rounded data-end, square at baseline */
+  border-radius: 99px;
   background: var(--series-1);
 }
-
-.ladder-score {
+.lev-bar-val {
+  min-width: 2.5rem;
   font-variant-numeric: tabular-nums;
+  font-weight: 600;
   color: var(--text-secondary);
-  font-size: 0.8125rem;
   text-align: right;
-  white-space: nowrap;
 }
-
-.ladder-flag {
+.lev-status {
   font-size: 0.75rem;
+  font-weight: 700;
   color: var(--text-secondary);
-  font-style: italic;
 }
-
-@media (prefers-reduced-motion: no-preference) {
-  .ladder-item {
-    transition: background 120ms ease-out;
-  }
+.lev-status[data-have='true'] {
+  color: var(--status-good);
 }
-
-/* Narrow screens: the fixed 5-column ladder grid can't fit ~360px, so collapse to a wrapping flex
- * row — rank + name + score + status stay on line 1, the score bar wraps full-width below. */
-@media (max-width: 560px) {
-  .ladder-item {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.35rem 0.6rem;
-  }
-  .ladder-rank {
-    order: 1;
-  }
-  .ladder-name {
-    order: 2;
-    flex: 1 1 auto;
-  }
-  .ladder-score {
-    order: 3;
-  }
-  .ladder-flag {
-    order: 3;
-  }
-  .ladder-have-flag {
-    order: 4;
-  }
-  .ladder-track {
-    order: 5;
-    flex: 1 1 100%;
-  }
+.lev-status[data-have='false'] {
+  color: var(--status-critical);
 }
 
 /* Narrow screens: shrink the scatter so its 340px plot never dictates a wider-than-viewport

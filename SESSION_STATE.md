@@ -41,6 +41,24 @@
 - **Ran it live** end-to-end (headless Chromium against the real `.env`/Supabase, synthetic resume,
   Backend role) in light + dark, zero page/console errors; screenshots in scratchpad confirm the
   redesign + the fixed scatter.
+- **Merged "Skill profile for {role}" (standalone data table) + "Every skill, ranked by leverage"
+  (arbitrage ladder) into ONE component**, `SkillLeverageTable.tsx`: a single ranked-by-leverage
+  table with an inline leverage bar, every numeric column, and a Status (Already have/Worth
+  learning) column — also serves as the scatter's accessible numeric alternative. Deleted
+  `ArbitrageLadder.tsx`/`.test.tsx` and `SkillDataTable.tsx`; `SkillMatrix` no longer embeds a
+  table, just a "figures are in the ranked table below" pointer. **Found + fixed a real regression
+  during live verification**: the merged table's 10 columns overflowed the results card at normal
+  desktop widths, silently scrolling the Status column out of view (the exact "texts properly
+  contained" failure mode flagged earlier) — fixed by reordering columns (#, Skill, Status pinned
+  first) and making those three `position: sticky` so they never scroll out of view regardless of
+  viewport width; the deeper metric columns scroll. Verified via screenshot at 1440px and 390px,
+  light + dark. Also discovered (not fixed, flagged as a separate pre-existing gap): `matrix.css`'s
+  dark-theme tokens only key off `prefers-color-scheme: dark`, never the app's own `data-theme`
+  toggle in `looking-glass.css` — all prior "dark mode" screenshots set the OS color scheme in the
+  browser context, which happened to match and masked this; a user clicking the in-app Dark toggle
+  while their OS is in light mode would see a dark page shell with light-styled data tables/scatter.
+  105/105 (net -3 from deleting Ladder's 10-test file + adding LeverageTable's 8-test file, minus
+  removed table-alt tests in SkillMatrix), tsc/eslint/build clean.
 - **UI polish pass (via Magnolia + ui-ux-pro-max / dataviz / frontend-design skills)** on three
   user asks: (1) responsiveness — `.nav` flex-wraps, new `max-width:520px` (gutters+type scale) and
   `max-width:560px` (ladder 5-col grid → wrapping flex; scatter shrinks 340→260px) breakpoints,
@@ -66,9 +84,14 @@
 - Changes are uncommitted on `main` (user hasn't asked to commit).
 
 ### Next Steps
-- **Uncommitted:** the Magnolia UI-polish pass (App.tsx, TopGapNarration.tsx + .test, App.test,
-  looking-glass.css, matrix.css) + this ledger update — commit/push when ready (the scatter rebuild,
-  spec 007, and the earlier redesign are already pushed on `main`).
+- **Uncommitted:** the table-merge (new SkillLeverageTable.tsx/.test.tsx; deleted
+  ArbitrageLadder.tsx/.test.tsx + SkillDataTable.tsx; App.tsx, App.test.tsx, SkillMatrix.tsx/.test,
+  matrix.css updated) + this ledger update — commit/push when ready. (The Magnolia polish pass,
+  scatter rebuild, spec 007, and the earlier redesign are already pushed on `main`.)
+- **Worth a follow-up if the user wants it**: fix the `matrix.css` dark-theme gap noted above so
+  its tokens react to `[data-theme='dark']` too, not just `prefers-color-scheme`, matching
+  `looking-glass.css`'s pattern — otherwise the in-app theme toggle can visually desync from the
+  data-viz components when it disagrees with the OS setting.
 - Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
 - Note: to screenshot the SPA I installed `playwright-core` + a headless Chromium via `npx
   playwright install` (cached under ~/.cache/ms-playwright). `playwright-core` was `--no-save`, so

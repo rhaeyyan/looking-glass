@@ -8,7 +8,6 @@ import {
   SCORED_COUNT,
   DEMAND_ONLY_SKILL,
   HAVE_SKILL_KEYS,
-  HAVE_SKILLS,
   GAP_SKILLS,
 } from '../../test/fixtures/roleSkillProfile.fixture'
 
@@ -116,32 +115,15 @@ describe('<SkillMatrix /> demand×scarcity scatter', () => {
     }
   })
 
-  it('renders an accessible <table> alternative with every fixture skill and its raw numbers', async () => {
+  it('points to the ranked table as its numeric alternative (the scatter no longer embeds a table)', async () => {
     const SkillMatrix = await loadSkillMatrix()
     render(<SkillMatrix rows={roleSkillProfileFixture} />)
 
-    const table = screen.getByRole('table')
-    expect(table.querySelector('caption')).toBeTruthy()
-
-    // Column headers must be scoped for screen readers.
-    const columnHeaders = within(table).getAllByRole('columnheader')
-    expect(columnHeaders.length).toBeGreaterThan(0)
-    for (const th of columnHeaders) {
-      expect(th).toHaveAttribute('scope', 'col')
-    }
-
-    // One row per fixture skill — including the demand-only row (never dropped).
-    for (const row of roleSkillProfileFixture) {
-      expect(within(table).getByText(row.skill_name_raw)).toBeInTheDocument()
-    }
-
-    // Raw numeric fields surface verbatim (arbitrage scores are unique per row).
-    expect(within(table).getByText('9.1')).toBeInTheDocument()
-    expect(within(table).getByText('7.3')).toBeInTheDocument()
-    expect(within(table).getByText('4.2')).toBeInTheDocument()
-
-    // The demand-only row is flagged, not silently blank.
-    expect(within(table).getByText(/demand only/i)).toBeInTheDocument()
+    // The full-numbers text alternative now lives in the shared <SkillLeverageTable> sibling
+    // (tested in SkillLeverageTable.test.tsx) rather than being duplicated inside the scatter.
+    // The scatter must still direct users to it.
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.getByText(/figures are in the ranked table below/i)).toBeInTheDocument()
   })
 
   it('respects prefers-reduced-motion: no animation applied when reduce is set', async () => {
@@ -252,26 +234,6 @@ describe('<SkillMatrix /> have/gap rendering (haveSkillKeys prop)', () => {
     }
   })
 
-  it('threads haveSkillKeys into the accessible table alternative as an explicit have/gap column (never color-only)', async () => {
-    const SkillMatrix = await loadSkillMatrix()
-    render(<SkillMatrix rows={roleSkillProfileFixture} haveSkillKeys={HAVE_SKILL_KEYS} />)
-
-    const table = screen.getByRole('table')
-    const columnHeaders = within(table).getAllByRole('columnheader')
-    expect(columnHeaders.some((th) => /status/i.test(th.textContent ?? ''))).toBe(true)
-
-    for (const skill of HAVE_SKILLS) {
-      const rowHeader = within(table).getByRole('rowheader', { name: skill })
-      const row = rowHeader.closest('tr')!
-      expect(within(row).getByText('Already have')).toBeInTheDocument()
-    }
-    for (const skill of GAP_SKILLS) {
-      const rowHeader = within(table).getByRole('rowheader', { name: skill })
-      const row = rowHeader.closest('tr')!
-      expect(within(row).getByText('Worth learning')).toBeInTheDocument()
-    }
-  })
-
   it('renders every point identically to the no-prop case when haveSkillKeys is omitted (backward compatible)', async () => {
     const SkillMatrix = await loadSkillMatrix()
     render(<SkillMatrix rows={roleSkillProfileFixture} />)
@@ -280,9 +242,6 @@ describe('<SkillMatrix /> have/gap rendering (haveSkillKeys prop)', () => {
       expect(point).not.toHaveAttribute('data-have')
       expect(within(point).queryByTestId('have-flag')).not.toBeInTheDocument()
     }
-    const table = screen.getByRole('table')
-    expect(within(table).queryByText('Already have')).not.toBeInTheDocument()
-    expect(within(table).queryByText('Worth learning')).not.toBeInTheDocument()
   })
 
   it('has zero axe violations on the fully mounted matrix with have/gap state populated', async () => {

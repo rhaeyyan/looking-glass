@@ -112,7 +112,7 @@ describe('<App /> walking skeleton', () => {
     )
 
     const table = await screen.findByRole('table')
-    expect(within(table).getByText('Skill profile for Backend')).toBeInTheDocument()
+    expect(within(table).getByText(/Skill profile for Backend/)).toBeInTheDocument()
     expect(within(table).getByRole('rowheader', { name: 'PostgreSQL' })).toBeInTheDocument()
   })
 
@@ -140,11 +140,11 @@ describe('<App /> walking skeleton', () => {
 
     const table = await screen.findByRole('table')
     // Both rows present: the demand-only row survives.
-    expect(within(table).getByRole('rowheader', { name: 'gRPC' })).toBeInTheDocument()
+    expect(within(table).getByRole('rowheader', { name: /^gRPC/ })).toBeInTheDocument()
     // The null-skill_key row carries the demand-only flag text.
     expect(within(table).getByText('Demand only, scarcity unknown')).toBeInTheDocument()
     // Its unknown numeric fields render as an em dash, not dropped.
-    const grpcRow = within(table).getByRole('rowheader', { name: 'gRPC' }).closest('tr')!
+    const grpcRow = within(table).getByRole('rowheader', { name: /^gRPC/ }).closest('tr')!
     expect(within(grpcRow).getAllByText('—').length).toBeGreaterThan(0)
   })
 
@@ -328,11 +328,14 @@ describe('<App /> resume input + have/gap', () => {
     await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'I know PostgreSQL.')
     await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
 
-    // PostgreSQL (matched) renders as "have"; gRPC (not extracted) renders as "gap" — traced
-    // verbatim through the real computeSkillGap, never a raw extraction field rendered directly.
-    await screen.findByText(/you already have this skill/i)
-    expect(screen.getByText(/you already have this skill/i)).toBeInTheDocument()
-    expect(screen.getByText(/worth learning — not on your resume yet/i)).toBeInTheDocument()
+    // PostgreSQL (matched) renders as "Already have"; gRPC (not extracted) renders as "Worth
+    // learning" — traced verbatim through the real computeSkillGap, never a raw extraction field
+    // rendered directly. Checked in the merged ranked table's Status column.
+    const table = await screen.findByRole('table')
+    const postgresRow = within(table).getByRole('rowheader', { name: 'PostgreSQL' }).closest('tr')!
+    expect(within(postgresRow).getByText('Already have')).toBeInTheDocument()
+    const grpcRow = within(table).getByRole('rowheader', { name: /^gRPC/ }).closest('tr')!
+    expect(within(grpcRow).getByText('Worth learning')).toBeInTheDocument()
   })
 
   it('has no axe violations in the populated have/gap state', async () => {
@@ -356,7 +359,7 @@ describe('<App /> resume input + have/gap', () => {
 
     await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'PostgreSQL')
     await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
-    await screen.findByText(/you already have this skill/i)
+    await screen.findByText('Already have')
 
     expect(await axe(container)).toHaveNoViolations()
   })

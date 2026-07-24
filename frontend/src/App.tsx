@@ -7,7 +7,7 @@ import { narrateTopGaps } from './lib/narrate'
 import { formatNum } from './lib/format'
 import { normalizeSkillName } from './lib/normalize'
 import { SkillMatrix } from './components/matrix/SkillMatrix'
-import { ArbitrageLadder } from './components/matrix/ArbitrageLadder'
+import { SkillLeverageTable } from './components/matrix/SkillLeverageTable'
 import { TopGapNarration } from './components/matrix/TopGapNarration'
 
 type Status = 'idle' | 'loading' | 'success' | 'error'
@@ -245,8 +245,13 @@ function App() {
           {hasRows && (
             <header className="lg-results-head">
               <span className="card-kicker">Target role</span>
-              <h2 className="lg-results-title">Skill profile for {selectedRole}</h2>
               <div className="lg-summary-tags">
+                <span
+                  className="tag tag-accent"
+                  style={{ fontFamily: 'var(--font-heading)', fontSize: '13px', padding: '5px 13px' }}
+                >
+                  {selectedRole}
+                </span>
                 <span className="tag tag-neutral">
                   {scoredCount} of {rows.length} scored
                 </span>
@@ -302,7 +307,7 @@ function App() {
           {hasRows && (
             <>
               <SkillMatrix rows={rows} haveSkillKeys={haveSkillKeys} />
-              <ArbitrageLadder rows={rows} haveSkillKeys={haveSkillKeys} />
+              <SkillLeverageTable rows={rows} haveSkillKeys={haveSkillKeys} roleName={selectedRole} />
             </>
           )}
         </div>
