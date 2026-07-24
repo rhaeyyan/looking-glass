@@ -1,6 +1,6 @@
 import type { RoleSkillRow } from './supabaseClient'
 import { normalizeSkillName } from './normalize'
-import { formatNum } from './format'
+import { formatNum, formatSalaryPremiumPhrase } from './format'
 
 // Deterministic, synchronous, zero-I/O narration of a role's top skill gap (spec 005, Task 4).
 // No LLM/network call, no `await`, anywhere in this file — this IS the entire narration layer,
@@ -56,7 +56,7 @@ function scoreClauses(row: RoleSkillRow): string[] {
     clauses.push(`scarcity ${formatNum(row.scarcity_index)}`)
   }
   if (typeof row.salary_premium_pct === 'number') {
-    clauses.push(`a ${formatNum(row.salary_premium_pct)}% salary premium`)
+    clauses.push(formatSalaryPremiumPhrase(row.salary_premium_pct) as string)
   }
   if (typeof row.median_days_open === 'number') {
     clauses.push(`a median ${formatNum(row.median_days_open)} days to fill`)
@@ -152,7 +152,9 @@ function statChips(row: RoleSkillRow): string[] {
   if (typeof row.arbitrage_score === 'number') chips.push(`Leverage ${formatNum(row.arbitrage_score)}`)
   if (typeof row.demand_score === 'number') chips.push(`Demand ${formatNum(row.demand_score)}`)
   if (typeof row.scarcity_index === 'number') chips.push(`Scarcity ${formatNum(row.scarcity_index)}`)
-  if (typeof row.salary_premium_pct === 'number') chips.push(`+${formatNum(row.salary_premium_pct)}% salary`)
+  if (typeof row.salary_premium_pct === 'number') {
+    chips.push(formatSalaryPremiumPhrase(row.salary_premium_pct) as string)
+  }
   if (typeof row.median_days_open === 'number') chips.push(`${formatNum(row.median_days_open)}d to fill`)
   return chips
 }

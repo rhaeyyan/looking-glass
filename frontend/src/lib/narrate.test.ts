@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { RoleSkillRow } from './supabaseClient'
-import { formatNum } from './format'
+import { formatNum, formatSalaryPremiumPhrase } from './format'
 import {
   TIE_DEMAND_DECIDES_ROWS,
   TIE_SALARY_DECIDES_ROWS,
@@ -14,6 +14,8 @@ import {
   ALL_HAVE_KEYS,
   HAVE_ROW_HIGHEST_SCORE_ROWS,
   HAVE_ROW_HIGHEST_SCORE_HAVE_KEYS,
+  NEGATIVE_SALARY_PREMIUM_ROWS,
+  NEGATIVE_SALARY_PREMIUM_HAVE_KEYS,
 } from '../test/fixtures/narrateTopGap.fixture'
 
 // RED phase (spec 005 Task 3): `narrateTopGap()` does not exist yet — Redwood builds it in Task 4
@@ -63,6 +65,12 @@ function numbersIn(text: string): number[] {
  * `formatNum(field)` for every non-null numeric field on either row. If a number appears in the
  * narrative that isn't in this set, it was re-derived, interpolated, or fabricated — a Bounded-AI
  * violation.
+ *
+ * Spec 013 carve-out (narrow, field-scoped — do NOT generalize to other fields): once `narrate.ts`
+ * wires `formatSalaryPremiumPhrase` in, a negative `salary_premium_pct` is rendered as its absolute
+ * magnitude (the sign is conveyed by "below" in prose, never a literal minus digit). So for
+ * `salary_premium_pct` specifically, also allow `Math.abs(Number(formatNum(value)))` in the
+ * allowed set. Every other field's provenance rule is unchanged.
  */
 function allowedNumbers(rows: Array<RoleSkillRow | null>): Set<number> {
   const out = new Set<number>()
@@ -72,6 +80,9 @@ function allowedNumbers(rows: Array<RoleSkillRow | null>): Set<number> {
       const value = row[field]
       if (typeof value === 'number') {
         out.add(Number(formatNum(value)))
+        if (field === 'salary_premium_pct') {
+          out.add(Math.abs(Number(formatNum(value))))
+        }
       }
     }
   }
@@ -266,6 +277,36 @@ describe('narrateTopGap — Bounded-AI boundary (generic number-provenance guard
   })
 })
 
+describe('narrateTopGap — spec 013: sign-honest salary premium phrasing', () => {
+  it('renders a negative salary_premium_pct via formatSalaryPremiumPhrase, saying "below" not a minus sign', () => {
+    const result = narrateTopGap(NEGATIVE_SALARY_PREMIUM_ROWS, NEGATIVE_SALARY_PREMIUM_HAVE_KEYS)
+
+    expect(result).not.toBeNull()
+    expect(result!.topGap.skill_name_raw).toBe('COBOL')
+    expect(result!.runnerUpGap).toBeNull() // solo path -> scoreClauses is exercised
+
+    expect(result!.narrative).toContain('below typical pay for this skill')
+    // No literal minus sign directly followed by a digit anywhere in the narrative.
+    expect(result!.narrative).not.toMatch(/-\d/)
+  })
+
+  it('still passes the generic Bounded-AI number-provenance guard for the negative-premium fixture', () => {
+    const result = narrateTopGap(NEGATIVE_SALARY_PREMIUM_ROWS, NEGATIVE_SALARY_PREMIUM_HAVE_KEYS)
+
+    expect(result).not.toBeNull()
+    assertEveryNumberIsProvenanced(result!.narrative, [result!.topGap, result!.runnerUpGap])
+  })
+
+  it('the narrative\'s salary clause matches formatSalaryPremiumPhrase(row.salary_premium_pct) verbatim', () => {
+    const result = narrateTopGap(NEGATIVE_SALARY_PREMIUM_ROWS, NEGATIVE_SALARY_PREMIUM_HAVE_KEYS)
+
+    expect(result).not.toBeNull()
+    const phrase = formatSalaryPremiumPhrase(result!.topGap.salary_premium_pct ?? null)
+    expect(phrase).not.toBeNull()
+    expect(result!.narrative).toContain(phrase as string)
+  })
+})
+
 // ---------------------------------------------------------------------------------------------
 // narrateTopGaps — the ranked top-3 shortlist built on top of narrateTopGap.
 // ---------------------------------------------------------------------------------------------
@@ -331,6 +372,21 @@ describe('narrateTopGaps — ranked top-3 shortlist', () => {
       const text = move.note + ' ' + move.stats.join(' ')
       assertEveryNumberIsProvenanced(text, [move.row])
     }
+  })
+
+  it('spec 013: a move\'s salary stat chip is formatSalaryPremiumPhrase(row.salary_premium_pct) verbatim, sign-honest for a negative premium', () => {
+    const rows: RoleSkillRow[] = [
+      makeRow({ skill_name_raw: 'COBOL', skill_key: 'cobol', salary_premium_pct: -8.4 }),
+    ]
+    const result = narrateTopGaps(rows, new Set())
+
+    expect(result).not.toBeNull()
+    const chips = result!.moves[0].stats
+    const phrase = formatSalaryPremiumPhrase(-8.4)
+    expect(phrase).not.toBeNull()
+    expect(chips).toContain(phrase as string)
+    // Never a literal "+"-prefixed / minus-signed raw percentage for this chip.
+    expect(chips.some((c) => /^[+-]?\d/.test(c) && c.includes('salary'))).toBe(false)
   })
 
   it('degrades a demand-only (null arbitrage_score) move to a demand framing without fabricating numbers', () => {

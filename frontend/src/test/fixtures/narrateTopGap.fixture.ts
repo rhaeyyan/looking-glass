@@ -341,3 +341,28 @@ export const HAVE_ROW_HIGHEST_SCORE_ROWS: RoleSkillRow[] = [
   },
 ]
 export const HAVE_ROW_HIGHEST_SCORE_HAVE_KEYS: Set<string> = new Set(['kubernetes'])
+
+// ---------------------------------------------------------------------------------------------
+// 9. Spec 013: a negative `salary_premium_pct` (-8.4) on the top gap, with no runner-up gap, so
+//    `soloSentence` -> `scoreClauses` renders `formatSalaryPremiumPhrase(-8.4)` as its own clause.
+//    Used to assert the rendered narrative says "below typical pay for this skill" and never a
+//    literal minus sign directly followed by a digit (sign is conveyed by "below" alone).
+// ---------------------------------------------------------------------------------------------
+export const NEGATIVE_SALARY_PREMIUM_ROWS: RoleSkillRow[] = [
+  {
+    role_family: 'Backend',
+    skill_name_raw: 'COBOL',
+    skill_key: 'cobol',
+    pct_of_role: 14,
+    postings_with_skill: 180,
+    demand_score: 40,
+    scarcity_index: 25,
+    arbitrage_score: 3.4,
+    scarcity_data_completeness: 'complete',
+    d3_corroborated: false,
+    d3_pct_of_all_postings: 0.5,
+    salary_premium_pct: -8.4,
+    median_days_open: 33,
+  },
+]
+export const NEGATIVE_SALARY_PREMIUM_HAVE_KEYS: Set<string> = new Set()
