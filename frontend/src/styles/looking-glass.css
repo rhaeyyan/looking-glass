@@ -36,6 +36,15 @@
   --gap-tone: oklch(50% 0.14 42);
   --gap-tint: oklch(94% 0.035 42);
 
+  /* Shared have/learn tokens (spec 008) — single source of truth for the donut, the scatter's
+   * have/gap flags, and the leverage table's Status column. Values reused verbatim from
+   * matrix.css's pre-unification --status-good/--status-critical (already tuned for AA
+   * contrast in both themes). */
+  --have-tone: #1a7f4b;
+  --have-tone-surface: #e3f5ea;
+  --learn-tone: #8a3b12;
+  --learn-tone-surface: #fbe9df;
+
   --font-heading: 'Barlow Condensed', system-ui, sans-serif;
   --font-body: 'Barlow', system-ui, sans-serif;
 
@@ -67,6 +76,10 @@
     --good-tint: oklch(28% 0.05 152);
     --gap-tone: oklch(75% 0.13 42);
     --gap-tint: oklch(28% 0.05 42);
+    --have-tone: #63d69a;
+    --have-tone-surface: #123122;
+    --learn-tone: #e8a37e;
+    --learn-tone-surface: #33190c;
   }
 }
 
@@ -88,6 +101,10 @@
   --good-tint: oklch(28% 0.05 152);
   --gap-tone: oklch(75% 0.13 42);
   --gap-tint: oklch(28% 0.05 42);
+  --have-tone: #63d69a;
+  --have-tone-surface: #123122;
+  --learn-tone: #e8a37e;
+  --learn-tone-surface: #33190c;
 }
 
 /* ── 2. Base ───────────────────────────────────────────────────────────── */

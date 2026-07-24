@@ -27,10 +27,13 @@
   --series-2: #eb6834; /* orange */
   --series-3: #1baf7a; /* aqua  */
   --series-4: #eda100; /* yellow — reinforcement only, shape carries identity */
-  --status-good: #1a7f4b; /* have — reinforcement only; text + icon carry the state */
-  --status-good-surface: #e3f5ea;
-  --status-critical: #8a3b12; /* gap — reinforcement only; text + icon carry the state */
-  --status-critical-surface: #fbe9df;
+  /* have/gap tones (reinforcement only; text + icon carry the state) — sourced from the shared
+   * --have-tone/--learn-tone tokens defined once in looking-glass.css (spec 008), never
+   * redeclared with fresh hex here. */
+  --status-good: var(--have-tone);
+  --status-good-surface: var(--have-tone-surface);
+  --status-critical: var(--learn-tone);
+  --status-critical-surface: var(--learn-tone-surface);
 
   color: var(--text-primary);
   font-family: var(--font-body, system-ui), sans-serif;
@@ -66,10 +69,10 @@
     --series-2: #d95926;
     --series-3: #199e70;
     --series-4: #c98500;
-    --status-good: #63d69a;
-    --status-good-surface: #123122;
-    --status-critical: #e8a37e;
-    --status-critical-surface: #33190c;
+    --status-good: var(--have-tone);
+    --status-good-surface: var(--have-tone-surface);
+    --status-critical: var(--learn-tone);
+    --status-critical-surface: var(--learn-tone-surface);
   }
 }
 
@@ -90,10 +93,10 @@
   --series-2: #d95926;
   --series-3: #199e70;
   --series-4: #c98500;
-  --status-good: #63d69a;
-  --status-good-surface: #123122;
-  --status-critical: #e8a37e;
-  --status-critical-surface: #33190c;
+  --status-good: var(--have-tone);
+  --status-good-surface: var(--have-tone-surface);
+  --status-critical: var(--learn-tone);
+  --status-critical-surface: var(--learn-tone-surface);
 }
 
 .matrix-title,

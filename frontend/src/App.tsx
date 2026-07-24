@@ -124,7 +124,7 @@ function App() {
   const havePct = rows.length ? Math.round((haveCount / rows.length) * 100) : 0
   const goodDeg = rows.length ? (haveCount / rows.length) * 360 : 0
   const gapDeg = rows.length ? (gapCount / rows.length) * 360 : 0
-  const donutGradient = `conic-gradient(var(--color-accent) 0deg ${goodDeg}deg, var(--gap-tone) ${goodDeg}deg ${
+  const donutGradient = `conic-gradient(var(--have-tone) 0deg ${goodDeg}deg, var(--learn-tone) ${goodDeg}deg ${
     goodDeg + gapDeg
   }deg, var(--color-neutral-400) ${goodDeg + gapDeg}deg 360deg)`
 
@@ -280,11 +280,11 @@ function App() {
                 </div>
                 <div className="lg-donut-legend">
                   <div>
-                    <span className="lg-swatch" style={{ background: 'var(--color-accent)' }} />
+                    <span className="lg-swatch" style={{ background: 'var(--have-tone)' }} />
                     Already have {haveCount}
                   </div>
                   <div>
-                    <span className="lg-swatch" style={{ background: 'var(--gap-tone)' }} />
+                    <span className="lg-swatch" style={{ background: 'var(--learn-tone)' }} />
                     Worth learning {gapCount}
                   </div>
                   <div>
