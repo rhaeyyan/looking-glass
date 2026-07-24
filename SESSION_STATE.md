@@ -5,13 +5,32 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-24 (round 5: light-mode contrast, responsive wrapping, glass-ui)
+## Current Session — 2026-07-24 (round 6: dark-mode glass-alpha regression fix)
 
-> Specs 001–014, the same-day earlier rounds (redesign/de-jargon/top-3-moves; UI/UX+dataviz pass
-> 008-010; 15-role expansion 011-012; salary-premium clarity 013-014), and the 2026-07-23 milestone
-> session are archived in [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
+> Specs 001–017, the same-day earlier rounds (redesign/de-jargon/top-3-moves; UI/UX+dataviz pass
+> 008-010; 15-role expansion 011-012; salary-premium clarity 013-014; contrast/wrapping/glass-ui
+> 015-017), and the 2026-07-23 milestone session are archived in
+> [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-### Accomplished (round 5, this section)
+### Accomplished (round 6, this section)
+- User supplied a screenshot (`screenshots/Screenshot from 2026-07-24 12-50-02.png`) showing dark
+  mode looking broken after spec 017: the nav bar rendered solid white, and card text was nearly
+  unreadable. **Root-caused from the actual CSS, not guessed**: `.card.blueprint`/`.nav`'s
+  background is `rgba(var(--glass-tint-rgb), var(--glass-alpha))`; `--glass-tint-rgb` (pure white)
+  has no dark-mode override, and dark mode set `--glass-alpha: 1` intending "inert" — but alpha=1
+  means fully OPAQUE with whatever tint is set, not "no effect." The value that actually
+  reproduces "no background" (matching pre-spec-017 behavior) is alpha=0 (fully transparent, tint
+  becomes irrelevant). Spec 017's own definition of "inert" was backwards; both the implementation
+  and its tests faithfully matched that wrong spec.
+  **Fixed via the same TDD cycle**: dispatched Cypress to correct both test files' inert-value
+  assertions (`--glass-alpha` must be `0` in dark mode, not `1`) — this correctly flipped 4 tests
+  red against the still-buggy CSS, confirming the fix targets the real bug. Dispatched Magnolia to
+  flip `--glass-alpha: 1` → `0` in both dark-mode blocks (media query + explicit `[data-theme]`),
+  deliberately not adding a `--glass-tint-rgb` dark override since it's irrelevant at zero alpha
+  and would be untested surface. **248/248 vitest, eslint/tsc clean.** Committed (`d307eb7`) and
+  pushed to `origin/main`.
+
+### Accomplished (round 5 — light-mode contrast, responsive wrapping, glass-ui)
 - User reported light-mode text is too low-contrast, text blocks overflow/wrap awkwardly at
   certain widths, and asked for glassmorphism design elements reflecting the "Looking Glass" name.
 - **Investigated with real numbers before routing anything**: computed actual WCAG contrast ratios
@@ -97,29 +116,27 @@
   `prefers-reduced-motion`. `matrix.css` untouched. **248/248 vitest, eslint/tsc clean.**
 
 ### Unfinished / blocked
-- None outstanding from round 5. Specs 015, 016, and 017 are all merged (`716971a`, `116bb90`,
-  `9e7cbe2`), 248/248 vitest, eslint/tsc clean.
-- Rounds 1-4 (specs 001-014, `@types/node`, font swap, 15-role expansion, salary-premium clarity)
-  remain fully merged — no carryover blockers.
-- **Not yet pushed to `origin/main`** — verify before ending the session.
+- None outstanding. The dark-mode glass-alpha regression is fixed, verified, committed, and
+  pushed. Rounds 1-5 (specs 001-017) plus round 6's fix all remain fully merged and pushed.
 
 ### Next Steps
-1. Push `main` to `origin/main` (round 5's commits: specs 015-017, the cross-spec test
-   reconciliation, session-state updates).
-2. If a better learning-resource dataset surfaces later, re-run Birch's join-test methodology
+1. Ask the user to confirm dark mode now looks correct (ideally with a fresh screenshot) — this
+   bug was only caught because they supplied one; the automated test suite alone had encoded the
+   same wrong assumption and passed green the whole time spec 017 was broken.
+3. If a better learning-resource dataset surfaces later, re-run Birch's join-test methodology
    (pull the real 141-skill list live from Supabase `skills_core` via the anon-key REST endpoint —
    don't re-extract D1/D2 raw CSVs, they're gone locally and this is faster) before committing to
    an ingest spec.
-3. If resume upload is revisited later: route through Cedar first for dependency authorization
+4. If resume upload is revisited later: route through Cedar first for dependency authorization
    (pdf.js at minimum) before any implementation.
-4. Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
-5. Note: `playwright-core` (headless Chromium driver used for live screenshots in an earlier
+5. Prefer synthetic resume text for any manual verification (Zero-Trust "no real user PII").
+6. Note: `playwright-core` (headless Chromium driver used for live screenshots in an earlier
    session) was installed `--no-save`, so it is **not** in `package.json` — reinstall it
    (`npm install --no-save playwright-core@1.50.0`) if another live screenshot pass is needed. A
    live browser pass on round 2's UI work, round 4's salary-premium phrasing/footnote, and round
-   5's contrast/wrapping/glass fixes hasn't been done yet — only automated tests — worth doing
-   before considering those rounds fully verified. Live verification is especially valuable for
-   round 5 given it's inherently visual (contrast, wrapping, glass blur).
+   5's contrast/wrapping fixes hasn't been done yet — only automated tests — worth doing before
+   considering those rounds fully verified. This round's bug (round 6) is the concrete proof that
+   automated tests alone weren't sufficient for the visual glass-ui work.
 
 ---
 
