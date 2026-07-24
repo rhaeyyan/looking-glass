@@ -69,27 +69,43 @@
   `rgba(var(--glass-tint-rgb), var(--glass-alpha))` + `backdrop-filter: blur(...)`, applied to
   `.nav` too; dark-mode-untouched and reduced-motion-gated regression guards). 236 pre-existing
   tests unaffected.
-  **Magnolia's build attempt hit the account session limit mid-task (resets 3pm America/
-  New_York) before making any changes** — `looking-glass.css` is untouched, only Cypress's test
-  file exists on disk. This is a session-wide rate limit, not a task failure — will retry once
-  the limit resets rather than immediately re-spawning into the same wall.
+  **First Magnolia attempt hit the account session limit** mid-task before making any changes —
+  a session-wide rate limit, not a task failure. Retried after the limit reset.
+  **Second attempt found a genuine cross-spec test conflict, verified empirically, correctly not
+  silently resolved**: spec 015's `colorTokens.test.ts` asserts the dark-mode blocks are
+  byte-identical via strict `toEqual` (rejects ANY extra key), but spec 017 requires dark-mode
+  glass tokens to be *allowed* as long as they're inert (`--glass-alpha: 1`, `--glass-blur: 0`).
+  Magnolia proved the collision by temporarily adding an inert glass token to the dark block and
+  watching the spec-015 test fail on the extra key, then fully reverted (confirmed clean diff) and
+  stopped rather than pick a side unilaterally. Reported two vetted candidate token values ready
+  to ship once unblocked: `--glass-tint: #ffffff`, `--glass-alpha: 0.55`, `--glass-blur: 12px`
+  (clears all contrast checks with wide margin, text ≥14.7:1).
+  **Dispatched Cypress to reconcile**: narrowly extended `colorTokens.test.ts`'s dark-block guard
+  to allow-list `--glass-*` keys specifically (mirroring `glassmorphism.test.ts`'s own inert-check
+  pattern), while still rejecting any change to a non-glass token or a non-inert glass value.
+  Verified: exact same 236-passed/12-failed baseline before and after the test fix (no test
+  flipped either direction) — a pure reconciliation, not a scope change. **Re-dispatched Magnolia**
+  to implement spec 017 now that it's unblocked; not yet returned.
 
 ### Unfinished / blocked
-- **Spec 017**: Cypress's failing tests are committed; Magnolia's implementation attempt hit the
-  account session limit (resets 3pm America/New_York) before writing any code — `looking-glass.css`
-  is untouched. Needs a fresh Magnolia dispatch after the limit resets.
+- **Spec 017**: test conflict resolved, Magnolia re-dispatched with vetted candidate token values
+  (`--glass-tint: #ffffff`, `--glass-alpha: 0.55`, `--glass-blur: 12px`); not yet returned.
+  `looking-glass.css` should still be untouched as of this write (only `colorTokens.test.ts`'s
+  reconciliation fix is on disk so far).
 - Rounds 1-4 (specs 001-014, `@types/node`, font swap, 15-role expansion, salary-premium clarity)
   plus specs 015/016 (contrast + wrapping fixes, `716971a`, `116bb90`) remain fully merged — no
   carryover blockers.
+- **Uncommitted on disk**: `colorTokens.test.ts` (the dark-mode allow-list reconciliation fix) —
+  commit together with spec 017's implementation once Magnolia returns, since they're one logical
+  unit (the test fix only exists to unblock this spec).
 
 ### Next Steps
-1. After the session limit resets (3pm America/New_York), dispatch Magnolia to implement spec 017
-   against Cypress's 12 red tests in `frontend/src/styles/glassmorphism.test.ts` — the exact token
-   contract (`--glass-tint`, `--glass-tint-rgb`, `--glass-alpha`, `--glass-blur`,
-   `rgba(var(--glass-tint-rgb), var(--glass-alpha))` + `backdrop-filter: blur(...)` on a new
-   `.card.blueprint` rule and on `.nav`) is already pinned in that test file — read it first.
-2. Verify 12 previously-red tests flip green with zero regressions (236 baseline), eslint/tsc
-   clean, then commit and push all of round 5 (specs 015-017) to `origin/main`.
+1. Check on the backgrounded Magnolia agent (spec 017, re-dispatched after the test-conflict
+   fix); when it returns, verify the 12 previously-red tests flip green with zero regressions
+   (236 baseline, 248 total), eslint/tsc clean.
+2. Commit `colorTokens.test.ts`'s reconciliation fix together with spec 017's implementation
+   (`looking-glass.css` + `glassmorphism.test.ts`), then push all of round 5 (specs 015-017) to
+   `origin/main`.
 3. If a better learning-resource dataset surfaces later, re-run Birch's join-test methodology
    (pull the real 141-skill list live from Supabase `skills_core` via the anon-key REST endpoint —
    don't re-extract D1/D2 raw CSVs, they're gone locally and this is faster) before committing to

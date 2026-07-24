@@ -319,10 +319,31 @@ describe('spec 015 — light-mode contrast fixes (all below are RED until Redwoo
         'learn-tone': '#e8a37e',
         'learn-tone-surface': '#33190c',
       }
+      // Every pre-existing key must be byte-identical to before. NEW keys are tolerated only if
+      // they belong to the --glass-* family introduced by spec 017 and are inert in dark mode
+      // (fully opaque / no blur, so dark mode still renders identically to today) — mirrors the
+      // `assertNoRegressionAndGlassIsInertIfPresent` pattern in glassmorphism.test.ts, scoped here
+      // to this spec's own concern: no EXISTING (non-glass) token may drift.
+      function assertNoRegressionAllowingInertGlassTokens(dark: Record<string, string>) {
+        for (const [key, value] of Object.entries(expectedDarkRoot)) {
+          expect(dark[key]).toBe(value)
+        }
+        const newKeys = Object.keys(dark).filter((k) => !(k in expectedDarkRoot))
+        for (const key of newKeys) {
+          expect(key.startsWith('glass-')).toBe(true)
+          if (key === 'glass-alpha') {
+            expect(Number(dark[key])).toBe(1)
+          }
+          if (key === 'glass-blur') {
+            expect(['0', '0px', '0rem', '0em', 'none']).toContain(dark[key].trim())
+          }
+        }
+      }
+
       const media = customProps(block(lookingGlassCss, /:root:not\(\[data-theme='light'\]\) \{/))
       const explicitDark = customProps(block(lookingGlassCss, /^:root\[data-theme='dark'\] \{/m))
-      expect(media).toEqual(expectedDarkRoot)
-      expect(explicitDark).toEqual(expectedDarkRoot)
+      assertNoRegressionAllowingInertGlassTokens(media)
+      assertNoRegressionAllowingInertGlassTokens(explicitDark)
     })
 
     it('the whole matrix.css dark block (media + explicit) is byte-identical to the pre-spec-015 snapshot — a diff-style guard against any dark-token drift, not just text-muted', () => {
