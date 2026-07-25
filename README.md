@@ -28,16 +28,6 @@ hire — so Looking Glass routes you to Kafka first: same demand, less competiti
 
 A whole-market "explore" mode (all skills, no target role) is available as a secondary view.
 
-### Bounded AI, by design
-
-The Arbitrage Score is **computed deterministically** in SQL/Python — never estimated by a
-language model. As of specs 005 and 006, this bound is total: both result narration ("learn X
-before Y, here's why") and resume-skill extraction are also fully deterministic (a template
-engine and vocabulary-scoped regex matching, respectively), so the app currently makes **zero
-LLM calls anywhere**. The bounded-single-call mechanism (a server-side-proxied, schema-validated,
-swappable-provider LLM call) remains the documented pattern-in-reserve should a future feature
-need it — narration and extraction just don't need it today.
-
 ## How the score works
 
 ```
