@@ -42,6 +42,17 @@
   background: transparent;
 }
 
+/* Spec 021: reuse the shared 15px card radius (never a bespoke value) so the matrix's inner
+ * surfaces (the glass plot backdrop below) round consistently with the rest of the app. */
+.matrix-root {
+  border-radius: var(--radius-card);
+}
+
+/* Spec 022: the merged leverage table's own card wrapper picks up the same shared radius. */
+.leverage-root {
+  border-radius: var(--radius-card);
+}
+
 /* Dark theme: applied both by system preference and by the in-app toggle stamping
  * data-theme="dark" on <html> (mirrors looking-glass.css's pattern). The explicit toggle must win
  * over the system default in both directions:
@@ -159,6 +170,12 @@
   position: relative;
   border-left: 1px solid var(--baseline);
   border-bottom: 1px solid var(--baseline);
+  border-radius: 0 var(--radius-card) 0 0;
+  /* Glass backdrop (spec 021): a translucent --plot wash sits under the striping/grid layers so
+     the plot reads as frosted glass rather than a flat surface tile. Spec 017's scope guard keeps
+     this stylesheet free of blur-filter properties, so the translucency of the --plot token
+     itself (not a blur effect) carries the glass read. */
+  background-color: var(--plot);
   /* High-leverage zone: a faint accent wash across the upper-right diagonal, over a recessive
      hairline grid (10% steps). */
   background-image:
@@ -167,8 +184,8 @@
       transparent 49%,
       color-mix(in srgb, var(--series-1) 9%, transparent) 50%
     ),
-    repeating-linear-gradient(to right, var(--gridline) 0 1px, transparent 1px 10%),
-    repeating-linear-gradient(to top, var(--gridline) 0 1px, transparent 1px 10%);
+    repeating-linear-gradient(to right, var(--grid) 0 1px, transparent 1px 10%),
+    repeating-linear-gradient(to top, var(--grid) 0 1px, transparent 1px 10%);
 }
 
 /* Zone guide labels — orient the reader without relying on colour. */
@@ -201,6 +218,12 @@
   border: 2px solid var(--surface-1); /* surface ring so overlapping bubbles stay legible */
   cursor: pointer;
   opacity: 0.92;
+  /* Brushed-metal finish (spec 021): a hairline specular rim (--metal-hi) plus a soft --grid
+     drop-shadow, layered outside the surface ring above so the banded gradient fill (set inline
+     per-bubble in SkillMatrix.tsx) reads as a lit metal disc rather than a flat swatch. */
+  box-shadow:
+    0 0 0 1px var(--metal-hi) inset,
+    0 1px 2px var(--grid);
 }
 
 .matrix-point:hover {
@@ -419,12 +442,17 @@
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-secondary);
+  border-radius: 99px;
+  padding: 0.2rem 0.6rem;
+  background: var(--surface-1);
 }
 .lev-status[data-have='true'] {
-  color: var(--status-good);
+  color: var(--status-good-surface);
+  background: var(--status-good);
 }
 .lev-status[data-have='false'] {
-  color: var(--status-critical);
+  color: var(--status-critical-surface);
+  background: var(--status-critical);
 }
 
 /* Narrow screens: shrink the scatter so its 340px plot never dictates a wider-than-viewport
@@ -468,9 +496,15 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.6rem;
+}
+
+@media (max-width: 520px) {
+  .topmoves-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 .topmove {
@@ -478,6 +512,10 @@
   grid-template-columns: 1.5rem minmax(0, 1fr);
   gap: 0.6rem;
   align-items: start;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card, 10px);
+  padding: 0.6rem 0.7rem;
 }
 
 .topmove-rank {
@@ -528,8 +566,8 @@
   font-variant-numeric: tabular-nums;
   padding: 0.1rem 0.45rem;
   border-radius: 3px;
-  background: var(--page-plane);
-  color: var(--text-secondary);
+  background: var(--chip-bg);
+  color: var(--chip-fg);
   border: 1px solid var(--border);
 }
 

@@ -28,10 +28,20 @@ const matrixCss = readFileSync(
  * that looking-glass.css is the single source of truth and matrix.css never re-hardcodes these —
  * not that the hex values themselves are frozen forever. `LIGHT_HAVE` was updated by spec 015
  * (from the original #1a7f4b to #1a7a4b) to clear WCAG AA 4.5:1 against --color-bg (the old value
- * measured ~4.489:1, just under the floor); the rest are untouched by that spec. These constants
- * double as both "what --have-tone/--learn-tone must equal in looking-glass.css" and "what
- * matrix.css must stop hardcoding". */
-const LIGHT_HAVE = '#1a7a4b'
+ * measured ~4.489:1, just under the floor); the rest are untouched by that spec.
+ *
+ * Spec 022 nudged `LIGHT_HAVE` a second time, from #1a7a4b to #167647 (a 4-unit-per-channel
+ * darkening: 26,122,75 -> 22,118,71 — same minimal-nudge methodology as --ink-3's spec-018 fix).
+ * The leverage table's "Already have" status pill pairs solid `--have` against `--have-soft`
+ * (rgba(26,122,75,0.14), left untouched) composited over `--surface-1`/`--color-bg`
+ * (#fcfcfb/#f2f2f3) — that specific two-color pairing measured exactly 4.3017:1, just under the
+ * 4.5:1 AA floor, and `contrastRatio` is symmetric so no property-assignment swap within the
+ * --status-good/--status-good-surface family could fix it. 3 steps of darkening (#177748) still
+ * measured 4.485:1 (just short); 4 steps (#167647) clears at 4.548:1 — the smallest integer
+ * per-channel step that clears AA for this pairing. `--have-soft` (and dark-mode `--have`/
+ * `--have-soft`) are untouched. These constants double as both "what --have-tone/--learn-tone must
+ * equal in looking-glass.css" and "what matrix.css must stop hardcoding". */
+const LIGHT_HAVE = '#167647'
 const LIGHT_HAVE_SURFACE = '#e3f5ea'
 const LIGHT_LEARN = '#8a3b12'
 const LIGHT_LEARN_SURFACE = '#fbe9df'
@@ -188,18 +198,24 @@ describe('spec 015 — light-mode contrast fixes (all below are RED until Redwoo
   })
 
   describe('fix 2 — --have-tone (looking-glass.css, light :root ONLY) vs --color-bg', () => {
-    it('clears 4.5:1 (fixed at #1a7a4b vs #f2f2f3, ~4.777:1 — the old #1a7f4b measured ~4.489:1, just under the floor)', () => {
+    it('clears 4.5:1 (fixed at #167647 vs #f2f2f3, ~5.05:1 — the pre-spec-022 #1a7a4b measured ~4.777:1, still comfortably clear here; spec 022 nudged it further only for the separate --status-good/--status-good-surface pairing below)', () => {
+      // Spec 018 turned --have-tone into a `var(--have)` alias rather than a literal hex (the
+      // shared token now lives on --have); resolveToHex follows that one hop so this still checks
+      // the same underlying color spec 015 fixed, just through the new indirection.
       const light = customProps(block(lookingGlassCss, /^:root \{/m))
-      expect(contrastRatio(light['have-tone'], light['color-bg'])).toBeGreaterThanOrEqual(
+      expect(contrastRatio(resolveToHex(light['have-tone'], light), light['color-bg'])).toBeGreaterThanOrEqual(
         AA_NORMAL_TEXT,
       )
     })
 
     it('does NOT touch the dark --have-tone value (constraint: dark tokens are off-limits)', () => {
+      // Spec 018 aliases --have-tone to var(--have) in both dark blocks too; the RESOLVED color
+      // must still be the untouched #63d69a spec 008 pinned, even though the raw declaration text
+      // is no longer that literal hex.
       const media = customProps(block(lookingGlassCss, /:root:not\(\[data-theme='light'\]\) \{/))
       const explicitDark = customProps(block(lookingGlassCss, /^:root\[data-theme='dark'\] \{/m))
-      expect(media['have-tone']).toBe('#63d69a')
-      expect(explicitDark['have-tone']).toBe('#63d69a')
+      expect(resolveToHex(media['have-tone'], media)).toBe('#63d69a')
+      expect(resolveToHex(explicitDark['have-tone'], explicitDark)).toBe('#63d69a')
     })
   })
 
@@ -281,11 +297,13 @@ describe('spec 015 — light-mode contrast fixes (all below are RED until Redwoo
   })
 
   describe('constraints — nothing else in the token system moves', () => {
-    it('--learn-tone is unchanged in both light and dark', () => {
+    it('--learn-tone is unchanged (as a resolved color) in both light and dark', () => {
+      // Spec 018 aliases --learn-tone to var(--learn); the raw declaration text is no longer the
+      // literal hex, but the color it resolves to must still be exactly what spec 008 pinned.
       const light = customProps(block(lookingGlassCss, /^:root \{/m))
       const dark = customProps(block(lookingGlassCss, /^:root\[data-theme='dark'\] \{/m))
-      expect(light['learn-tone']).toBe('#8a3b12')
-      expect(dark['learn-tone']).toBe('#e8a37e')
+      expect(resolveToHex(light['learn-tone'], light)).toBe('#8a3b12')
+      expect(resolveToHex(dark['learn-tone'], dark)).toBe('#e8a37e')
     })
 
     it('matrix.css --text-secondary is unchanged in both light and dark', () => {
@@ -295,7 +313,13 @@ describe('spec 015 — light-mode contrast fixes (all below are RED until Redwoo
       expect(dark['text-secondary']).toBe('#c3c2b7')
     })
 
-    it('the whole looking-glass.css dark :root block (media + explicit) is byte-identical to the pre-spec-015 snapshot — a diff-style guard against any dark-token drift, not just have-tone', () => {
+    it('the whole looking-glass.css dark :root block (media + explicit) is byte-identical to the pre-spec-015 snapshot for every token spec 018 did not touch, and resolves to the pre-spec-015 color for the have/learn aliases spec 018 repointed — a diff-style guard against any dark-token drift, not just have-tone', () => {
+      // have-tone/have-tone-surface/learn-tone/learn-tone-surface are intentionally NOT in this
+      // literal-value map any more: spec 018 turned them into var(--have)/var(--have-soft)/
+      // var(--learn)/var(--learn-soft) aliases (see the dedicated alias assertions above and in
+      // glass-v2-tokens.test.ts), so their raw declaration text legitimately changed. Their
+      // RESOLVED color is checked separately, right below, so this guard still catches any actual
+      // drift in the underlying have/learn hues.
       const expectedDarkRoot = {
         'color-bg': '#16181b',
         'color-surface': '#1f2226',
@@ -314,23 +338,77 @@ describe('spec 015 — light-mode contrast fixes (all below are RED until Redwoo
         'good-tint': 'oklch(28% 0.05 152)',
         'gap-tone': 'oklch(75% 0.13 42)',
         'gap-tint': 'oklch(28% 0.05 42)',
-        'have-tone': '#63d69a',
-        'have-tone-surface': '#123122',
-        'learn-tone': '#e8a37e',
-        'learn-tone-surface': '#33190c',
       }
-      // Every pre-existing key must be byte-identical to before. NEW keys are tolerated only if
-      // they belong to the --glass-* family introduced by spec 017 and are inert in dark mode
-      // (fully transparent / no blur, so dark mode still renders identically to today) — mirrors
-      // the `assertNoRegressionAndGlassIsInertIfPresent` pattern in glassmorphism.test.ts, scoped
-      // here to this spec's own concern: no EXISTING (non-glass) token may drift.
-      function assertNoRegressionAllowingInertGlassTokens(dark: Record<string, string>) {
+      // have-tone/learn-tone resolve to a hex (spec 018 kept the plain --have/--learn tokens
+      // literal, unchanged). have-tone-surface/learn-tone-surface are a genuine, intentional
+      // value-shape change under spec 018 — var(--have-soft)/var(--learn-soft) are translucent
+      // rgba() overlays, not hex — so those two are checked as an alias declaration instead.
+      const expectedAliasResolvedColor = {
+        'have-tone': '#63d69a',
+        'learn-tone': '#e8a37e',
+      }
+      const expectedAliasDeclaration = {
+        'have-tone-surface': 'var(--have-soft)',
+        'learn-tone-surface': 'var(--learn-soft)',
+      }
+      // Spec 018 is a full token-layer addition, not a narrow glass-only patch, so any NEW key
+      // (beyond the pre-existing set above) is tolerated only if it's either (a) spec 017's
+      // original --glass-* family (still inert in dark mode — unchanged, unrelated pair from
+      // spec 018's new --glass/--glass-2), or (b) one of spec 018's own explicitly-named new
+      // tokens. Anything else is unexpected drift.
+      const SPEC_018_NEW_TOKEN_NAMES = new Set([
+        'ink',
+        'ink-2',
+        'ink-3',
+        'accent',
+        'accent-soft',
+        'series',
+        'have',
+        'have-soft',
+        'learn',
+        'learn-soft',
+        'glass',
+        'glass-2',
+        'brd',
+        'brd-2',
+        'hi',
+        'shadow',
+        'shadow-lg',
+        'plot',
+        'grid',
+        'page',
+        'on-accent',
+        'chip-bg',
+        'chip-fg',
+        'edge',
+        'edge-b',
+        'sheen-a',
+        'sheen-b',
+        'metal-hi',
+      ])
+      function assertNoRegressionAllowingSpec017GlassAndSpec018Tokens(dark: Record<string, string>) {
         for (const [key, value] of Object.entries(expectedDarkRoot)) {
           expect(dark[key]).toBe(value)
         }
-        const newKeys = Object.keys(dark).filter((k) => !(k in expectedDarkRoot))
+        for (const [key, resolvedExpected] of Object.entries(expectedAliasResolvedColor)) {
+          expect(resolveToHex(dark[key], dark)).toBe(resolvedExpected)
+        }
+        for (const [key, expectedDeclaration] of Object.entries(expectedAliasDeclaration)) {
+          expect(dark[key]?.replace(/\s+/g, '')).toBe(expectedDeclaration)
+        }
+        const newKeys = Object.keys(dark).filter(
+          (k) =>
+            !(k in expectedDarkRoot) &&
+            !(k in expectedAliasResolvedColor) &&
+            !(k in expectedAliasDeclaration),
+        )
         for (const key of newKeys) {
-          expect(key.startsWith('glass-')).toBe(true)
+          const isSpec017Glass = key.startsWith('glass-')
+          const isSpec018Token = SPEC_018_NEW_TOKEN_NAMES.has(key)
+          expect(isSpec017Glass || isSpec018Token).toBe(true)
+          // Spec 017's ORIGINAL --glass-tint/--glass-alpha/--glass-blur pair is unchanged and
+          // still inert in dark mode (a separate pair from spec 018's own --glass/--glass-2,
+          // which is explicitly NOT inert per the human-approved supersession).
           if (key === 'glass-alpha') {
             expect(Number(dark[key])).toBe(0)
           }
@@ -342,8 +420,8 @@ describe('spec 015 — light-mode contrast fixes (all below are RED until Redwoo
 
       const media = customProps(block(lookingGlassCss, /:root:not\(\[data-theme='light'\]\) \{/))
       const explicitDark = customProps(block(lookingGlassCss, /^:root\[data-theme='dark'\] \{/m))
-      assertNoRegressionAllowingInertGlassTokens(media)
-      assertNoRegressionAllowingInertGlassTokens(explicitDark)
+      assertNoRegressionAllowingSpec017GlassAndSpec018Tokens(media)
+      assertNoRegressionAllowingSpec017GlassAndSpec018Tokens(explicitDark)
     })
 
     it('the whole matrix.css dark block (media + explicit) is byte-identical to the pre-spec-015 snapshot — a diff-style guard against any dark-token drift, not just text-muted', () => {
@@ -377,22 +455,27 @@ describe('spec 015 — light-mode contrast fixes (all below are RED until Redwoo
 
 describe('spec 008 — shared --have-tone / --learn-tone tokens', () => {
   describe('looking-glass.css is the single source of truth', () => {
-    it("light :root defines --have-tone/--learn-tone (+ -surface) reusing matrix.css's tuned light values", () => {
+    it("light :root defines --have-tone/--learn-tone reusing matrix.css's tuned light values (through spec 018's var(--have)/var(--learn) alias), and --have-tone-surface/--learn-tone-surface as spec 018's translucent var(--have-soft)/var(--learn-soft) surfaces", () => {
+      // --have-tone/--learn-tone resolve to the exact pre-spec-018 hex (only the declaration
+      // mechanism changed, per spec 018's backward-compat alias). --have-tone-surface/
+      // --learn-tone-surface are a genuine, intentional value-shape change under spec 018 — a
+      // translucent rgba() overlay replaces the old flat pre-mixed pastel hex — so those two are
+      // checked as an alias declaration, not a byte-identical resolved color.
       const props = customProps(block(lookingGlassCss, /^:root \{/m))
-      expect(props['have-tone']).toBe(LIGHT_HAVE)
-      expect(props['have-tone-surface']).toBe(LIGHT_HAVE_SURFACE)
-      expect(props['learn-tone']).toBe(LIGHT_LEARN)
-      expect(props['learn-tone-surface']).toBe(LIGHT_LEARN_SURFACE)
+      expect(resolveToHex(props['have-tone'], props)).toBe(LIGHT_HAVE)
+      expect(props['have-tone-surface'].replace(/\s+/g, '')).toBe('var(--have-soft)')
+      expect(resolveToHex(props['learn-tone'], props)).toBe(LIGHT_LEARN)
+      expect(props['learn-tone-surface'].replace(/\s+/g, '')).toBe('var(--learn-soft)')
     })
 
-    it('the prefers-color-scheme dark override defines the dark have/learn values', () => {
+    it('the prefers-color-scheme dark override defines the dark have/learn values (through the same spec 018 aliasing)', () => {
       const props = customProps(
         block(lookingGlassCss, /:root:not\(\[data-theme='light'\]\) \{/),
       )
-      expect(props['have-tone']).toBe(DARK_HAVE)
-      expect(props['have-tone-surface']).toBe(DARK_HAVE_SURFACE)
-      expect(props['learn-tone']).toBe(DARK_LEARN)
-      expect(props['learn-tone-surface']).toBe(DARK_LEARN_SURFACE)
+      expect(resolveToHex(props['have-tone'], props)).toBe(DARK_HAVE)
+      expect(props['have-tone-surface'].replace(/\s+/g, '')).toBe('var(--have-soft)')
+      expect(resolveToHex(props['learn-tone'], props)).toBe(DARK_LEARN)
+      expect(props['learn-tone-surface'].replace(/\s+/g, '')).toBe('var(--learn-soft)')
     })
 
     it('the unconditional [data-theme="dark"] override stays byte-identical to the prefers-color-scheme override — the exact desync spec 007 already caught once, now guarded for a different token pair', () => {
@@ -405,11 +488,24 @@ describe('spec 008 — shared --have-tone / --learn-tone tokens', () => {
       }
     })
 
-    it('never introduces a third naming scheme beyond have-tone/learn-tone (+ -surface)', () => {
+    it('never introduces a third naming scheme beyond have-tone/learn-tone (+ -surface) and spec 018\'s own canonical --have/--have-soft/--learn/--learn-soft', () => {
+      // Spec 018 legitimately adds the canonical --have/--have-soft/--learn/--learn-soft tokens
+      // that --have-tone/--learn-tone (+ -surface) now alias to — that's the one new naming
+      // scheme this guard now permits. Anything beyond those 8 keys would be an actual third,
+      // uncoordinated scheme and must still fail.
       const lightProps = Object.keys(customProps(block(lookingGlassCss, /^:root \{/m)))
       const haveLearnKeys = lightProps.filter((k) => /have|learn/.test(k))
       expect(new Set(haveLearnKeys)).toEqual(
-        new Set(['have-tone', 'have-tone-surface', 'learn-tone', 'learn-tone-surface']),
+        new Set([
+          'have-tone',
+          'have-tone-surface',
+          'learn-tone',
+          'learn-tone-surface',
+          'have',
+          'have-soft',
+          'learn',
+          'learn-soft',
+        ]),
       )
     })
 

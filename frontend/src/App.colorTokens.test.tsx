@@ -3,6 +3,14 @@
 // black-box, rendered-DOM assertions (never source-text grepping App.tsx) exercising the exact
 // same walking-skeleton flow App.test.tsx already characterizes: pick a role, paste a resume,
 // submit, then read the resulting inline `style` off the real elements.
+//
+// Spec 020 — superseded: the SPEC now requires these same inline-style literals to swap onto
+// `--have`/`--learn` directly (the glass-v2 tokens `--have-tone`/`--learn-tone` themselves alias
+// to, per spec 018's comment), since this restyle task is the natural migration point off the
+// spec-008 alias. The assertions below are updated in place (not left asserting the old alias
+// literal) so this file stays the single, current, non-contradictory contract for App.tsx's donut
+// inline styles — a stale "still expects --have-tone" copy would just be a second, conflicting
+// source of truth for the same three lines of App.tsx.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -72,38 +80,40 @@ function getLegend(): HTMLElement {
   return document.querySelector('.lg-donut-legend') as HTMLElement
 }
 
-describe('spec 008 — App.tsx consumes the shared have/learn tokens', () => {
-  it("points the donut gradient's have and learn segments at --have-tone/--learn-tone, not the old --color-accent/--gap-tone pair", async () => {
+describe('spec 020 — App.tsx consumes --have/--learn directly (no longer via the spec-008 --have-tone/--learn-tone alias)', () => {
+  it("points the donut gradient's have and learn segments at --have/--learn, not --have-tone/--learn-tone or --color-accent/--gap-tone", async () => {
     await analyzeWithOneHaveOneGap()
 
     const donut = document.querySelector('.lg-donut') as HTMLElement
     expect(donut).toBeTruthy()
-    expect(donut.style.background).toContain('var(--have-tone)')
-    expect(donut.style.background).toContain('var(--learn-tone)')
+    expect(donut.style.background).toContain('var(--have)')
+    expect(donut.style.background).toContain('var(--learn)')
+    expect(donut.style.background).not.toContain('var(--have-tone)')
+    expect(donut.style.background).not.toContain('var(--learn-tone)')
     expect(donut.style.background).not.toContain('var(--color-accent)')
     expect(donut.style.background).not.toContain('var(--gap-tone)')
     // The third, unscored segment has no have/learn semantic and is explicitly out of scope for
-    // this unification — it must keep the neutral token untouched.
+    // this migration — it must keep the neutral token untouched.
     expect(donut.style.background).toContain('var(--color-neutral-400)')
   })
 
-  it('points the "Already have" legend swatch at --have-tone', async () => {
+  it('points the "Already have" legend swatch at --have (not --have-tone)', async () => {
     await analyzeWithOneHaveOneGap()
 
     const row = within(getLegend()).getByText(/already have/i).closest('div') as HTMLElement
     const swatch = row.querySelector('.lg-swatch') as HTMLElement
-    expect(swatch.style.background).toBe('var(--have-tone)')
+    expect(swatch.style.background).toBe('var(--have)')
   })
 
-  it('points the "Worth learning" legend swatch at --learn-tone', async () => {
+  it('points the "Worth learning" legend swatch at --learn (not --learn-tone)', async () => {
     await analyzeWithOneHaveOneGap()
 
     const row = within(getLegend()).getByText(/worth learning/i).closest('div') as HTMLElement
     const swatch = row.querySelector('.lg-swatch') as HTMLElement
-    expect(swatch.style.background).toBe('var(--learn-tone)')
+    expect(swatch.style.background).toBe('var(--learn)')
   })
 
-  it('leaves the "Not scored yet" legend swatch on the neutral token (out of scope for this unification)', async () => {
+  it('leaves the "Not scored yet" legend swatch on the neutral token (out of scope for this migration)', async () => {
     await analyzeWithOneHaveOneGap()
 
     const row = within(getLegend()).getByText(/not scored yet/i).closest('div') as HTMLElement

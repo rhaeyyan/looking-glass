@@ -42,6 +42,21 @@ function scaleToPlot(v: number, min: number, max: number): number {
   return PAD + ((v - min) / (max - min)) * (100 - 2 * PAD)
 }
 
+/** Wraps a single accent color into a "brushed-metal" gradient-banded fill: a hard-edged
+ * specular highlight band (--metal-hi), the accent's own tone, and a shaded lower band — three
+ * flat tonal bands with hard percentage-stop breaks (repeated stop values), not a soft radial
+ * gloss. Reads correctly at any bubble size, including the 20px floor, since the bands are
+ * expressed in percentages of the bubble itself. Tier/color SELECTION is unchanged — this only
+ * reshapes the resulting CSS value's form. */
+function bandedMetalFill(accent: string): string {
+  return (
+    `linear-gradient(155deg, ` +
+    `var(--metal-hi) 0%, var(--metal-hi) 22%, ` +
+    `${accent} 22%, ${accent} 62%, ` +
+    `color-mix(in srgb, ${accent} 72%, #000) 62%, color-mix(in srgb, ${accent} 72%, #000) 100%)`
+  )
+}
+
 export function SkillMatrix({
   rows,
   haveSkillKeys,
@@ -144,18 +159,21 @@ export function SkillMatrix({
 
             // Colour: green = have, amber = worth learning, else a leverage-tier accent (darker =
             // higher). Reinforcement only — position/size/glyph/label already carry the meaning.
-            let background: string
-            if (have === true) background = 'var(--status-good)'
-            else if (have === false) background = 'var(--status-critical)'
+            // The accent is wrapped in a brushed-metal, hard-banded gradient (bandedMetalFill) —
+            // same tier-selection logic as before, only the resulting CSS shape changes.
+            let accent: string
+            if (have === true) accent = 'var(--status-good)'
+            else if (have === false) accent = 'var(--status-critical)'
             else {
               const t = maxArb > 0 ? (row.arbitrage_score ?? 0) / maxArb : 0
-              background =
+              accent =
                 t > 0.66
                   ? 'var(--series-1)'
                   : t > 0.33
                     ? 'color-mix(in srgb, var(--series-1) 68%, var(--surface-1))'
                     : 'color-mix(in srgb, var(--series-1) 42%, var(--surface-1))'
             }
+            const background = bandedMetalFill(accent)
 
             const revealed = tapRevealed.has(key)
 

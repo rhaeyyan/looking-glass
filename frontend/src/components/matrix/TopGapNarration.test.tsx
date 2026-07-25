@@ -142,3 +142,54 @@ describe('<TopGapNarration /> isolated component contract', () => {
     expect(await axe(container)).toHaveNoViolations()
   })
 })
+
+// Spec 020 — the "next moves" list is restyled into a CSS-grid mini-grid (`.topmoves-list`/
+// `.topmove*` gain grid layout + card-style chrome in matrix.css), but that is a *presentation-only*
+// change: this component's own JSX (the `<ol>`/`<li>`/rank span/name span/note/stat-chip structure,
+// and the count/order/content it renders from `moves`) must not move as part of that restyle. These
+// assertions pin the DOM contract so a future grid-layout edit in matrix.css can't quietly start
+// reordering, dropping, or duplicating rendered moves — vitest's default `css: false` means these
+// tests never see the actual applied grid/card CSS (that's covered by the CSS-text assertions in
+// src/styles/scorecard-glass-restyle.test.ts instead); this file only pins the React-rendered
+// count/order/content contract.
+describe('<TopGapNarration /> spec 020 — grid restyle must not change rendered count/order/content', () => {
+  it('keeps the exact same DOM class contract the CSS restyle hooks into (.topmoves-list ol, .topmove li, .topmove-rank, .topmove-name, .topmove-stat)', async () => {
+    const TopGapNarration = await loadTopGapNarration()
+    const { container } = render(<TopGapNarration moves={THREE_MOVES} />)
+
+    const list = container.querySelector('ol.topmoves-list')
+    expect(list).toBeTruthy()
+    expect(list?.tagName).toBe('OL')
+
+    const items = container.querySelectorAll('li.topmove')
+    expect(items).toHaveLength(THREE_MOVES.length)
+    for (const item of items) {
+      expect(item.querySelector('.topmove-rank')).toBeTruthy()
+      expect(item.querySelector('.topmove-name')).toBeTruthy()
+    }
+  })
+
+  it('renders moves in the exact rank order supplied, with no reordering/dedup/insertion from the restyle', async () => {
+    const TopGapNarration = await loadTopGapNarration()
+    const { container } = render(<TopGapNarration moves={THREE_MOVES} />)
+
+    const items = Array.from(container.querySelectorAll('li.topmove'))
+    expect(items.map((item) => item.getAttribute('data-rank'))).toEqual(
+      THREE_MOVES.map((move) => String(move.rank)),
+    )
+    expect(items.map((item) => item.querySelector('.topmove-name')?.textContent)).toEqual(
+      THREE_MOVES.map((move) => move.row.skill_name_raw),
+    )
+  })
+
+  it('renders every stat chip verbatim and in order, unchanged by the restyle', async () => {
+    const TopGapNarration = await loadTopGapNarration()
+    const { container } = render(<TopGapNarration moves={THREE_MOVES} />)
+
+    const items = Array.from(container.querySelectorAll('li.topmove'))
+    items.forEach((item, i) => {
+      const chipTexts = Array.from(item.querySelectorAll('.topmove-stat')).map((c) => c.textContent)
+      expect(chipTexts).toEqual(THREE_MOVES[i].stats)
+    })
+  })
+})

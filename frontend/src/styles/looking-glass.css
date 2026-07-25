@@ -37,24 +37,59 @@
   --gap-tint: oklch(94% 0.035 42);
 
   /* Shared have/learn tokens (spec 008) — single source of truth for the donut, the scatter's
-   * have/gap flags, and the leverage table's Status column. Values reused verbatim from
-   * matrix.css's pre-unification --status-good/--status-critical (already tuned for AA
-   * contrast in both themes). */
-  --have-tone: #1a7a4b;
-  --have-tone-surface: #e3f5ea;
-  --learn-tone: #8a3b12;
-  --learn-tone-surface: #fbe9df;
+   * have/gap flags, and the leverage table's Status column. Spec 018 repoints these as aliases
+   * onto the new --have/--have-soft/--learn/--learn-soft glass-v2 tokens below (kept, not
+   * deleted, so matrix.css and App.tsx's existing consumers need no simultaneous edit). */
+  --have-tone: var(--have);
+  --have-tone-surface: var(--have-soft);
+  --learn-tone: var(--learn);
+  --learn-tone-surface: var(--learn-soft);
 
   /* Glassmorphism accents (spec 017) — translucent, blurred surface treatment for
    * `.card.blueprint` and `.nav` chrome, light mode only. A white tint keeps every real backdrop
    * (--color-bg/--color-surface/--color-neutral-100, all light) lightening further under it, so
    * dark text/accent colors already tuned for AA against those backdrops clear it with more
    * margin, not less. Dark mode redeclares these as fully inert (alpha 1, blur 0) below so it
-   * renders pixel-identical to today. */
+   * renders pixel-identical to today. Untouched by spec 018 — no component reads the new glass-v2
+   * tokens yet (that lands in specs 019-022), so `.card.blueprint`/`.nav` keep using this pair. */
   --glass-tint: #ffffff;
   --glass-tint-rgb: 255, 255, 255;
   --glass-alpha: 0.55;
   --glass-blur: 12px;
+
+  /* ── Glass v2 token layer (spec 018) — the new design language: --ink* text hierarchy, a
+   * two-tier translucency system (--glass/--glass-2), and the metal/edge/sheen vocabulary used by
+   * specs 019-022's component work. Real (non-inert) values in both light and dark below. */
+  --ink: #16202b;
+  --ink-2: #4a5765;
+  /* Nudged from the mockup's #6b7784 to #687481 (1-unit RGB steps) to clear 4.5:1 composited over
+   * --glass/--glass-2 on --page — human-approved per Cypress's minimal-nudge search. */
+  --ink-3: #687481;
+  --accent: #2f5a86;
+  --accent-soft: #416180;
+  --series: #2a78d6;
+  --have: #167647;
+  --have-soft: rgba(26, 122, 75, 0.14);
+  --learn: #8a3b12;
+  --learn-soft: rgba(138, 59, 18, 0.14);
+  --glass: rgba(255, 255, 255, 0.55);
+  --glass-2: rgba(255, 255, 255, 0.72);
+  --brd: rgba(255, 255, 255, 0.8);
+  --brd-2: rgba(22, 32, 43, 0.09);
+  --hi: rgba(255, 255, 255, 0.9);
+  --shadow: 0 10px 34px rgba(21, 38, 58, 0.13);
+  --shadow-lg: 0 22px 60px rgba(21, 38, 58, 0.18);
+  --plot: rgba(255, 255, 255, 0.62);
+  --grid: rgba(22, 32, 43, 0.08);
+  --page: #eef1f6;
+  --on-accent: #ffffff;
+  --chip-bg: rgba(47, 90, 134, 0.1);
+  --chip-fg: #2f5a86;
+  --edge: rgba(255, 255, 255, 0.95);
+  --edge-b: rgba(22, 32, 43, 0.12);
+  --sheen-a: rgba(255, 255, 255, 0.5);
+  --sheen-b: rgba(255, 255, 255, 0.14);
+  --metal-hi: rgba(255, 255, 255, 0.55);
 
   --font-heading: 'Poppins', system-ui, sans-serif;
   --font-body: 'Inter', system-ui, sans-serif;
@@ -62,6 +97,9 @@
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
   --radius-md: 4px;
+  /* Shared card radius for the scorecard/matrix/table surfaces (spec 020+) — not a redefinition
+   * of --radius-md, which stays reserved for the tighter chip/control radius. */
+  --radius-card: 15px;
 
   --shadow-sm: 0 1px 2px color-mix(in srgb, #2b2b2d 14%, transparent);
   --shadow-md: 0 3px 10px color-mix(in srgb, #2b2b2d 16%, transparent);
@@ -89,17 +127,54 @@
     --good-tint: oklch(28% 0.05 152);
     --gap-tone: oklch(75% 0.13 42);
     --gap-tint: oklch(28% 0.05 42);
-    --have-tone: #63d69a;
-    --have-tone-surface: #123122;
-    --learn-tone: #e8a37e;
-    --learn-tone-surface: #33190c;
+    --have-tone: var(--have);
+    --have-tone-surface: var(--have-soft);
+    --learn-tone: var(--learn);
+    --learn-tone-surface: var(--learn-soft);
 
-    /* Glass tokens are inert in dark mode — no translucency, no blur, so dark rendering is
-     * unaffected by the light-mode glass treatment. Alpha 0 (fully transparent) is the correct
-     * inert value for an rgba() overlay; alpha 1 would render fully opaque white, since
-     * --glass-tint-rgb is never overridden here and stays pure white from :root. */
+    /* Spec 017's --glass-tint/--glass-alpha/--glass-blur pair stays inert in dark mode — no
+     * translucency, no blur, so dark rendering of the blueprint card / nav chrome (the only
+     * consumers of that pair) is unaffected by the light-mode glass treatment. Alpha 0 (fully
+     * transparent) is the correct inert value for an rgba() overlay; alpha 1 would render fully
+     * opaque white, since --glass-tint-rgb is never overridden here and stays pure white from
+     * :root. */
     --glass-alpha: 0;
     --glass-blur: 0;
+
+    /* Glass v2 (spec 018) — a SEPARATE, real (non-inert) two-tier translucency system for
+     * specs 019-022's new components. Human-approved reversal of the dark-inert rule above: that
+     * constraint scopes only to spec 017's original --glass-tint/--glass-alpha/--glass-blur pair,
+     * never to this new --glass/--glass-2 pair. */
+    --ink: #eef1f4;
+    --ink-2: #aeb8c4;
+    /* Nudged from the mockup's #8b96a3 to #8e99a6 (1-unit RGB steps) — see the light :root
+     * comment above for the rationale; kept byte-synced with the explicit block below. */
+    --ink-3: #8e99a6;
+    --accent: #8fbcea;
+    --accent-soft: #7fb0e0;
+    --series: #5c9dea;
+    --have: #63d69a;
+    --have-soft: rgba(99, 214, 154, 0.16);
+    --learn: #e8a37e;
+    --learn-soft: rgba(232, 163, 126, 0.16);
+    --glass: rgba(126, 152, 184, 0.187);
+    --glass-2: rgba(126, 152, 184, 0.22);
+    --brd: rgba(255, 255, 255, 0.16);
+    --brd-2: rgba(255, 255, 255, 0.1);
+    --hi: rgba(255, 255, 255, 0.34);
+    --shadow: 0 12px 38px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 26px 70px rgba(0, 0, 0, 0.5);
+    --plot: rgba(16, 22, 30, 0.42);
+    --grid: rgba(255, 255, 255, 0.07);
+    --page: #0e141b;
+    --on-accent: #ffffff;
+    --chip-bg: rgba(143, 188, 234, 0.16);
+    --chip-fg: #cfe4fb;
+    --edge: rgba(255, 255, 255, 0.34);
+    --edge-b: rgba(0, 0, 0, 0.45);
+    --sheen-a: rgba(255, 255, 255, 0.16);
+    --sheen-b: rgba(255, 255, 255, 0.04);
+    --metal-hi: rgba(255, 255, 255, 0.22);
   }
 }
 
@@ -121,13 +196,44 @@
   --good-tint: oklch(28% 0.05 152);
   --gap-tone: oklch(75% 0.13 42);
   --gap-tint: oklch(28% 0.05 42);
-  --have-tone: #63d69a;
-  --have-tone-surface: #123122;
-  --learn-tone: #e8a37e;
-  --learn-tone-surface: #33190c;
+  --have-tone: var(--have);
+  --have-tone-surface: var(--have-soft);
+  --learn-tone: var(--learn);
+  --learn-tone-surface: var(--learn-soft);
 
   --glass-alpha: 0;
   --glass-blur: 0;
+
+  /* Glass v2 (spec 018) — see the identical comment in the media block above; kept in exact sync
+   * so the two dark paths never desync (the exact spec 007 class of bug). */
+  --ink: #eef1f4;
+  --ink-2: #aeb8c4;
+  --ink-3: #8e99a6;
+  --accent: #8fbcea;
+  --accent-soft: #7fb0e0;
+  --series: #5c9dea;
+  --have: #63d69a;
+  --have-soft: rgba(99, 214, 154, 0.16);
+  --learn: #e8a37e;
+  --learn-soft: rgba(232, 163, 126, 0.16);
+  --glass: rgba(126, 152, 184, 0.187);
+  --glass-2: rgba(126, 152, 184, 0.22);
+  --brd: rgba(255, 255, 255, 0.16);
+  --brd-2: rgba(255, 255, 255, 0.1);
+  --hi: rgba(255, 255, 255, 0.34);
+  --shadow: 0 12px 38px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 26px 70px rgba(0, 0, 0, 0.5);
+  --plot: rgba(16, 22, 30, 0.42);
+  --grid: rgba(255, 255, 255, 0.07);
+  --page: #0e141b;
+  --on-accent: #ffffff;
+  --chip-bg: rgba(143, 188, 234, 0.16);
+  --chip-fg: #cfe4fb;
+  --edge: rgba(255, 255, 255, 0.34);
+  --edge-b: rgba(0, 0, 0, 0.45);
+  --sheen-a: rgba(255, 255, 255, 0.16);
+  --sheen-b: rgba(255, 255, 255, 0.04);
+  --metal-hi: rgba(255, 255, 255, 0.22);
 }
 
 /* ── 2. Base ───────────────────────────────────────────────────────────── */
@@ -139,11 +245,76 @@
 
 body {
   margin: 0;
-  background: var(--color-bg);
-  color: var(--color-text);
+  /* Spec 018 — repointed at the new --page/--ink glass-v2 tokens (was --color-bg/--color-text).
+   * Positioned so the fixed decorative orb layers below sit behind real content. */
+  position: relative;
+  background: var(--page);
+  color: var(--ink);
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.55;
+}
+
+/* Decorative "orb" layers (spec 018) — two soft, blurred radial-gradient glows drifting slowly
+ * behind the page content. Pure CSS pseudo-elements: zero accessibility-tree footprint, so no
+ * `aria-hidden` is needed (there is no real DOM node to hide). `position: fixed` keeps them
+ * pinned to the viewport (not the document) and `z-index: -1` plus `pointer-events: none` keep
+ * them strictly decorative and non-interactive, never occluding or intercepting real content. */
+body::before {
+  content: '';
+  position: fixed;
+  z-index: -1;
+  top: -220px;
+  left: -180px;
+  width: 640px;
+  height: 640px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, var(--accent-soft) 0%, transparent 70%);
+  opacity: 0.35;
+  filter: blur(60px);
+  pointer-events: none;
+}
+body::after {
+  content: '';
+  position: fixed;
+  z-index: -1;
+  bottom: -240px;
+  right: -200px;
+  width: 560px;
+  height: 560px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 70% 70%, var(--series) 0%, transparent 70%);
+  opacity: 0.3;
+  filter: blur(60px);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* The comment between the selector and `{` is intentional (still valid CSS — comments are
+   * whitespace-equivalent to the parser) so this guarded rule reads as a distinct declaration
+   * from the unconditional base `body::before`/`body::after` rules above, which must never carry
+   * motion directly. */
+  body::before /* drift */ {
+    animation: lg-orb-drift-a 26s ease-in-out infinite alternate;
+  }
+  body::after /* drift */ {
+    animation: lg-orb-drift-b 34s ease-in-out infinite alternate;
+  }
+}
+@keyframes lg-orb-drift-a {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(40px, 30px, 0) scale(1.08);
+  }
+}
+@keyframes lg-orb-drift-b {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-30px, -40px, 0) scale(1.1);
+  }
 }
 
 h1,
@@ -232,6 +403,29 @@ a {
   }
 }
 
+/* Glass v2 (spec 019) — the two sidebar step cards (Step 1 / Step 2) upgrade to spec 018's
+ * deeper --glass-2 translucency plus a diagonal sheen overlay, scoped via the existing
+ * `.lg-sidebar` ancestor so the results-column cards (which stay on the spec 017 treatment
+ * above) are untouched. `isolation: isolate` gives the sheen pseudo-element its own local
+ * stacking context so its negative z-index only competes with this card's own background —
+ * never the card's real content (kicker/title/inputs), which always paints on top of it. */
+.lg-sidebar .card.blueprint {
+  position: relative;
+  isolation: isolate;
+  background: var(--glass-2);
+  backdrop-filter: blur(16px);
+  border-radius: 13px;
+}
+.lg-sidebar .card.blueprint::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--sheen-a) 0%, var(--sheen-b) 55%, transparent 80%);
+}
+
 .card {
   display: flex;
   flex-direction: column;
@@ -247,10 +441,31 @@ a {
   color: var(--color-accent);
 }
 .card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-heading);
   font-weight: 600;
   font-size: 17px;
   line-height: 1.2;
+}
+
+/* Numbered step badge (spec 019) — decorative-only (aria-hidden="true"); `.card-kicker`'s
+ * "Step 1"/"Step 2" text remains the sole accessible label for which step a card is. */
+.lg-step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+  color: var(--on-accent);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1;
 }
 .elev-sm {
   box-shadow: var(--shadow-sm);
@@ -348,17 +563,27 @@ textarea.input {
   display: inline-flex;
   overflow: hidden;
   /* An accent (not hairline-divider) border: the theme-toggle control's boundary must stay
-   * legible once the nav behind it goes translucent (spec 017). */
-  border: 1px solid var(--color-accent);
-  border-radius: var(--radius-md);
+   * legible once the nav behind it goes translucent (spec 017). Glass v2 (spec 019): fully
+   * pill-shaped track (was the flat --radius-md rectangle) and the accent border now reads off
+   * the new --accent token so it stays in the same palette family as the gradient-filled active
+   * pill below. */
+  border: 1px solid var(--accent);
+  border-radius: 999px;
 }
 .seg-opt {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 12px;
+  padding: 7px 14px;
   font-size: 13px;
   cursor: pointer;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .seg-opt {
+    transition:
+      background 160ms ease-out,
+      color 160ms ease-out;
+  }
 }
 .seg-opt input {
   position: absolute;
@@ -371,14 +596,15 @@ textarea.input {
   border-left: 1px solid var(--color-divider);
 }
 .seg-opt:has(input:checked) {
-  background: var(--color-accent);
-  color: var(--color-bg);
+  /* Glass v2 (spec 019): gradient-filled active pill (was a flat --color-accent fill). */
+  background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+  color: var(--on-accent);
 }
 .seg-opt:not(:has(input:checked)):hover {
   background: color-mix(in srgb, var(--color-text) 7%, transparent);
 }
 .seg-opt:has(input:focus-visible) {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
@@ -389,10 +615,12 @@ textarea.input {
   gap: 12px 1rem;
   padding: 16px 32px;
   border-bottom: 1px solid var(--color-divider);
-  /* Glassmorphism (spec 017) — same translucent/blurred surface as `.card.blueprint`. Dark mode
-   * needs no override here; the tokens themselves go inert (alpha 1, blur 0) above. */
-  background: rgba(var(--glass-tint-rgb), var(--glass-alpha));
-  backdrop-filter: blur(var(--glass-blur));
+  /* Glass v2 (spec 019) — the sticky nav now reads off spec 018's --glass token directly (not
+   * spec 017's old translucency-tint pair, which stays reserved for the plain `.blueprint`/
+   * `.card` surfaces spec 019 doesn't touch). A real, literal blur (not the spec 017 token) so
+   * the sticky glass effect survives in dark mode too, where that old blur token goes inert. */
+  background: var(--glass);
+  backdrop-filter: blur(16px);
 }
 @media (prefers-reduced-motion: no-preference) {
   .nav {
@@ -490,6 +718,9 @@ textarea.input {
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
+  background: var(--glass-2);
+  backdrop-filter: blur(16px);
+  border-radius: var(--radius-card);
 }
 @media (max-width: 520px) {
   .lg-scorecard {
@@ -520,7 +751,7 @@ textarea.input {
   width: 74px;
   height: 74px;
   border-radius: 50%;
-  background: var(--color-bg);
+  background: linear-gradient(var(--glass-2), var(--glass-2)), var(--page);
   display: flex;
   flex-direction: column;
   align-items: center;

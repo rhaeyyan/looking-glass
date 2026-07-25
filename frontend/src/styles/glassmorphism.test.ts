@@ -176,12 +176,10 @@ describe('spec 017 — .card.blueprint and .nav get the glass treatment', () => 
     )
   })
 
-  it('.nav declares backdrop-filter: blur(var(--glass-blur)) and the same translucent background construction', () => {
+  it('.nav declares backdrop-filter: blur(16px) and a background built from spec 018/019\'s --glass token (superseding spec 017\'s original --glass-tint-rgb/--glass-alpha construction for this selector, per spec 019)', () => {
     const body = block(lookingGlassCss, /^\.nav\s*\{/m)
-    expect(body).toMatch(/backdrop-filter\s*:\s*blur\(\s*var\(--glass-blur\)\s*\)/)
-    expect(body).toMatch(
-      /background\s*:\s*rgba\(\s*var\(--glass-tint-rgb\)\s*,\s*var\(--glass-alpha\)\s*\)/,
-    )
+    expect(body).toMatch(/backdrop-filter\s*:\s*blur\(\s*16px\s*\)/)
+    expect(body).toMatch(/background\s*:\s*var\(--glass\)\s*;/)
   })
 
   it('never applies the glass background/blur to bare .card (without .blueprint) or .blueprint alone — scoped to the combined selector only', () => {
@@ -294,11 +292,16 @@ describe('spec 017 — composited-surface contrast (the core invariant)', () => 
   })
 })
 
-describe('spec 017 — dark mode is pixel/behavior-identical to today (constraint)', () => {
+describe('spec 017 — dark mode is pixel/behavior-identical to today for THIS spec\'s own tokens (constraint)', () => {
   // Every key/value pair that already existed in the dark blocks before spec 017, captured from
   // the current (pre-implementation) stylesheet content. This is the same "diff-style guard"
   // pattern spec 015 established in colorTokens.test.ts, scoped to this spec's concern: dark mode
   // must not silently pick up new/changed values as a side effect of the light-mode glass work.
+  //
+  // have-tone/have-tone-surface/learn-tone/learn-tone-surface are intentionally NOT in this
+  // literal map any more: spec 018 turned them into var(--have)/var(--have-soft)/var(--learn)/
+  // var(--learn-soft) aliases. Their raw declaration text legitimately changed under spec 018; the
+  // resolved color they still must match is checked separately below.
   const PRE_SPEC_017_DARK_ROOT = {
     'color-bg': '#16181b',
     'color-surface': '#1f2226',
@@ -317,22 +320,85 @@ describe('spec 017 — dark mode is pixel/behavior-identical to today (constrain
     'good-tint': 'oklch(28% 0.05 152)',
     'gap-tone': 'oklch(75% 0.13 42)',
     'gap-tint': 'oklch(28% 0.05 42)',
-    'have-tone': '#63d69a',
-    'have-tone-surface': '#123122',
-    'learn-tone': '#e8a37e',
-    'learn-tone-surface': '#33190c',
   }
+  // have-tone/learn-tone resolve to a hex (spec 018 kept the plain --have/--learn tokens as literal
+  // hex, unchanged from before). have-tone-surface/learn-tone-surface are a genuine, intentional
+  // value-shape change under spec 018 — var(--have-soft)/var(--learn-soft) are translucent rgba()
+  // overlays, not hex — so those two are checked as an alias declaration instead.
+  const PRE_SPEC_017_ALIAS_RESOLVED_COLOR = {
+    'have-tone': '#63d69a',
+    'learn-tone': '#e8a37e',
+  }
+  const PRE_SPEC_017_ALIAS_DECLARATION = {
+    'have-tone-surface': 'var(--have-soft)',
+    'learn-tone-surface': 'var(--learn-soft)',
+  }
+  // Spec 018 is a full token-layer addition (human-approved to supersede spec 017's dark-mode-
+  // inert constraint for its OWN --glass/--glass-2 pair), not a narrow glass-only patch — so any
+  // new key beyond the pre-existing set above is tolerated if it's either spec 017's original
+  // --glass-* pair (still required inert below — unrelated to spec 018's --glass/--glass-2) or one
+  // of spec 018's own explicitly-named tokens.
+  const SPEC_018_NEW_TOKEN_NAMES = new Set([
+    'ink',
+    'ink-2',
+    'ink-3',
+    'accent',
+    'accent-soft',
+    'series',
+    'have',
+    'have-soft',
+    'learn',
+    'learn-soft',
+    'glass',
+    'glass-2',
+    'brd',
+    'brd-2',
+    'hi',
+    'shadow',
+    'shadow-lg',
+    'plot',
+    'grid',
+    'page',
+    'on-accent',
+    'chip-bg',
+    'chip-fg',
+    'edge',
+    'edge-b',
+    'sheen-a',
+    'sheen-b',
+    'metal-hi',
+  ])
 
   function assertNoRegressionAndGlassIsInertIfPresent(dark: Record<string, string>) {
     // Every pre-existing key must be byte-identical to before.
     for (const [key, value] of Object.entries(PRE_SPEC_017_DARK_ROOT)) {
       expect(dark[key]).toBe(value)
     }
-    // Any NEW key introduced by this spec must be a --glass-* token, and if present, must encode
-    // "no glass" (fully transparent, no blur) so dark mode renders identically to today.
-    const newKeys = Object.keys(dark).filter((k) => !(k in PRE_SPEC_017_DARK_ROOT))
+    // have/learn aliases must still resolve to the pre-spec-017/-018 color, even though the raw
+    // declaration is now an indirection through spec 018's canonical tokens.
+    for (const [key, resolvedExpected] of Object.entries(PRE_SPEC_017_ALIAS_RESOLVED_COLOR)) {
+      expect(resolveToHex(dark[key], dark)).toBe(resolvedExpected)
+    }
+    // have-tone-surface/learn-tone-surface are checked as an alias declaration (see comment on
+    // PRE_SPEC_017_ALIAS_DECLARATION above), not resolved to a byte-identical hex.
+    for (const [key, expectedDeclaration] of Object.entries(PRE_SPEC_017_ALIAS_DECLARATION)) {
+      expect(dark[key]?.replace(/\s+/g, '')).toBe(expectedDeclaration)
+    }
+    // Any NEW key must be either spec 017's original --glass-* pair (still inert below) or one of
+    // spec 018's own named tokens.
+    const newKeys = Object.keys(dark).filter(
+      (k) =>
+        !(k in PRE_SPEC_017_DARK_ROOT) &&
+        !(k in PRE_SPEC_017_ALIAS_RESOLVED_COLOR) &&
+        !(k in PRE_SPEC_017_ALIAS_DECLARATION),
+    )
     for (const key of newKeys) {
-      expect(key.startsWith('glass-')).toBe(true)
+      const isSpec017Glass = key.startsWith('glass-')
+      const isSpec018Token = SPEC_018_NEW_TOKEN_NAMES.has(key)
+      expect(isSpec017Glass || isSpec018Token).toBe(true)
+      // Spec 017's ORIGINAL --glass-tint/--glass-alpha/--glass-blur pair must still encode "no
+      // glass" (fully transparent, no blur) in dark mode — unaffected by, and distinct from,
+      // spec 018's own (intentionally non-inert) --glass/--glass-2 pair.
       if (key === 'glass-alpha') {
         expect(Number(dark[key])).toBe(0)
       }
@@ -342,12 +408,12 @@ describe('spec 017 — dark mode is pixel/behavior-identical to today (constrain
     }
   }
 
-  it('the prefers-color-scheme dark override has no unexpected new/changed keys (or only inert glass tokens)', () => {
+  it('the prefers-color-scheme dark override has no unexpected new/changed keys (or only inert spec-017-glass / spec-018 tokens)', () => {
     const media = customProps(block(lookingGlassCss, /:root:not\(\[data-theme='light'\]\) \{/))
     assertNoRegressionAndGlassIsInertIfPresent(media)
   })
 
-  it('the explicit [data-theme="dark"] override has no unexpected new/changed keys (or only inert glass tokens)', () => {
+  it('the explicit [data-theme="dark"] override has no unexpected new/changed keys (or only inert spec-017-glass / spec-018 tokens)', () => {
     const explicitDark = customProps(block(lookingGlassCss, /^:root\[data-theme='dark'\] \{/m))
     assertNoRegressionAndGlassIsInertIfPresent(explicitDark)
   })

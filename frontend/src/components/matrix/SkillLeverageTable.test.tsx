@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import { axe } from 'jest-axe'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
 import {
   roleSkillProfileFixture,
   LADDER_ORDER_DESC,
@@ -10,6 +13,7 @@ import {
   GAP_SKILLS,
 } from '../../test/fixtures/roleSkillProfile.fixture'
 import { SkillLeverageTable } from './SkillLeverageTable'
+import { contrastRatio, hexToRgb } from '../../styles/colorTokens.test'
 
 // The merged "every skill, ranked by leverage" table replaces both the old standalone data table
 // and the arbitrage ladder. Contract:
@@ -223,5 +227,466 @@ describe('<SkillLeverageTable /> salary premium phrase + footnote (spec 014)', (
       <SkillLeverageTable rows={roleSkillProfileFixture} roleName="Backend" />,
     )
     expect(await axe(container)).toHaveNoViolations()
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Spec 022 — Status column becomes a pill badge, the leverage progress-bar column is polished
+// onto the token system, and the table card picks up the shared 15px --radius-card. This is a
+// CSS-only restyle: SkillLeverageTable.tsx's markup, sort order, and widthPct/formatNum
+// computations are UNCHANGED, so most of this section is behavioral (render-based) coverage that
+// the already-correct logic keeps working, plus a small set of raw-stylesheet-text assertions for
+// matrix.css (vitest.config's `test.css` is unset/false, so component-render tests never see
+// applied CSS rules — this mirrors the brace-depth parsing convention already established by
+// glass-v2-tokens.test.ts / scorecard-glass-restyle.test.ts / nav-sidebar-glass-restyle.test.ts).
+//
+// Token choice for the pill: matrix.css's OWN `--status-good`/`--status-good-surface`/
+// `--status-critical`/`--status-critical-surface` aliases (which already resolve, through
+// `--have-tone`/`--learn-tone`, to the shared `--have`/`--have-soft`/`--learn`/`--learn-soft`
+// glass-v2 tokens) — not a fresh direct `--have`/`--learn` reference. Three independent pieces of
+// evidence point at this being the correct target, not a guess:
+//   1. `resolveToHex`'s own doc comment (colorTokens.test.ts) calls out matrix.css's
+//      `--status-good: var(--have-tone)` chain BY NAME as its motivating multi-hop case.
+//   2. matrix.css already has an identical, shipped precedent one section above `.lev-status`:
+//      `.matrix-point[data-have='true'] .matrix-point-flag` colors itself with
+//      `--status-good`/`--status-good-surface`, never `--have`/`--have-soft` directly.
+//   3. glass-v2-tokens.test.ts's spec-018 "backward-compat aliases" suite has a still-green,
+//      unmodified assertion that matrix.css must NEVER contain a literal `var(--have)` or
+//      `var(--learn))` reference. Reusing `--status-good`/`--status-critical` (matrix.css's own,
+//      differently-namespaced tokens) satisfies spec 022's "reuse --have/--have-soft and
+//      --learn/--learn-soft ... no new unchecked color literal" constraint without regressing
+//      that invariant or requiring any glass-v2-tokens.test.ts exception-list change.
+describe('<SkillLeverageTable /> spec 022 — CSS-only pill/bar/radius restyle (matrix.css)', () => {
+  const MATRIX_DIR = path.dirname(fileURLToPath(import.meta.url))
+  const MATRIX_CSS_PATH = path.join(MATRIX_DIR, 'matrix.css')
+  const matrixCss = readFileSync(MATRIX_CSS_PATH, 'utf-8')
+  const LOOKING_GLASS_CSS_PATH = path.join(MATRIX_DIR, '..', '..', 'styles', 'looking-glass.css')
+  const lookingGlassCss = readFileSync(LOOKING_GLASS_CSS_PATH, 'utf-8')
+
+  const AA_NORMAL_TEXT = 4.5
+
+  /** Finds the `{ ... }` block for a selector pattern via brace-depth counting (duplicated from
+   * the sibling glass/token test files' own local copies of this generic parsing utility). */
+  function block(css: string, selectorPattern: RegExp): string {
+    const match = selectorPattern.exec(css)
+    if (!match) {
+      throw new Error(`Selector pattern not found in stylesheet: ${selectorPattern}`)
+    }
+    const braceInMatch = match[0].lastIndexOf('{')
+    const openBrace =
+      braceInMatch !== -1
+        ? match.index + braceInMatch
+        : css.indexOf('{', match.index + match[0].length)
+    if (openBrace === -1 || css[openBrace] !== '{') {
+      throw new Error(`Could not locate an opening brace for selector pattern: ${selectorPattern}`)
+    }
+    let depth = 1
+    let i = openBrace + 1
+    while (depth > 0 && i < css.length) {
+      if (css[i] === '{') depth++
+      else if (css[i] === '}') depth--
+      i++
+    }
+    return css.slice(openBrace + 1, i - 1)
+  }
+
+  /** Parses top-level `--name: value;` custom-property declarations out of a rule body. */
+  function customProps(body: string): Record<string, string> {
+    const out: Record<string, string> = {}
+    const re = /--([\w-]+)\s*:\s*([^;]+);/g
+    let m: RegExpExecArray | null
+    while ((m = re.exec(body))) {
+      out[m[1]] = m[2].trim()
+    }
+    return out
+  }
+
+  /** Follows a `var(--token)` reference chain (up to a small hop limit) in the supplied token map
+   * until it lands on a non-`var()` literal — matrix.css's multi-hop alias pattern (e.g.
+   * `--status-good-surface: var(--have-tone-surface)` -> `var(--have-soft)` -> an rgba() literal)
+   * needs this before `parseRgba` can parse the final literal. */
+  function resolveVarChain(raw: string, tokens: Record<string, string>, maxHops = 5): string {
+    let value = raw.trim()
+    for (let hop = 0; hop < maxHops; hop++) {
+      const varMatch = /^var\(\s*--([\w-]+)\s*\)$/.exec(value)
+      if (!varMatch) return value
+      const next = tokens[varMatch[1]]
+      if (next === undefined) {
+        throw new Error(`resolveVarChain: "${raw}" references undefined token --${varMatch[1]}`)
+      }
+      value = next.trim()
+    }
+    return value
+  }
+
+  /** Parses an `rgba(r, g, b, a)` (or `rgb(r, g, b)`) declaration into an `[r, g, b, a]` tuple. */
+  function parseRgba(raw: string | undefined, tokenName: string): [number, number, number, number] {
+    if (raw === undefined) {
+      throw new Error(`Expected --${tokenName} to be a defined rgba()/rgb() literal — not found.`)
+    }
+    const m = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/.exec(
+      raw.trim(),
+    )
+    if (!m) {
+      throw new Error(`--${tokenName}: expected an rgba()/rgb() literal, got: ${raw}`)
+    }
+    return [Number(m[1]), Number(m[2]), Number(m[3]), m[4] === undefined ? 1 : Number(m[4])]
+  }
+
+  /** Alpha-composites a translucent rgba tuple over an opaque hex backdrop. */
+  function compositeOverBackdrop(rgba: [number, number, number, number], backdropHex: string): string {
+    const [r, g, b, a] = rgba
+    const backdrop = hexToRgb(backdropHex)
+    const channel = (tint: number, i: number) => Math.round(tint * a + backdrop[i] * (1 - a))
+    const toHex = (n: number) => n.toString(16).padStart(2, '0')
+    return `#${toHex(channel(r, 0))}${toHex(channel(g, 1))}${toHex(channel(b, 2))}`
+  }
+
+  /** Strips every top-level `@media (...) { ... }` block out of a flat, non-nested stylesheet
+   * (brace-depth aware), leaving only the top-level rules — matrix.css's `.lev-*` rules all live
+   * outside any @media block, so this lets a simple non-recursive rule splitter find them without
+   * getting confused by the (separately, deliberately unexamined here) theme @media blocks. */
+  function stripMediaBlocks(css: string): string {
+    let out = ''
+    let i = 0
+    while (i < css.length) {
+      const nextMedia = css.indexOf('@media', i)
+      if (nextMedia === -1) {
+        out += css.slice(i)
+        break
+      }
+      out += css.slice(i, nextMedia)
+      const openBrace = css.indexOf('{', nextMedia)
+      let depth = 1
+      let j = openBrace + 1
+      while (depth > 0 && j < css.length) {
+        if (css[j] === '{') depth++
+        else if (css[j] === '}') depth--
+        j++
+      }
+      i = j
+    }
+    return out
+  }
+
+  /** Every top-level (non-@media) rule whose comma-separated selector list contains `needle` as a
+   * whole selector token (so `.lev-status` never accidentally matches `.lev-status-h`). Returns
+   * the concatenated bodies of every matching rule, since a real stylesheet may split `.lev-status`
+   * and `.lev-status[data-have='true']` (etc.) into separate rules. */
+  function declarationsFor(css: string, needle: string): string {
+    const flat = stripMediaBlocks(css)
+    const ruleRe = /([^{}]+)\{([^{}]*)\}/g
+    let m: RegExpExecArray | null
+    let combined = ''
+    const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const selectorTokenRe = new RegExp(`(^|[\\s,])${escaped}($|[\\s,[:])`)
+    while ((m = ruleRe.exec(flat))) {
+      const selectors = m[1].trim()
+      if (selectorTokenRe.test(selectors)) {
+        combined += m[2] + '\n'
+      }
+    }
+    return combined
+  }
+
+  function matrixLightTokens(): Record<string, string> {
+    return customProps(block(matrixCss, /^\.matrix-root,/m))
+  }
+  function matrixDarkMediaTokens(): Record<string, string> {
+    return customProps(
+      block(matrixCss, /:root:not\(\[data-theme='light'\]\) \.matrix-root,/),
+    )
+  }
+  function matrixDarkExplicitTokens(): Record<string, string> {
+    return customProps(block(matrixCss, /^:root\[data-theme='dark'\] \.matrix-root,/m))
+  }
+  function lgLightTokens(): Record<string, string> {
+    return customProps(block(lookingGlassCss, /^:root \{/m))
+  }
+  function lgDarkMediaTokens(): Record<string, string> {
+    return customProps(block(lookingGlassCss, /:root:not\(\[data-theme='light'\]\) \{/))
+  }
+  function lgDarkExplicitTokens(): Record<string, string> {
+    return customProps(block(lookingGlassCss, /^:root\[data-theme='dark'\] \{/m))
+  }
+
+  describe('the table card wrapper (`.leverage-root`) reuses the shared 15px --radius-card', () => {
+    it('`.leverage-root` declares `border-radius: var(--radius-card)` (not a bespoke pixel value)', () => {
+      const body = declarationsFor(matrixCss, '.leverage-root')
+      const radiusDecl = /border-radius\s*:\s*([^;]+);/.exec(body)
+      expect(radiusDecl).not.toBeNull()
+      expect(radiusDecl![1].trim()).toBe('var(--radius-card)')
+    })
+  })
+
+  describe('`.lev-status` pill shape (padding + fully-rounded radius), reusing the existing 99px pill idiom already used by `.lev-bar-track`/`.lev-bar` in this same file', () => {
+    it('declares a `border-radius` of the same fully-rounded value already used by `.lev-bar-track`/`.lev-bar` (99px)', () => {
+      const body = declarationsFor(matrixCss, '.lev-status')
+      const radiusDecl = /border-radius\s*:\s*([^;]+);/.exec(body)
+      expect(radiusDecl).not.toBeNull()
+      expect(radiusDecl![1].trim()).toBe('99px')
+    })
+
+    it('declares a non-zero `padding` (both a horizontal and a vertical component) so the pill has visible inset — a bare text color swap is not sufficient', () => {
+      const body = declarationsFor(matrixCss, '.lev-status')
+      const paddingDecl = /padding\s*:\s*([^;]+);/.exec(body)
+      expect(paddingDecl).not.toBeNull()
+      const values = paddingDecl![1]
+        .trim()
+        .split(/\s+/)
+        .map((v) => parseFloat(v))
+      expect(values.length).toBeGreaterThanOrEqual(1)
+      for (const v of values) {
+        expect(v).toBeGreaterThan(0)
+      }
+    })
+
+    it('the sticky positioning (`position: sticky`) is preserved — the pill restyle does not regress the horizontal-scroll pinned-column behavior', () => {
+      const body = declarationsFor(matrixCss, '.lev-status')
+      expect(body).toMatch(/position\s*:\s*sticky/)
+    })
+
+    it('the base (unmodified-by-state) sticky background stays `var(--surface-1)` — matches `.lev-num`/`.lev-skill` so the pinned-column seam does not look like a rendering glitch when scrolling horizontally', () => {
+      const body = declarationsFor(matrixCss, '.lev-status')
+      expect(body).toMatch(/background\s*:\s*var\(--surface-1\)/)
+    })
+  })
+
+  // The SPEC doesn't mandate WHICH member of the --status-good/--status-good-surface family fills
+  // the text vs. the background (a translucent-chip design and a solid-badge design are both
+  // legitimate "pill" treatments) — only that (a) no fresh hex/rgba color literal is introduced,
+  // (b) only that family's tokens are referenced, and (c) whatever combination is chosen actually
+  // clears AA 4.5:1 once resolved against the table's own --surface-1 sticky backdrop (the next
+  // describe block). Pinning an exact token-per-property pairing here would be over-specified
+  // (testing implementation detail, not contract) AND would have ruled out the light
+  // --status-good/--status-good-surface pairing entirely while `--have` was still #1a7a4b (that
+  // combination measured 4.30:1, just under the floor, and contrastRatio is symmetric so no
+  // property-assignment swap within the family could have fixed it) — hence the deliberately
+  // generic "clears AA, whichever pairing is chosen" contract below rather than a rigid one. Spec
+  // 022 subsequently nudged --have to #167647 (see colorTokens.test.ts / glass-v2-tokens.test.ts),
+  // which clears that same pairing at ~4.548:1, but this describe block stays generic on purpose —
+  // it never hardcoded the failing 4.30:1 figure as an assertion, only as this historical note.
+  describe('`.lev-status[data-have]` reuses matrix.css\'s own --status-good/--status-critical alias chain (which already resolves to the shared --have/--have-soft/--learn/--learn-soft glass-v2 tokens) for the pill fill — mirrors the existing `.matrix-point-flag` convention — no unrelated token, no fresh color literal', () => {
+    const familyBySelector: Record<string, RegExp> = {
+      "[data-have='true']": /^var\(--status-good(-surface)?\)$/,
+      "[data-have='false']": /^var\(--status-critical(-surface)?\)$/,
+    }
+
+    for (const [attr, allowed] of Object.entries(familyBySelector)) {
+      const selector = `.lev-status${attr}`
+      it(`\`${selector}\` declares both a color and a background`, () => {
+        const body = declarationsFor(matrixCss, selector)
+        expect(body).toMatch(/color\s*:\s*[^;]+;/)
+        expect(body).toMatch(/background(?:-color)?\s*:\s*[^;]+;/)
+      })
+
+      it(`\`${selector}\`'s color and background only reference its own --status-good(-surface)/--status-critical(-surface) family — never the other polarity, never an unrelated token, never a fresh hex/rgba literal`, () => {
+        const body = declarationsFor(matrixCss, selector)
+        const colorM = /color\s*:\s*([^;]+);/.exec(body)
+        const bgM = /background(?:-color)?\s*:\s*([^;]+);/.exec(body)
+        expect(colorM).not.toBeNull()
+        expect(bgM).not.toBeNull()
+        expect(colorM![1].trim()).toMatch(allowed)
+        expect(bgM![1].trim()).toMatch(allowed)
+      })
+    }
+
+    it('neither modifier introduces a fresh hex/rgba color literal anywhere in its declaration block (Bounded-AI / "no new unchecked color literal" constraint)', () => {
+      for (const selector of [".lev-status[data-have='true']", ".lev-status[data-have='false']"]) {
+        const body = declarationsFor(matrixCss, selector)
+        expect(body).not.toMatch(/#[0-9a-fA-F]{3,6}\b/)
+        expect(body).not.toMatch(/rgba?\(/)
+      }
+    })
+  })
+
+  describe('whichever --status-good(-surface)/--status-critical(-surface) fg/bg pairing `.lev-status[data-have]` actually declares, the resolved contrast clears AA 4.5:1 against the table\'s own --surface-1 sticky backdrop, in both themes', () => {
+    /** Resolves a declared `color`/`background` value (already known to be `var(--status-good)`,
+     * `var(--status-good-surface)`, or the critical equivalents) all the way to a concrete
+     * opaque hex: chases the var() chain to either a hex literal (the *-good/-critical solid
+     * tokens) or an rgba() literal (the *-surface soft tokens), alpha-compositing the latter over
+     * the supplied opaque backdrop. */
+    function resolveDeclaredColorToHex(
+      raw: string,
+      tokens: Record<string, string>,
+      backdropHex: string,
+    ): string {
+      const chained = resolveVarChain(raw, tokens)
+      if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(chained)) {
+        return chained
+      }
+      const rgba = parseRgba(chained, raw)
+      if (rgba[3] >= 1) {
+        const toHex = (n: number) => n.toString(16).padStart(2, '0')
+        return `#${toHex(rgba[0])}${toHex(rgba[1])}${toHex(rgba[2])}`
+      }
+      return compositeOverBackdrop(rgba, backdropHex)
+    }
+
+    function assertPillContrastClearsAA(
+      selector: string,
+      tokens: Record<string, string>,
+      surfaceHex: string,
+    ) {
+      const body = declarationsFor(matrixCss, selector)
+      const colorM = /color\s*:\s*([^;]+);/.exec(body)
+      const bgM = /background(?:-color)?\s*:\s*([^;]+);/.exec(body)
+      expect(colorM).not.toBeNull()
+      expect(bgM).not.toBeNull()
+      const fgHex = resolveDeclaredColorToHex(colorM![1].trim(), tokens, surfaceHex)
+      const bgHex = resolveDeclaredColorToHex(bgM![1].trim(), tokens, surfaceHex)
+      expect(contrastRatio(fgHex, bgHex)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT)
+    }
+
+    it("light: [data-have='true']", () => {
+      const tokens = { ...lgLightTokens(), ...matrixLightTokens() }
+      expect(tokens['surface-1']).toBeDefined()
+      assertPillContrastClearsAA(".lev-status[data-have='true']", tokens, tokens['surface-1'])
+    })
+    it("light: [data-have='false']", () => {
+      const tokens = { ...lgLightTokens(), ...matrixLightTokens() }
+      expect(tokens['surface-1']).toBeDefined()
+      assertPillContrastClearsAA(".lev-status[data-have='false']", tokens, tokens['surface-1'])
+    })
+    it("dark (media block): [data-have='true']", () => {
+      const tokens = { ...lgDarkMediaTokens(), ...matrixDarkMediaTokens() }
+      expect(tokens['surface-1']).toBeDefined()
+      assertPillContrastClearsAA(".lev-status[data-have='true']", tokens, tokens['surface-1'])
+    })
+    it("dark (media block): [data-have='false']", () => {
+      const tokens = { ...lgDarkMediaTokens(), ...matrixDarkMediaTokens() }
+      expect(tokens['surface-1']).toBeDefined()
+      assertPillContrastClearsAA(".lev-status[data-have='false']", tokens, tokens['surface-1'])
+    })
+    it("dark (explicit [data-theme='dark'] block): [data-have='true']", () => {
+      const tokens = { ...lgDarkExplicitTokens(), ...matrixDarkExplicitTokens() }
+      expect(tokens['surface-1']).toBeDefined()
+      assertPillContrastClearsAA(".lev-status[data-have='true']", tokens, tokens['surface-1'])
+    })
+    it("dark (explicit [data-theme='dark'] block): [data-have='false']", () => {
+      const tokens = { ...lgDarkExplicitTokens(), ...matrixDarkExplicitTokens() }
+      expect(tokens['surface-1']).toBeDefined()
+      assertPillContrastClearsAA(".lev-status[data-have='false']", tokens, tokens['surface-1'])
+    })
+  })
+
+  describe('the leverage progress-bar (`.lev-bar-track`/`.lev-bar`/`.lev-bar-val`) is polished onto the token system — no ad hoc hex/rgba color literal', () => {
+    it('`.lev-bar-track` declares no ad hoc hex/rgba color literal — every color traces to a var() token', () => {
+      const body = declarationsFor(matrixCss, '.lev-bar-track')
+      expect(body).not.toMatch(/#[0-9a-fA-F]{3,6}\b/)
+      expect(body).not.toMatch(/rgba?\(/)
+    })
+    it('`.lev-bar` declares no ad hoc hex/rgba color literal — every color traces to a var() token', () => {
+      const body = declarationsFor(matrixCss, '.lev-bar')
+      expect(body).not.toMatch(/#[0-9a-fA-F]{3,6}\b/)
+      expect(body).not.toMatch(/rgba?\(/)
+    })
+    it('`.lev-bar-val` declares no ad hoc hex/rgba color literal — every color traces to a var() token', () => {
+      const body = declarationsFor(matrixCss, '.lev-bar-val')
+      expect(body).not.toMatch(/#[0-9a-fA-F]{3,6}\b/)
+      expect(body).not.toMatch(/rgba?\(/)
+    })
+
+    it('`.lev-bar-track` and `.lev-bar` keep the fully-rounded 99px pill radius (unchanged idiom, still a track/fill pair)', () => {
+      for (const selector of ['.lev-bar-track', '.lev-bar']) {
+        const body = declarationsFor(matrixCss, selector)
+        const radiusDecl = /border-radius\s*:\s*([^;]+);/.exec(body)
+        expect(radiusDecl).not.toBeNull()
+        expect(radiusDecl![1].trim()).toBe('99px')
+      }
+    })
+  })
+
+  describe('behavioral regression guard — the ALREADY-CORRECT bar width formula (score / topScore) and demand-only "—" fallback are unaffected by this CSS-only restyle', () => {
+    it('renders each scored row\'s `.lev-bar` inline width as exactly `(arbitrage_score / topScore) * 100`, topScore = the max arbitrage_score across all rows (9.1, Rust)', () => {
+      render(
+        <SkillLeverageTable
+          rows={roleSkillProfileFixture}
+          roleName="Backend"
+          haveSkillKeys={HAVE_SKILL_KEYS}
+        />,
+      )
+      const table = screen.getByRole('table')
+      const topScore = 9.1
+
+      const expectations: Array<[string, number]> = [
+        ['Rust', 9.1],
+        ['Kubernetes', 7.3],
+        ['PostgreSQL', 4.2],
+      ]
+      for (const [skill, score] of expectations) {
+        const row = within(table).getByRole('rowheader', { name: new RegExp(skill) }).closest('tr')!
+        const bar = row.querySelector('.lev-bar') as HTMLElement
+        expect(bar).toBeTruthy()
+        const expectedPct = (score / topScore) * 100
+        expect(bar.style.width).toBe(`${expectedPct}%`)
+      }
+    })
+
+    it('renders no `.lev-bar-track`/`.lev-bar` at all for the demand-only row (gRPC) — only the em-dash fallback, decorative and hidden from assistive tech', () => {
+      render(<SkillLeverageTable rows={roleSkillProfileFixture} roleName="Backend" />)
+      const table = screen.getByRole('table')
+      const grpcRow = within(table)
+        .getByRole('rowheader', { name: new RegExp(DEMAND_ONLY_SKILL) })
+        .closest('tr')!
+
+      expect(grpcRow.querySelector('.lev-bar-track')).toBeNull()
+      expect(grpcRow.querySelector('.lev-bar')).toBeNull()
+
+      const dash = within(grpcRow).getAllByText('—')[0]
+      expect(dash).toHaveClass('lev-bar-val')
+      expect(dash).toHaveAttribute('aria-hidden', 'true')
+    })
+
+    it('the demand-only row (gRPC), which is ALSO a "have" skill in the fixture, still renders the "Already have" pill text alongside its em-dash leverage fallback — the pill restyle and the demand-only fallback are independent and both survive together', () => {
+      render(
+        <SkillLeverageTable
+          rows={roleSkillProfileFixture}
+          roleName="Backend"
+          haveSkillKeys={HAVE_SKILL_KEYS}
+        />,
+      )
+      const table = screen.getByRole('table')
+      const grpcRow = within(table)
+        .getByRole('rowheader', { name: new RegExp(DEMAND_ONLY_SKILL) })
+        .closest('tr')!
+
+      expect(within(grpcRow).getByText('Already have')).toBeInTheDocument()
+      const statusCell = grpcRow.querySelector('.lev-status')
+      expect(statusCell).toHaveAttribute('data-have', 'true')
+      expect(within(grpcRow).getAllByText('—').length).toBeGreaterThan(0)
+    })
+
+    it('every gap/have skill in the fixture still renders its Status pill text, keyed by data-have (behavioral contract unchanged by the CSS-only restyle)', () => {
+      render(
+        <SkillLeverageTable
+          rows={roleSkillProfileFixture}
+          roleName="Backend"
+          haveSkillKeys={HAVE_SKILL_KEYS}
+        />,
+      )
+      const table = screen.getByRole('table')
+      for (const skill of HAVE_SKILLS) {
+        const row = within(table).getByRole('rowheader', { name: new RegExp(skill) }).closest('tr')!
+        expect(within(row).getByText('Already have')).toBeInTheDocument()
+        expect(row.querySelector('.lev-status')).toHaveAttribute('data-have', 'true')
+      }
+      for (const skill of GAP_SKILLS) {
+        const row = within(table).getByRole('rowheader', { name: new RegExp(skill) }).closest('tr')!
+        expect(within(row).getByText('Worth learning')).toBeInTheDocument()
+        expect(row.querySelector('.lev-status')).toHaveAttribute('data-have', 'false')
+      }
+    })
+
+    it('has zero axe violations with the pill-restyled Status column populated (regression guard — text still carries the have/gap meaning, never color alone)', async () => {
+      const { container } = render(
+        <SkillLeverageTable
+          rows={roleSkillProfileFixture}
+          roleName="Backend"
+          haveSkillKeys={HAVE_SKILL_KEYS}
+        />,
+      )
+      expect(await axe(container)).toHaveNoViolations()
+    })
   })
 })

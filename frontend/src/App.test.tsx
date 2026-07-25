@@ -755,3 +755,148 @@ describe('<App /> results-column empty + loading states (spec 009)', () => {
     settle([])
   })
 })
+
+// RED phase (spec 019 — nav + sidebar glass v2 restyle + header copy drive-by). None of this
+// exists yet: App.tsx still renders the OLD H1/subhead copy, and no `.lg-step-badge` element is in
+// the DOM at all. This describe block locks the NEW contract:
+//   - H1/subhead copy swap (literal string change, verbatim per the SPEC).
+//   - the pill-toggle re-skin is COSMETIC (same DOM/CSS classes, new visual treatment covered by
+//     the CSS-text test file) — this block instead guards the failure mode the SPEC calls out
+//     explicitly: "re-skin regresses keyboard/screen-reader semantics". Same role="group", same
+//     radio names, same checked-state announcement, before AND after Magnolia's CSS-only edit.
+//   - the numbered circular badge is STRUCTURAL (a genuinely new DOM element): it exists once per
+//     sidebar step card, is aria-hidden="true", and never becomes a second/competing source of
+//     truth for "which step is this" — `.card-kicker`'s "Step 1"/"Step 2" text remains the one
+//     accessible label.
+describe('<App /> spec 019 — header copy + sidebar step badge + toggle semantics', () => {
+  it('renders the NEW H1 copy ("Find the skills worth learning first"), not the old one-skill wording', () => {
+    render(<App />)
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Find the skills worth learning first' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Find the one skill worth learning first')).not.toBeInTheDocument()
+  })
+
+  it('renders the NEW subhead copy verbatim, with "leverage" still bolded via <strong>', () => {
+    render(<App />)
+
+    const strongLeverage = screen.getByText('leverage', { selector: 'strong' })
+    expect(strongLeverage).toBeInTheDocument()
+
+    const subhead = strongLeverage.closest('p')
+    expect(subhead).not.toBeNull()
+    // Collapse whitespace the same way a screen reader / the DOM's flattened textContent would
+    // (so line-wrapping/JSX whitespace in the source can't cause a false mismatch), and normalize
+    // straight vs. typographic curly apostrophes to a single canonical form — the SPEC's own prose
+    // uses straight apostrophes verbatim, but this codebase's established convention (see the
+    // pre-existing subhead / NO_GAPS_MESSAGE) renders them via the curly &rsquo; entity, and the
+    // choice between the two is not the content invariant this test is locking.
+    const normalize = (s: string) => s.replace(/\s+/g, ' ').replace(/[‘’']/g, "'").trim()
+    const flattened = normalize(subhead!.textContent!)
+    expect(flattened).toBe(
+      normalize(
+        "Pick the role you're aiming for and paste your resume. Looking Glass lines up the " +
+          "skills that role wants against what you already have, then ranks what's left by " +
+          'leverage — skills lots of jobs want but few people have. Same payoff, less competition.',
+      ),
+    )
+  })
+
+  // Note: the SPEC's "new subhead" text is byte-identical to today's already-shipped subhead
+  // (confirmed by diffing App.tsx's current JSX against the SPEC's quoted wording) — only the H1
+  // actually changes under spec 019. There is therefore no meaningful "old subhead copy is gone"
+  // assertion to add here; the verbatim-subhead test above is both the "new" and the regression
+  // guard. Documented so a future reader doesn't wonder why no such test exists.
+
+  it('the theme toggle keeps the same accessible group semantics after the pill re-skin (role="group", same aria-label)', () => {
+    render(<App />)
+
+    const group = screen.getByRole('group', { name: 'Colour theme' })
+    const radios = within(group).getAllByRole('radio')
+    expect(radios).toHaveLength(2)
+    expect(within(group).getByRole('radio', { name: 'Light' })).toBeInTheDocument()
+    expect(within(group).getByRole('radio', { name: 'Dark' })).toBeInTheDocument()
+  })
+
+  it('the theme toggle keeps the same radio `name` grouping (mutually exclusive pair) after the re-skin', () => {
+    render(<App />)
+
+    const group = screen.getByRole('group', { name: 'Colour theme' })
+    const light = within(group).getByRole('radio', { name: 'Light' }) as HTMLInputElement
+    const dark = within(group).getByRole('radio', { name: 'Dark' }) as HTMLInputElement
+    expect(light.name).toBe(dark.name)
+    expect(light.type).toBe('radio')
+    expect(dark.type).toBe('radio')
+  })
+
+  it('clicking the Dark pill still announces the checked-state change via the real radio input (no purely-visual fake toggle)', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    const group = screen.getByRole('group', { name: 'Colour theme' })
+    const light = within(group).getByRole('radio', { name: 'Light' }) as HTMLInputElement
+    const dark = within(group).getByRole('radio', { name: 'Dark' }) as HTMLInputElement
+
+    // Exactly one of the pair is checked at all times (real radio semantics survive the re-skin).
+    expect(light.checked || dark.checked).toBe(true)
+    expect(light.checked && dark.checked).toBe(false)
+
+    await user.click(dark)
+    expect(dark.checked).toBe(true)
+    expect(light.checked).toBe(false)
+
+    await user.click(light)
+    expect(light.checked).toBe(true)
+    expect(dark.checked).toBe(false)
+  })
+
+  it('renders exactly one numbered, aria-hidden circular badge per sidebar step card, in order (1, 2)', () => {
+    const { container } = render(<App />)
+
+    const badges = container.querySelectorAll('.lg-step-badge')
+    expect(badges).toHaveLength(2)
+    expect(badges[0]).toHaveAttribute('aria-hidden', 'true')
+    expect(badges[1]).toHaveAttribute('aria-hidden', 'true')
+    expect(badges[0]).toHaveTextContent('1')
+    expect(badges[1]).toHaveTextContent('2')
+  })
+
+  it('each badge lives inside the same sidebar step card as its matching Step N .card-kicker (never orphaned, never in the wrong card)', () => {
+    const { container } = render(<App />)
+
+    const stepCards = Array.from(container.querySelectorAll('.lg-sidebar .card.blueprint'))
+    expect(stepCards).toHaveLength(2)
+
+    stepCards.forEach((card, i) => {
+      const kicker = card.querySelector('.card-kicker')
+      expect(kicker).toHaveTextContent(`Step ${i + 1}`)
+      const badge = card.querySelector('.lg-step-badge')
+      expect(badge).not.toBeNull()
+      expect(badge).toHaveTextContent(String(i + 1))
+      expect(badge).toHaveAttribute('aria-hidden', 'true')
+    })
+  })
+
+  it('the badge never becomes a second accessible label — .card-kicker text remains the sole accessible "which step" source', () => {
+    render(<App />)
+
+    // aria-hidden content is excluded from the accessibility tree entirely, so an accessible-name
+    // query for "1"/"2" alone must find nothing; "Step 1"/"Step 2" (the .card-kicker text) is what
+    // remains discoverable.
+    expect(screen.getByText('Step 1')).toBeInTheDocument()
+    expect(screen.getByText('Step 2')).toBeInTheDocument()
+    // getByText's default matcher targets the (hidden-inclusive) DOM text; the aria-hidden
+    // assertions above are what actually enforce "excluded from the a11y tree" — axe (below)
+    // provides the mechanical backstop for any accidental exposure (e.g. a missing aria-hidden
+    // attribute would still show as a real second label to assistive tech and axe/RTL role
+    // queries would then find TWO accessible things named "1").
+    expect(screen.queryByRole('button', { name: '1' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '2' })).not.toBeInTheDocument()
+  })
+
+  it('has no axe violations in the idle state with the new copy + step badges present', async () => {
+    const { container } = render(<App />)
+    expect(await axe(container)).toHaveNoViolations()
+  })
+})

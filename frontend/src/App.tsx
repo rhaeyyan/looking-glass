@@ -124,7 +124,7 @@ function App() {
   const havePct = rows.length ? Math.round((haveCount / rows.length) * 100) : 0
   const goodDeg = rows.length ? (haveCount / rows.length) * 360 : 0
   const gapDeg = rows.length ? (gapCount / rows.length) * 360 : 0
-  const donutGradient = `conic-gradient(var(--have-tone) 0deg ${goodDeg}deg, var(--learn-tone) ${goodDeg}deg ${
+  const donutGradient = `conic-gradient(var(--have) 0deg ${goodDeg}deg, var(--learn) ${goodDeg}deg ${
     goodDeg + gapDeg
   }deg, var(--color-neutral-400) ${goodDeg + gapDeg}deg 360deg)`
 
@@ -162,7 +162,7 @@ function App() {
       </nav>
 
       <header className="lg-header">
-        <h1>Find the one skill worth learning first</h1>
+        <h1>Find the skills worth learning first</h1>
         <p>
           Pick the role you&rsquo;re aiming for and paste your resume. Looking&nbsp;Glass lines up
           the skills that role wants against what you already have, then ranks what&rsquo;s left by{' '}
@@ -179,7 +179,12 @@ function App() {
             <i className="corner bl" />
             <i className="corner br" />
             <div className="card-kicker">Step 1</div>
-            <div className="card-title">Pick your target role</div>
+            <div className="card-title">
+              <span className="lg-step-badge" aria-hidden="true">
+                1
+              </span>
+              Pick your target role
+            </div>
             <div className="field">
               <label htmlFor="role-picker">Target role</label>
               <select
@@ -216,7 +221,12 @@ function App() {
             <i className="corner bl" />
             <i className="corner br" />
             <div className="card-kicker">Step 2</div>
-            <div className="card-title">Paste your resume</div>
+            <div className="card-title">
+              <span className="lg-step-badge" aria-hidden="true">
+                2
+              </span>
+              Paste your resume
+            </div>
             <form onSubmit={handleResumeSubmit}>
               <div className="field">
                 <label htmlFor="resume-text">Resume text</label>
@@ -303,11 +313,11 @@ function App() {
                 </div>
                 <div className="lg-donut-legend">
                   <div>
-                    <span className="lg-swatch" style={{ background: 'var(--have-tone)' }} />
+                    <span className="lg-swatch" style={{ background: 'var(--have)' }} />
                     Already have {haveCount}
                   </div>
                   <div>
-                    <span className="lg-swatch" style={{ background: 'var(--learn-tone)' }} />
+                    <span className="lg-swatch" style={{ background: 'var(--learn)' }} />
                     Worth learning {gapCount}
                   </div>
                   <div>
