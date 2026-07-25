@@ -25,6 +25,10 @@
   that path. **No files changed, nothing committed.**
 - `assets/` (containing `favicon_io`) remains untracked in git status; pre-existing before this
   session, not created by it — left as-is, not investigated or touched.
+- Per the user's request, committed this round's own ledger housekeeping (archiving rounds 5-8
+  into `ARCHIVED_SESSIONS.md`, trimming `SESSION_STATE.md`): `a3bc079`. `assets/` was deliberately
+  left out of that commit (see Unfinished/blocked below) — its continued presence in `git status`
+  after that commit is expected, not an oversight.
 
 ### Unfinished / blocked
 - User's actual DB state unconfirmed: haven't verified whether migrations 0002-0004 are applied
