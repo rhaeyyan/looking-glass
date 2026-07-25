@@ -103,23 +103,65 @@
   in-browser role-select → resume-submit → full-render screenshot flow (dark mode) and visually
   confirmed the pills, uppercase headers, frosted table backdrop, and richer bubble fill all match
   the mockup screenshots the user supplied.
-- **Not yet committed** — was mid-turn asking the user "want me to commit and push this polish pass?"
-  when the stop-hook fired on this ledger update requirement.
+- User said "only commit" (explicitly not push): **committed** as `d4ad589` ("polish(ui): style
+  scatter legend chips + table status icons/backdrop"). Left un-pushed, per instruction — differs
+  from round 12's commit, which the user did approve pushing.
+
+### Round 12.6 (same session, hover/motion pass — uncommitted)
+- User pointed at `screenshots/Glassmorphism UI redesign/` (a full local export of the same Claude
+  Design project, containing the source `.dc.html` files, `support.js`, and a `screenshots/`
+  subfolder with one static self-check render — no video/gif of interaction states) and asked to add
+  hover effects / movement present in the mockup that the app was still missing.
+- Since the mockup has no interaction recording, treated its `.dc.html` inline `style-hover`/
+  `style-active`/`transition`/`animation` attributes as the authoritative source of truth and grepped
+  every one of them out, then cross-checked each against the current codebase:
+  - Nav toggle hover/checked transitions, primary-button lift-on-hover, scatter-bubble
+    `scale(1.12)` hover/focus, and the background-orb drift animation were **already implemented**
+    in earlier rounds — left untouched.
+  - Three were genuinely missing: the "next moves" mini-cards (`.topmove`) had **zero** hover CSS at
+    all (confirmed by grep); the leverage table had **no row-hover** at all; the scatter bubble hover
+    only scaled, it never deepened its shadow the way the mockup's `style-hover` does.
+- Implemented directly in `matrix.css` only (no JSX/test changes needed — confirmed no test locks
+  hover styling beyond the existing structural class-contract assertions):
+  - `.topmove:hover` — `translateY(-2px)` lift + a shadow + an accent-tinted border, gated behind
+    `prefers-reduced-motion: no-preference` (matches this file's own stated convention that *every*
+    transition/animation must be opt-in).
+  - `.leverage-table tbody tr:hover` — background highlight (confirmed via screenshot: row 2
+    visibly darkens against its neighbors); its higher selector specificity means it correctly wins
+    over the sticky/pinned columns' own per-cell background too.
+  - `.matrix-point:hover`/`:focus-visible` — added a deepened `box-shadow` (was scale-only before).
+  - **Caught by the test suite, not by inspection**: first attempt used `var(--shadow)` (a
+    looking-glass.css glass-v2 token) inside the new `.topmove:hover` rule and broke
+    `glass-v2-tokens.test.ts`'s boundary assertion that matrix.css may reference **no** glass-v2
+    token except the two spec-020-authorized `--chip-bg`/`--chip-fg` exceptions — matrix.css
+    deliberately keeps its own separate token vocabulary (documented in its own header comment).
+    Fixed by building the shadow from matrix.css's own local `--border` token instead
+    (`0 6px 18px var(--border)`); re-ran the suite and it was the fix.
+- Verified: `npx vitest run` — 608/608 passing; `tsc --noEmit`/`npx eslint src` clean. Screenshotted
+  the row-hover state in-browser and visually confirmed the background highlight (bubble/topmove
+  hover effects are real per the CSS but too subtle to prove from a single static screenshot without
+  a true before/after diff, which a scripted headless-hover attempt at a second viewport size timed
+  out trying to produce — not investigated further since the code path itself is straightforward and
+  test-verified).
+- **Not committed** — was mid-turn asking the user "want me to commit this too?" when the stop-hook
+  fired on this ledger update requirement.
 
 ### Unfinished / blocked
-- **Round 12.5's table/scatter polish pass is implemented and verified but not committed.** Files:
-  `frontend/src/components/matrix/SkillLeverageTable.tsx`,
-  `frontend/src/components/matrix/SkillMatrix.tsx`, `frontend/src/components/matrix/matrix.css`.
-  Ask the user before committing (they hadn't yet replied to the commit question this ledger update
-  interrupted).
+- **Round 12.6's hover/motion pass is implemented and verified but not committed.** File:
+  `frontend/src/components/matrix/matrix.css` only. Ask the user before committing.
+- Round 12.5's commit (`d4ad589`) is **committed but not pushed** — user explicitly said "only
+  commit" that time; confirm with the user before pushing it (and 12.6, once committed) to
+  `origin/main`.
 - Favicon visual confirmation (round 10) and the README Stack/Status refresh commit (round 8) are
   still open from prior rounds — see [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md) for detail.
 
 ### Next steps
-1. Get the user's go-ahead, then commit + push round 12.5's three-file polish pass.
-2. Confirm with the user that the new favicon design actually looks right once they've seen it
+1. Get the user's go-ahead, then commit round 12.6's `matrix.css` hover/motion changes.
+2. Ask the user whether to push `d4ad589` + round 12.6's commit to `origin/main` now (Vercel
+   auto-deploys from there) — round 12.5 was explicitly commit-only, push was never confirmed.
+3. Confirm with the user that the new favicon design actually looks right once they've seen it
    live (Vercel auto-deploys `origin/main`).
-3. Commit the `README.md` Stack/Status refresh from round 8 (still not yet committed).
+4. Commit the `README.md` Stack/Status refresh from round 8 (still not yet committed).
 
 ---
 

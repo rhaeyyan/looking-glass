@@ -270,6 +270,9 @@
 .matrix-point:hover {
   opacity: 1;
   z-index: 6;
+  box-shadow:
+    0 0 0 1px var(--metal-hi) inset,
+    0 4px 10px var(--grid);
 }
 
 .matrix-point:focus-visible {
@@ -277,6 +280,9 @@
   outline-offset: 2px;
   opacity: 1;
   z-index: 6;
+  box-shadow:
+    0 0 0 1px var(--metal-hi) inset,
+    0 4px 10px var(--grid);
 }
 
 /* Skill-name pill — hidden for crowded points until hover/focus; always shown for sparse ones. */
@@ -312,7 +318,8 @@
       left 200ms ease-out,
       bottom 200ms ease-out,
       transform 140ms ease-out,
-      opacity 140ms ease-out;
+      opacity 140ms ease-out,
+      box-shadow 200ms ease-out;
   }
   .matrix-point:hover,
   .matrix-point:focus-visible {
@@ -399,6 +406,14 @@
 }
 .leverage-table {
   min-width: 660px; /* keep every column readable; the wrap scrolls on narrow screens */
+}
+.leverage-table tbody tr:hover {
+  background: var(--page-plane);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .leverage-table tbody tr {
+    transition: background 160ms ease-out;
+  }
 }
 .leverage-table th,
 .leverage-table td {
@@ -563,6 +578,19 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-card, 10px);
   padding: 0.6rem 0.7rem;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .topmove {
+    transition:
+      transform 180ms ease-out,
+      box-shadow 220ms ease-out,
+      border-color 220ms ease-out;
+  }
+  .topmove:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px var(--border);
+    border-color: color-mix(in srgb, var(--series-1) 35%, var(--border));
+  }
 }
 
 .topmove-rank {
