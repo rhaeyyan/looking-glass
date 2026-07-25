@@ -46,6 +46,9 @@
   schema is completely up to date and nothing further needs to run. Asked the user what they were
   actually trying to fix originally, since it's no longer a schema-sync problem. **Diagnostic-only
   end-to-end — no files changed, nothing committed this sub-round.**
+- User asked to push; pushed all 4 pending ledger-housekeeping commits (`a3bc079`, `91d4f0d`,
+  `3d6f3c0`, `a3869de`) to `origin/main` (`306753b..a3869de`). `assets/` remains untracked and was
+  not part of the push (nothing to push — it was never staged/committed).
 
 ### Unfinished / blocked
 - The original migration-error question is resolved (DB schema fully up to date, 0001-0004 all
