@@ -5,12 +5,36 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-24 (round 6: dark-mode glass-alpha regression fix)
+## Current Session — 2026-07-24 (round 7: Vercel deploy — Python-entrypoint misdetection)
 
 > Specs 001–017, the same-day earlier rounds (redesign/de-jargon/top-3-moves; UI/UX+dataviz pass
 > 008-010; 15-role expansion 011-012; salary-premium clarity 013-014; contrast/wrapping/glass-ui
-> 015-017), and the 2026-07-23 milestone session are archived in
+> 015-017; round 6 dark-mode glass-alpha fix), and the 2026-07-23 milestone session are archived in
 > [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
+
+### Accomplished (round 7, this section)
+- User hit a Vercel deploy failure: `Error: No python entrypoint found...`. Root-caused: no
+  `vercel.json` existed, so Vercel auto-detected a framework from the **repo root**, found
+  `pyproject.toml` (the deterministic ingest/scoring backend's Python project file, per AGENTS.md's
+  stack section — not meant to be deployed at all) and tried to build it as a Python serverless
+  function, while the actual deployable app is the Vite/React SPA in `frontend/`.
+  **Fix**: added a root `vercel.json` (`buildCommand`/`installCommand` both `cd frontend && ...`,
+  `outputDirectory: frontend/dist`, `framework: vite`) so Vercel builds/serves the frontend
+  explicitly instead of guessing from root-level files. Not yet committed or verified against an
+  actual Vercel deploy.
+
+### Unfinished / blocked
+- `vercel.json` is uncommitted. Need to (1) commit it, (2) confirm with the user whether they want
+  it pushed, and (3) ideally verify the fix against a real Vercel deploy (`vercel --prod` or
+  dashboard redeploy) rather than just reasoning about it — untested deploy-config changes are the
+  kind of thing that looks right and still fails on the actual platform.
+
+### Next steps
+- Get user go-ahead, then `git add vercel.json && git commit` (Conventional Commit, e.g.
+  `fix(deploy): scope Vercel build to frontend/ to stop Python entrypoint misdetection`).
+- Ask the user to retry the Vercel deploy and report back the result; if it still fails, check
+  Vercel project dashboard settings (a dashboard-level "Root Directory" override can conflict with
+  a committed `vercel.json`).
 
 ### Accomplished (round 6, this section)
 - User supplied a screenshot (`screenshots/Screenshot from 2026-07-24 12-50-02.png`) showing dark
