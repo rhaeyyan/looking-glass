@@ -406,6 +406,10 @@
 }
 .leverage-table {
   min-width: 660px; /* keep every column readable; the wrap scrolls on narrow screens */
+  /* Fixed layout: the sticky columns' `left` offsets below hard-code 2.25rem/9rem/9.5rem widths.
+   * Auto layout lets the browser widen those columns past their declared width whenever content
+   * needs room, which desyncs the offsets and makes the pinned columns overlap. */
+  table-layout: fixed;
 }
 .leverage-table tbody tr:hover {
   background: var(--page-plane);
@@ -444,7 +448,7 @@
 }
 .lev-status,
 .lev-status-h {
-  min-width: 7rem;
+  width: 9.5rem; /* fits the "✕ Worth learning" pill without wrapping or overflow */
   position: sticky;
   left: calc(2.25rem + 9rem);
   background: var(--surface-1);

@@ -146,18 +146,52 @@
 - **Not committed** — was mid-turn asking the user "want me to commit this too?" when the stop-hook
   fired on this ledger update requirement.
 
+### Round 12.7 (same session, mobile sticky-column overlap fix — uncommitted)
+- User attached a mobile-viewport screenshot of the leverage table showing the "Worth learning"
+  status pill visually overlapping the skill-name text next to it, hard to read.
+- Root cause was two compounding bugs in `matrix.css`'s `.leverage-table` (the sticky/pinned first
+  three columns — rank, skill, status): (1) the table never set `table-layout: fixed`, so under the
+  default `auto` layout the browser could widen `.lev-skill`/`.lev-status` past their declared
+  `9rem`/`7rem` widths whenever content needed room — but the sticky `left` offsets are hard-coded
+  arithmetic assuming those exact widths, so the pinned columns silently drifted out of sync; (2)
+  independently, `.lev-status`'s declared `7rem` width was already too narow to fit "✕ Worth
+  learning" at its font-size/weight, and with `white-space: nowrap` the overflow rendered on top of
+  the sticky skill column to its left rather than wrapping or being clipped.
+- First attempted a structural fix (wrap the pill in its own inner `<span className="lev-status-
+  pill">` so the badge would hug its own content instead of stretching to fill the column) — this
+  regressed `SkillLeverageTable.test.tsx`'s locked contract (many assertions require `data-have` and
+  the pill's `border-radius`/`padding`/`position:sticky`/background to live directly on
+  `.lev-status`, the `<td>` itself). Reverted the component/CSS restructuring once the test run
+  surfaced this; the full-width capsule look is the deliberately tested design, not a bug.
+- Landed fix, `matrix.css` only: added `table-layout: fixed` to `.leverage-table`; widened
+  `.lev-status`/`.lev-status-h` from `7rem` to `9.5rem` so the pill's text fits without overflowing.
+  Left `.leverage-table`'s `min-width: 660px` untouched (a separate locked assertion in
+  `styles/responsiveText.test.ts` pins that exact value; `min-width` is a floor, not a column-width
+  sum, so it didn't need to move).
+- Verified: `npx vitest run` — 608/608 passing (including the two locked test files above).
+  Screenshotted the app at a 390×844 mobile viewport (Playwright, driven directly — no
+  `chromium-cli` binary available in this environment, and no project skill yet covers launching
+  this app; used the generic dev-server + Playwright pattern from the `run` skill's fallback
+  guidance) both before and after the fix; the "before" repro confirmed the reported overlap, the
+  "after" shot confirmed the pill now sits fully inside its own column with no bleed into the
+  skill-name column.
+- **Not committed** — session ended (stop-hook fired) before asking the user whether to commit.
+
 ### Unfinished / blocked
-- **Round 12.6's hover/motion pass is implemented and verified but not committed.** File:
-  `frontend/src/components/matrix/matrix.css` only. Ask the user before committing.
+- **Rounds 12.6 (hover/motion) and 12.7 (sticky-column overlap fix) are both implemented and
+  verified but not committed.** Both touch only `frontend/src/components/matrix/matrix.css` (same
+  file, stacked uncommitted edits) — ask the user before committing; may land as one commit or two,
+  user's call.
 - Round 12.5's commit (`d4ad589`) is **committed but not pushed** — user explicitly said "only
-  commit" that time; confirm with the user before pushing it (and 12.6, once committed) to
+  commit" that time; confirm with the user before pushing it (and 12.6/12.7, once committed) to
   `origin/main`.
 - Favicon visual confirmation (round 10) and the README Stack/Status refresh commit (round 8) are
   still open from prior rounds — see [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md) for detail.
 
 ### Next steps
-1. Get the user's go-ahead, then commit round 12.6's `matrix.css` hover/motion changes.
-2. Ask the user whether to push `d4ad589` + round 12.6's commit to `origin/main` now (Vercel
+1. Get the user's go-ahead, then commit round 12.6's + round 12.7's `matrix.css` changes
+   (hover/motion pass + mobile sticky-column overlap fix).
+2. Ask the user whether to push `d4ad589` + the new commit(s) to `origin/main` now (Vercel
    auto-deploys from there) — round 12.5 was explicitly commit-only, push was never confirmed.
 3. Confirm with the user that the new favicon design actually looks right once they've seen it
    live (Vercel auto-deploys `origin/main`).
