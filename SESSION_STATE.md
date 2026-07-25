@@ -13,28 +13,42 @@
 > [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
 ### Accomplished (round 7, this section)
-- User hit a Vercel deploy failure: `Error: No python entrypoint found...`. Root-caused: no
+- User hit a Vercel deploy failure: `Error: No python entrypoint found...`. First hypothesis: no
   `vercel.json` existed, so Vercel auto-detected a framework from the **repo root**, found
   `pyproject.toml` (the deterministic ingest/scoring backend's Python project file, per AGENTS.md's
   stack section — not meant to be deployed at all) and tried to build it as a Python serverless
-  function, while the actual deployable app is the Vite/React SPA in `frontend/`.
-  **Fix**: added a root `vercel.json` (`buildCommand`/`installCommand` both `cd frontend && ...`,
-  `outputDirectory: frontend/dist`, `framework: vite`) so Vercel builds/serves the frontend
-  explicitly instead of guessing from root-level files. Not yet committed or verified against an
-  actual Vercel deploy.
+  function, while the actual deployable app is the Vite/React SPA in `frontend/`. Added a root
+  `vercel.json` (`buildCommand`/`installCommand` both `cd frontend && ...`, `outputDirectory:
+  frontend/dist`, `framework: vite`). Committed (`1bf6a90`) and pushed — **did not fix it**, error
+  persisted after a fresh git-push auto-deploy.
+  **Re-diagnosed by asking the user to check the Vercel dashboard rather than guessing further**:
+  Settings → General → Root Directory is set to `frontend`. That means Vercel looks for
+  `vercel.json` *inside* `frontend/`, not at the repo root — the root-level file was being ignored
+  entirely. The dashboard's "Include source files outside of the Root Directory in the Build"
+  toggle (if on) is the likely actual reason root-level `pyproject.toml` was still reaching the
+  build despite Root Directory being scoped to `frontend`.
+  **Fix (this round)**: `git rm vercel.json` (root) and added `frontend/vercel.json` with the same
+  config but paths simplified for running from inside `frontend/` already (`buildCommand: npm run
+  build`, `outputDirectory: dist`, no `cd frontend` prefix). Asked the user to also check/disable
+  the "Include source files outside of the Root Directory" dashboard toggle — cannot toggle it
+  myself, no dashboard access.
 
 ### Unfinished / blocked
-- `vercel.json` is uncommitted. Need to (1) commit it, (2) confirm with the user whether they want
-  it pushed, and (3) ideally verify the fix against a real Vercel deploy (`vercel --prod` or
-  dashboard redeploy) rather than just reasoning about it — untested deploy-config changes are the
-  kind of thing that looks right and still fails on the actual platform.
+- `frontend/vercel.json` (add) and root `vercel.json` (delete) are staged/uncommitted. Not yet
+  pushed or verified against a real Vercel deploy.
+- Still waiting on the user to confirm the "Include source files outside of the Root Directory"
+  toggle state in the dashboard — if it's on and stays on, root-level `pyproject.toml` may still
+  leak into the build even with the corrected `frontend/vercel.json` in place.
 
 ### Next steps
-- Get user go-ahead, then `git add vercel.json && git commit` (Conventional Commit, e.g.
-  `fix(deploy): scope Vercel build to frontend/ to stop Python entrypoint misdetection`).
-- Ask the user to retry the Vercel deploy and report back the result; if it still fails, check
-  Vercel project dashboard settings (a dashboard-level "Root Directory" override can conflict with
-  a committed `vercel.json`).
+- Commit (`fix(deploy): relocate vercel.json into frontend/ to match dashboard Root Directory`)
+  and push once user confirms.
+- User to check/disable the "Include source files outside of the Root Directory" toggle in Vercel
+  dashboard Settings → General.
+- User to retry deploy and report back; if it *still* fails, next things to check: whether the
+  dashboard has a manual Build/Install/Output Command override (these take precedence over
+  vercel.json and were never confirmed clear), and whether the deploy is reading a stale cached
+  build (try "Redeploy" with cache disabled).
 
 ### Accomplished (round 6, this section)
 - User supplied a screenshot (`screenshots/Screenshot from 2026-07-24 12-50-02.png`) showing dark
