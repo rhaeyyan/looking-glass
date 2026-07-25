@@ -49,19 +49,32 @@
 - User asked to push; pushed all 4 pending ledger-housekeeping commits (`a3bc079`, `91d4f0d`,
   `3d6f3c0`, `a3869de`) to `origin/main` (`306753b..a3869de`). `assets/` remains untracked and was
   not part of the push (nothing to push — it was never staged/committed).
+- User ran 0001 yet again, hit a *different* error this time: `42601 syntax error at or near ";"`
+  on the `PRIMARY KEY (role_family, skill_name_raw)` line. Read the actual file
+  (`supabase/migrations/0001_init_skills_schema.sql`) and confirmed it's syntactically correct as
+  committed — the real file closes the column list with `)` before the statement's `;`. Diagnosed
+  this as a copy-paste corruption (a dropped closing paren) in whatever the user pasted into their
+  SQL client, not a bug in the repo file. Reiterated that this table already exists per the prior
+  sub-round's confirmed state, so there's no reason to fix the paste and retry — 0001 doesn't need
+  to run again regardless. Asked the user where they're copying migrations from (editor/chat/
+  snippet vs. the repo file directly), since that's the likely source of the corruption and would
+  affect future migrations too. **No files changed, nothing committed this sub-round.**
 
 ### Unfinished / blocked
 - The original migration-error question is resolved (DB schema fully up to date, 0001-0004 all
-  applied) — but *why* the user was re-running these files in the first place is still unknown.
-  Asked them directly; awaiting their answer before assuming this thread is fully closed.
+  applied) — but *why* the user keeps re-running these files (now a 3rd time, against 0001 again)
+  is still unknown, and it's now the more pressing open question: they may be working from a
+  corrupted copy of the migration files outside the repo, which could bite them on a real future
+  migration. Asked directly; awaiting their answer.
 - `assets/favicon_io` is still untracked — unclear if it's meant to be committed (e.g. source
   favicon assets for the round-8-adjacent "apply favicon to frontend" commit `306753b`) or is
   scratch/download cruft. Ask the user before adding or ignoring it.
 
 ### Next steps
 1. Find out what the user was originally trying to accomplish (an app bug? routine DB-sync check?)
-   now that the schema itself is confirmed current — don't assume the underlying goal is met just
-   because the migration errors are explained.
+   and where they're copying migration SQL from — now that the schema itself is confirmed current
+   and the file itself is confirmed syntactically correct, don't assume the underlying goal is met
+   just because each individual error has been explained.
 2. Ask the user about `assets/` (untracked) — commit, gitignore, or delete.
 3. Commit the `README.md` Stack/Status refresh from round 8 (not yet committed).
 
