@@ -6,6 +6,80 @@
 
 ## Archived Sessions
 
+### 2026-07-23/24 — Light-mode contrast/wrapping/glassmorphism (specs 015–017), dark-mode glass-alpha fix (round 6), Vercel deploy fix (round 7), README refresh (round 8)
+
+- **Round 5 — light-mode contrast, responsive wrapping, glass-ui**: user reported light-mode text
+  too low-contrast, text blocks overflowing/wrapping awkwardly, and requested glassmorphism design
+  elements reflecting the "Looking Glass" name. Investigated with real computed WCAG contrast
+  ratios before routing: `--color-accent` (#5980a6) measured 3.71:1, failing AA's 4.5:1; only 2
+  elements in the whole stylesheet had `overflow-wrap`/`min-width: 0` set. Routed through Cedar,
+  who re-verified and found more failures: `--have-tone` borderline (4.489:1), `.lg-donut-label`'s
+  opacity dimming failing, `--text-muted` (matrix.css) failing on all 3 surfaces, and
+  `.matrix-zone-hi` wrongly borrowing a data-identity chart color as label text. For wrapping,
+  audited and found exactly 2 real bugs: `.topmove`'s grid column missing `minmax(0, 1fr)`, and
+  `.nav-brand` unable to shrink/wrap. For glassmorphism, scoped strictly to `.card.blueprint`/
+  `.nav` chrome (light mode only), built on corrected tokens, matrix.css's opaque chart surfaces
+  never touched.
+  **Three SPECs written, approved, persisted**: [specs/015](specs/015-fix-light-mode-contrast.md),
+  [specs/016](specs/016-fix-responsive-text-wrapping.md),
+  [specs/017](specs/017-glassmorphism-card-nav-chrome.md), sequenced 015→016→017. Committed
+  (`6a93b9f`).
+  **Spec 015 shipped** (`716971a`): `--color-accent` → `#416180` (5.78:1), `--have-tone` →
+  `#1a7a4b` (4.78:1), `.lg-donut-label` dropped opacity dimming (14.79:1), `--text-muted` →
+  `#6b6862` (4.96:1 tightest), `.matrix-zone-hi` repointed to `--text-secondary` (7.53:1). Dark
+  mode left byte-identical. A stale spec-008 regression-guard test hardcoding the old
+  `--have-tone` value was correctly identified as stale (not a defect) and updated. 188/188 vitest.
+  **Spec 016 shipped** (`116bb90`): `.topmove`'s grid column fixed (`minmax(0, 1fr)`),
+  `overflow-wrap: anywhere` added, `.nav-brand` given `min-width: 0` + `flex-wrap: wrap`. 197/197
+  vitest.
+  **Spec 017 shipped** (`9e7cbe2`): `.card.blueprint`/`.nav` render translucent blurred surfaces
+  (`rgba(255,255,255,0.55)` + `backdrop-filter: blur(12px)`); every text/UI color re-verified
+  against the new glass surface (`--color-text` 15.19:1, `--color-accent` 5.94:1). Dark mode
+  redeclares only inert glass tokens (`--glass-alpha: 1`, `--glass-blur: 0`) — pixel-identical to
+  pre-spec. Mid-build, a genuine cross-spec test conflict was found and resolved properly: spec
+  015's `colorTokens.test.ts` strict-`toEqual`'d the dark-mode block (rejecting any extra key),
+  colliding with spec 017's need to add inert dark-mode glass tokens. Verified empirically (added
+  a token, watched the test fail, reverted), then narrowly extended the guard to allow-list
+  `--glass-*` keys specifically. 248/248 vitest, eslint/tsc clean.
+- **Round 6 — dark-mode glass-alpha regression fix**: user supplied a screenshot showing dark mode
+  broken post-spec-017 (solid white nav, unreadable card text). Root-caused from the actual CSS:
+  `--glass-alpha: 1` in dark mode meant fully OPAQUE (not "inert" as spec 017 assumed) — the
+  correct inert value is `0`. Both the implementation and its own tests had faithfully encoded the
+  same wrong assumption. Fixed via TDD: Cypress corrected both test files' inert-value assertions
+  (4 tests correctly flipped red against the still-buggy CSS first), then Magnolia flipped
+  `--glass-alpha: 1` → `0` in both dark-mode blocks. 248/248 vitest. Committed (`d307eb7`) and
+  pushed.
+- **Round 7 — Vercel deploy fixed end-to-end**: user hit `Error: No python entrypoint found`.
+  Root cause: no `vercel.json` existed, so Vercel auto-detected a framework from the repo root,
+  found `pyproject.toml` (the backend's Python project file, never meant to be deployed) and tried
+  to build it as a Python serverless function. Added a root `vercel.json` — did not fix it, since
+  the Vercel dashboard's Root Directory was set to `frontend`, so Vercel looked for `vercel.json`
+  *inside* `frontend/`, ignoring the root-level file entirely. Fixed by moving `vercel.json` into
+  `frontend/` (paths simplified accordingly). Committed (`fbad320`) and pushed.
+  App then reported as "doesn't populate." Diagnosed via `curl -I` (not guessed): a preview URL
+  was 302-redirecting to Vercel's SSO wall (Deployment Protection, not a bug) — redirected the
+  user to the production domain instead. Production returned `200` but rendered blank; diagnosed
+  by pulling the built JS bundle and grepping it — no `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`
+  values were baked in, confirming missing env vars at Vercel build time (Vite inlines
+  `import.meta.env.*` at build time, not runtime). `frontend/src/lib/supabaseClient.ts:9` calls
+  `createClient(undefined, undefined)` unguarded at module top level — throws before React mounts,
+  silent blank page, no error boundary (flagged as a future-spec gap, not fixed this round).
+  Directed the user to add both env vars to Vercel Settings → Environment Variables (Production)
+  and redeploy. **User confirmed the app is now properly deployed.**
+- **Round 8 — README refresh (doc-only)**: updated README's Stack and Status sections, stale
+  since before round 7's deploy fix and specs 007–017. Verified current state first (read
+  SESSION_STATE.md, listed `specs/` — 17 specs exist vs. README implying only 001–006 — ran
+  frontend suite: 248/248 vitest, 17 test files). Added a Deploy row (Vercel, `frontend/
+  vercel.json`, live at `https://looking-glass-zeta.vercel.app/`). Reworded Status to "built,
+  live-verified, and deployed" and summarized specs 007–017. No code changed, no tests added.
+  **Unresolved at archive time**: `playwright-core` (used for live screenshots) was installed
+  `--no-save`, so it's not in `package.json` — reinstall (`npm install --no-save
+  playwright-core@1.50.0`) if another live screenshot pass is needed. A live browser pass on round
+  2's UI work, round 4's salary-premium phrasing, and round 5's contrast/wrapping fixes was never
+  done — only automated tests. If resume upload is revisited, route through Cedar first for
+  dependency authorization (pdf.js at minimum). Prefer synthetic resume text for manual
+  verification (Zero-Trust "no real user PII").
+
 ### 2026-07-22 — Ingest, arbitrage score, and role-picker matrix (specs 001–003)
 
 - Reviewed the full repo against the multi-agent orchestration pipeline; ported missing
