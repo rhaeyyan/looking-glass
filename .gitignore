@@ -31,3 +31,6 @@ data/raw/
 # Ad-hoc manual verification captures (scratch, not repo content)
 screenshots/
 screenshot/
+
+# Source design files kept locally only, not tracked (e.g. favicon_io/)
+assets/

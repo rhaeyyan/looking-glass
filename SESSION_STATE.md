@@ -90,8 +90,9 @@
 - **Round 10 (favicon swap)**: `frontend/public/`'s 7 new favicon files are committed (`7210e55`)
   and pushed. Only machine-verified via curl 200 during this session — no human/browser visual
   confirmation of the new design has been reported back yet. `assets/favicon_io/` (the source
-  files): user explicitly decided to leave it untracked — closed, not a gitignore entry, just not
-  staged. Don't re-ask about this in a future round.
+  files): user decided to leave it untracked; added `assets/` to `.gitignore` so it stops showing
+  as untracked cruft in `git status` (was causing the stop-hook to re-flag it every turn) —
+  fully closed, don't re-ask.
 - The migration-error question from round 9 is resolved (DB schema fully up to date, 0001-0004 all
   applied) — but *why* the user kept re-running these files (3 times, including once against 0001
   after confirming it was already applied) was never answered; low-priority, not pursued further.
