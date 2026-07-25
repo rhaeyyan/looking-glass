@@ -39,20 +39,26 @@
   (42710) on RLS policies, 0004 uses `CREATE OR REPLACE VIEW` so it's always safe to re-run.
   Supplied 3 `information_schema` introspection queries (tables/views/columns) for the user to run
   and paste back, to determine exactly which of 0002-0004 are already applied before running
-  anything further blind. **Still diagnostic-only — no files changed, nothing committed this
-  sub-round.**
+  anything further blind.
+- **Resolved**: user ran 0002 (`42P07` — `skill_arbitrage_scores` already exists), 0003 (`42710`
+  — policy `anon_select_skills_core` already exists), 0004 (Success, idempotent `CREATE OR REPLACE
+  VIEW`). Confirms 0001-0004 are all fully applied against the linked Supabase project; the DB
+  schema is completely up to date and nothing further needs to run. Asked the user what they were
+  actually trying to fix originally, since it's no longer a schema-sync problem. **Diagnostic-only
+  end-to-end — no files changed, nothing committed this sub-round.**
 
 ### Unfinished / blocked
-- User's actual DB state still unconfirmed: sent 3 introspection queries (see Accomplished above)
-  but the user hasn't run/pasted back the results yet. Do not assume which of 0002-0004 are
-  already applied — wait for that output before recommending further SQL to run.
+- The original migration-error question is resolved (DB schema fully up to date, 0001-0004 all
+  applied) — but *why* the user was re-running these files in the first place is still unknown.
+  Asked them directly; awaiting their answer before assuming this thread is fully closed.
 - `assets/favicon_io` is still untracked — unclear if it's meant to be committed (e.g. source
   favicon assets for the round-8-adjacent "apply favicon to frontend" commit `306753b`) or is
   scratch/download cruft. Ask the user before adding or ignoring it.
 
 ### Next steps
-1. Wait for the user to run and paste back the 3 introspection queries; use that to tell them
-   exactly which of 0002/0003/0004 to run (or skip) instead of guessing further.
+1. Find out what the user was originally trying to accomplish (an app bug? routine DB-sync check?)
+   now that the schema itself is confirmed current — don't assume the underlying goal is met just
+   because the migration errors are explained.
 2. Ask the user about `assets/` (untracked) — commit, gitignore, or delete.
 3. Commit the `README.md` Stack/Status refresh from round 8 (not yet committed).
 
