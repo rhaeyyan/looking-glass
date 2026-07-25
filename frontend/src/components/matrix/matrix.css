@@ -514,11 +514,15 @@
 }
 .lev-status[data-have='true'] {
   color: var(--status-good);
-  background: var(--status-good-surface);
+  background:
+    linear-gradient(var(--status-good-surface), var(--status-good-surface)),
+    var(--surface-1);
 }
 .lev-status[data-have='false'] {
   color: var(--status-critical);
-  background: var(--status-critical-surface);
+  background:
+    linear-gradient(var(--status-critical-surface), var(--status-critical-surface)),
+    var(--surface-1);
 }
 
 /* Narrow screens: shrink the scatter so its 340px plot never dictates a wider-than-viewport
@@ -532,22 +536,6 @@
   .matrix-zone-lo {
     font-size: 0.6rem;
     max-width: 9rem;
-  }
-
-  /* Unpin the rank/skill/status columns on narrow viewports. `.lev-status[data-have]`'s pill tint
-   * (--status-good-surface/--status-critical-surface) is a translucent ~14% alpha token by design
-   * — fine for a normal cell, but as a STICKY column's own background it lets non-sticky columns
-   * scrolling underneath show through once they slide behind it (confirmed: at 390px, scrolling the
-   * table horizontally visibly ghosts the Leverage/Demand figures through the Status pill). Mobile
-   * is exactly where this table is scrolled most, so trade the pinned-column convenience for
-   * correctness there rather than fighting the sticky `left` math + translucency at every width. */
-  .lev-num,
-  .lev-skill,
-  .lev-skill-h,
-  .lev-status,
-  .lev-status-h {
-    position: static;
-    left: auto;
   }
 }
 

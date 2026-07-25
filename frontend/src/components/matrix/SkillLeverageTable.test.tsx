@@ -487,7 +487,16 @@ describe('<SkillLeverageTable /> spec 022 — CSS-only pill/bar/radius restyle (
         expect(colorM).not.toBeNull()
         expect(bgM).not.toBeNull()
         expect(colorM![1].trim()).toMatch(allowed)
-        expect(bgM![1].trim()).toMatch(allowed)
+        // The background may now be a multi-layer composite (translucent tint layer over an
+        // opaque `--surface-1` backdrop layer, one `background` declaration) rather than a single
+        // exact token — so the family check here is a *contains* match on the tint layer, not a
+        // whole-value equality match. Drop the `^...$` anchors from `allowed` for this assertion.
+        const tintLayerPresent = new RegExp(allowed.source.replace(/^\^/, '').replace(/\$$/, ''))
+        expect(bgM![1]).toMatch(tintLayerPresent)
+        // And actively verify the ghosting-fix mechanism: an opaque `--surface-1` backdrop layer
+        // must also be present underneath the tint, so the pinned column can never let non-sticky
+        // columns show through while scrolling.
+        expect(bgM![1]).toMatch(/var\(--surface-1\)/)
       })
     }
 
@@ -534,7 +543,16 @@ describe('<SkillLeverageTable /> spec 022 — CSS-only pill/bar/radius restyle (
       expect(colorM).not.toBeNull()
       expect(bgM).not.toBeNull()
       const fgHex = resolveDeclaredColorToHex(colorM![1].trim(), tokens, surfaceHex)
-      const bgHex = resolveDeclaredColorToHex(bgM![1].trim(), tokens, surfaceHex)
+      // The background value may now be a multi-layer composite (translucent tint layer over an
+      // opaque `--surface-1` backdrop layer). `resolveDeclaredColorToHex` still expects a single
+      // token/var chain, so pull out just the translucent-tint layer (the one matching the
+      // --status-good(-surface)/--status-critical(-surface) family) before resolving it — the
+      // composite-over-backdrop math itself is unchanged, only what's fed into it.
+      const tintLayerMatch = /var\(--status-(?:good|critical)(?:-surface)?\)/.exec(
+        bgM![1].trim(),
+      )
+      expect(tintLayerMatch).not.toBeNull()
+      const bgHex = resolveDeclaredColorToHex(tintLayerMatch![0], tokens, surfaceHex)
       expect(contrastRatio(fgHex, bgHex)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT)
     }
 
