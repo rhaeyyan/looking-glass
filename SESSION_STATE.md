@@ -26,22 +26,33 @@
 - `assets/` (containing `favicon_io`) remains untracked in git status; pre-existing before this
   session, not created by it — left as-is, not investigated or touched.
 - Per the user's request, committed this round's own ledger housekeeping (archiving rounds 5-8
-  into `ARCHIVED_SESSIONS.md`, trimming `SESSION_STATE.md`): `a3bc079`. `assets/` was deliberately
-  left out of that commit (see Unfinished/blocked below) — its continued presence in `git status`
-  after that commit is expected, not an oversight.
+  into `ARCHIVED_SESSIONS.md`, trimming `SESSION_STATE.md`): `a3bc079`, `91d4f0d`. `assets/` was
+  deliberately left out of both commits (see Unfinished/blocked below) — its continued presence in
+  `git status` after those commits is expected, not an oversight.
+- User hit the same `skills_core already exists` error a second time; narrowed the diagnosis by
+  asking (via `AskUserQuestion`) exactly how they trigger it and what they're actually trying to
+  accomplish. Confirmed: they paste migration files directly into the SQL Editor/`psql` (no CLI
+  migration tracking involved at all), and their real goal is applying 0002-0004, not re-running
+  0001. Read all three files (`0002_arbitrage_scores.sql`, `0003_frontend_read_layer.sql`,
+  `0004_role_arbitrage_narration_fields.sql`) and gave an ordered runbook: 0002 may itself already
+  be applied (same 42P07 pattern on `skill_arbitrage_scores`), 0003 may hit `policy already exists`
+  (42710) on RLS policies, 0004 uses `CREATE OR REPLACE VIEW` so it's always safe to re-run.
+  Supplied 3 `information_schema` introspection queries (tables/views/columns) for the user to run
+  and paste back, to determine exactly which of 0002-0004 are already applied before running
+  anything further blind. **Still diagnostic-only — no files changed, nothing committed this
+  sub-round.**
 
 ### Unfinished / blocked
-- User's actual DB state unconfirmed: haven't verified whether migrations 0002-0004 are applied
-  against the linked Supabase project, or whether `supabase migration repair` was ever run. Next
-  session should ask the user which fix they took (if any) before assuming DB/CLI history are in
-  sync.
+- User's actual DB state still unconfirmed: sent 3 introspection queries (see Accomplished above)
+  but the user hasn't run/pasted back the results yet. Do not assume which of 0002-0004 are
+  already applied — wait for that output before recommending further SQL to run.
 - `assets/favicon_io` is still untracked — unclear if it's meant to be committed (e.g. source
   favicon assets for the round-8-adjacent "apply favicon to frontend" commit `306753b`) or is
   scratch/download cruft. Ask the user before adding or ignoring it.
 
 ### Next steps
-1. Confirm with the user which migration-history fix they applied (if any) and whether the
-   original push now succeeds.
+1. Wait for the user to run and paste back the 3 introspection queries; use that to tell them
+   exactly which of 0002/0003/0004 to run (or skip) instead of guessing further.
 2. Ask the user about `assets/` (untracked) — commit, gitignore, or delete.
 3. Commit the `README.md` Stack/Status refresh from round 8 (not yet committed).
 
