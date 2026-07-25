@@ -90,8 +90,8 @@
 - **Round 10 (favicon swap)**: `frontend/public/`'s 7 new favicon files are committed (`7210e55`)
   and pushed. Only machine-verified via curl 200 during this session — no human/browser visual
   confirmation of the new design has been reported back yet. `assets/favicon_io/` (the source
-  files) remains untracked, now understood to be intentional source-asset storage rather than
-  cruft; whether to also commit it as a tracked source-of-truth is still an open question.
+  files): user explicitly decided to leave it untracked — closed, not a gitignore entry, just not
+  staged. Don't re-ask about this in a future round.
 - The migration-error question from round 9 is resolved (DB schema fully up to date, 0001-0004 all
   applied) — but *why* the user kept re-running these files (3 times, including once against 0001
   after confirming it was already applied) was never answered; low-priority, not pursued further.
@@ -99,10 +99,7 @@
 ### Next steps
 1. Confirm with the user that the new favicon design actually looks right once they've seen it
    live (Vercel auto-deploys `origin/main`, so it should already be live).
-2. Decide whether to also commit `assets/favicon_io/` itself (the new source design files) so
-   future favicon swaps have a tracked source-of-truth, or leave it untracked as scratch — ask the
-   user.
-3. Commit the `README.md` Stack/Status refresh from round 8 (still not yet committed).
+2. Commit the `README.md` Stack/Status refresh from round 8 (still not yet committed).
 
 ---
 
