@@ -58,16 +58,65 @@
   confirmed no corner brackets anywhere, uniform frosted-glass cards/sheen, brushed-metal scatter
   bubbles, soft-tint status pills, and metallic button/badge/toggle chrome all render correctly
   light and dark.
-- Not yet committed — awaiting the user's explicit commit instruction per this repo's git protocol.
+- User approved and this cleanup was **committed and pushed**: `c043929` ("fix(ui): strip leftover
+  blueprint corner-brackets, finish glass parity"), pushed to `origin/main` for Vercel auto-deploy.
+
+### Round 12.5 (same session, follow-up polish pass — uncommitted)
+- User supplied 4 screenshots from `screenshots/` (2 current-app, 2 mockup, one pair each for the
+  leverage table and the demand×scarcity scatter) and asked for a closer visual match. Diffed them
+  directly against the mockup's `Looking Glass - Glass.dc.html` markup already read this session and
+  found three concrete, previously-unstyled gaps (`.matrix-legend`/`.matrix-legend-item` had **zero**
+  CSS rules at all — confirmed via `grep -ni legend matrix.css` returning nothing):
+  - The scatter's "✓ already have / ✕ worth learning" glyph key rendered as unstyled inline text
+    that visually ran into the preceding sentence with no separation, instead of the mockup's two
+    soft-tinted pill chips top-right of the section.
+  - The leverage table's Status column showed "Already have"/"Worth learning" as plain text with no
+    ✓/✕ glyph (the scatter's own flag badge already used the glyph — table was inconsistent with
+    itself), headers were sentence-case with no letter-spacing (mockup: uppercase + tracking), and
+    the table sat directly on the card's own glass background with no distinct frosted-plot surface
+    of its own (mockup wraps the table in a `--plot`-tinted, bordered container).
+  - The scatter bubble fill (`bandedMetalFill` in `SkillMatrix.tsx`, spec 021) was a flatter 3-band
+    hard-stop gradient vs. the mockup's richer 5-stop light→dark→light "marble" banding — confirmed
+    via `SkillMatrix.test.tsx` that no test locks the exact gradient stops (only that it starts with
+    `linear-gradient(` and that `--metal-hi` appears *somewhere* in matrix.css, already satisfied by
+    the separate `.matrix-point` box-shadow rule), so free to reshape.
+- Implemented directly (small, low-risk, same fast-path as round 12):
+  - `SkillMatrix.tsx`: split the glyph-key legend into `.matrix-legend-chips` > two
+    `.matrix-legend-chip[data-variant="have"|"learn"]` pills, reusing the existing
+    `--status-good(-surface)`/`--status-critical(-surface)` tokens (no new color literal). Verified
+    against `SkillMatrix.legendAndReveal.test.tsx`'s exact-text `getByText('✓')`/`getByText('✕')`
+    checks before restructuring — they match the innermost `aria-hidden` glyph span regardless of
+    the new wrapping, so no test edits were needed.
+  - Reshaped `bandedMetalFill()` to the 5-stop mockup-matching formula; tier/color **selection**
+    logic untouched, only the CSS shape.
+  - `SkillLeverageTable.tsx`: added a `✓`/`✕` `aria-hidden` icon span before the status label, with
+    the label itself kept in its own inner `<span>` — required specifically so the existing
+    `getByText('Already have')`/`getByText('Worth learning')` **exact-match** assertions (RTL's
+    `getByText` default is exact-string, not substring) still resolve to that inner span rather than
+    failing against the icon+label concatenated cell text.
+  - `matrix.css`: new `.matrix-legend`/`.matrix-legend-item`/`.matrix-legend-chips`/
+    `.matrix-legend-chip` rules (previously nonexistent); `.matrix-table thead th` gained
+    `text-transform: uppercase` + `letter-spacing`; `.leverage-tablewrap` gained a `--plot`
+    background + `--border` + radius; `.lev-status-icon { margin-right: 4px }`.
+- Verified: `npx vitest run` — 608/608 passing, **zero test edits required** (confirmed the exact-
+  match risk above before editing, not after); `tsc --noEmit`/`npx eslint src` clean. Re-ran the
+  in-browser role-select → resume-submit → full-render screenshot flow (dark mode) and visually
+  confirmed the pills, uppercase headers, frosted table backdrop, and richer bubble fill all match
+  the mockup screenshots the user supplied.
+- **Not yet committed** — was mid-turn asking the user "want me to commit and push this polish pass?"
+  when the stop-hook fired on this ledger update requirement.
 
 ### Unfinished / blocked
-- This round's changes are complete and verified but **not committed**. Ask before committing.
+- **Round 12.5's table/scatter polish pass is implemented and verified but not committed.** Files:
+  `frontend/src/components/matrix/SkillLeverageTable.tsx`,
+  `frontend/src/components/matrix/SkillMatrix.tsx`, `frontend/src/components/matrix/matrix.css`.
+  Ask the user before committing (they hadn't yet replied to the commit question this ledger update
+  interrupted).
 - Favicon visual confirmation (round 10) and the README Stack/Status refresh commit (round 8) are
   still open from prior rounds — see [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md) for detail.
 
 ### Next steps
-1. If the user is happy with the screenshots, commit this round's cleanup (`App.tsx`,
-   `looking-glass.css`, `matrix.css`, `SkillMatrix.tsx`, `SkillLeverageTable.tsx`).
+1. Get the user's go-ahead, then commit + push round 12.5's three-file polish pass.
 2. Confirm with the user that the new favicon design actually looks right once they've seen it
    live (Vercel auto-deploys `origin/main`).
 3. Commit the `README.md` Stack/Status refresh from round 8 (still not yet committed).

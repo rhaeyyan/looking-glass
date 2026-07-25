@@ -100,7 +100,10 @@ export function SkillLeverageTable({
                       className="lev-status"
                       data-have={have === undefined ? undefined : have ? 'true' : 'false'}
                     >
-                      {have ? 'Already have' : 'Worth learning'}
+                      <span aria-hidden="true" className="lev-status-icon">
+                        {have ? '✓' : '✕'}
+                      </span>
+                      <span>{have ? 'Already have' : 'Worth learning'}</span>
                     </td>
                   )}
                   <td className="lev-leverage">

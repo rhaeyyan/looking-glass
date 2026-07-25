@@ -42,18 +42,19 @@ function scaleToPlot(v: number, min: number, max: number): number {
   return PAD + ((v - min) / (max - min)) * (100 - 2 * PAD)
 }
 
-/** Wraps a single accent color into a "brushed-metal" gradient-banded fill: a hard-edged
- * specular highlight band (--metal-hi), the accent's own tone, and a shaded lower band — three
- * flat tonal bands with hard percentage-stop breaks (repeated stop values), not a soft radial
- * gloss. Reads correctly at any bubble size, including the 20px floor, since the bands are
- * expressed in percentages of the bubble itself. Tier/color SELECTION is unchanged — this only
- * reshapes the resulting CSS value's form. */
+/** Wraps a single accent color into a "brushed-metal" marble fill: a light specular band, a hard
+ * tonal break into the accent's own shaded core, and a second lighter band along the far edge —
+ * hard percentage-stop breaks (repeated stop values), not a soft radial gloss, so it reads as a
+ * lit metal/glass disc at any bubble size, including the 20px floor. Tier/color SELECTION is
+ * unchanged — this only reshapes the resulting CSS value's form. */
 function bandedMetalFill(accent: string): string {
   return (
-    `linear-gradient(155deg, ` +
-    `var(--metal-hi) 0%, var(--metal-hi) 22%, ` +
-    `${accent} 22%, ${accent} 62%, ` +
-    `color-mix(in srgb, ${accent} 72%, #000) 62%, color-mix(in srgb, ${accent} 72%, #000) 100%)`
+    `linear-gradient(150deg, ` +
+    `color-mix(in srgb, ${accent} 45%, white) 0%, ` +
+    `color-mix(in srgb, ${accent} 85%, white) 38%, ` +
+    `color-mix(in srgb, ${accent} 94%, black) 40%, ` +
+    `color-mix(in srgb, ${accent} 76%, black) 76%, ` +
+    `color-mix(in srgb, ${accent} 90%, white) 100%)`
   )
 }
 
@@ -126,9 +127,13 @@ export function SkillMatrix({
           lower leverage.
         </span>
         {haveSkillKeys !== undefined && (
-          <span className="matrix-legend-item">
-            <span aria-hidden="true">✓</span> already have this skill &nbsp;&middot;&nbsp;
-            <span aria-hidden="true">✕</span> worth learning — a gap
+          <span className="matrix-legend-chips">
+            <span className="matrix-legend-chip" data-variant="have">
+              <span aria-hidden="true">✓</span> already have this skill
+            </span>
+            <span className="matrix-legend-chip" data-variant="learn">
+              <span aria-hidden="true">✕</span> worth learning — a gap
+            </span>
           </span>
         )}
       </div>

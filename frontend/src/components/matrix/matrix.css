@@ -126,6 +126,47 @@
   max-width: 60ch;
 }
 
+/* Scatter legend (spec 010): the color-tier sentence stays plain text; the have/gap glyph key
+ * renders as two soft-tinted pill chips (mirrors the mockup + reuses the exact --status-good(-
+ * surface)/--status-critical(-surface) family already used by the scatter's flag badge and the
+ * leverage table's status pill — no new color literal). */
+.matrix-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.875rem;
+  margin: 0 0 1rem;
+}
+.matrix-legend-item {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  max-width: 46ch;
+}
+.matrix-legend-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.matrix-legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 0.25rem 0.7rem;
+  border-radius: 99px;
+}
+.matrix-legend-chip[data-variant='have'] {
+  color: var(--status-good);
+  background: var(--status-good-surface);
+}
+.matrix-legend-chip[data-variant='learn'] {
+  color: var(--status-critical);
+  background: var(--status-critical-surface);
+}
+
 .lev-footnote {
   margin: 0.75rem 0 0;
 }
@@ -352,6 +393,9 @@
   margin-top: 0.25rem;
   overflow-x: auto;
   overflow-y: hidden;
+  background: var(--plot);
+  border: 1px solid var(--border);
+  border-radius: 11px;
 }
 .leverage-table {
   min-width: 660px; /* keep every column readable; the wrap scrolls on narrow screens */
@@ -445,6 +489,9 @@
   border-radius: 99px;
   padding: 0.2rem 0.6rem;
   background: var(--surface-1);
+}
+.lev-status-icon {
+  margin-right: 4px;
 }
 .lev-status[data-have='true'] {
   color: var(--status-good);
@@ -605,4 +652,7 @@
   color: var(--text-secondary);
   border-bottom: 1px solid var(--baseline);
   font-weight: 600;
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
