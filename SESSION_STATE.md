@@ -5,7 +5,7 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-24/25 (round 10: favicon redesign swap, in progress; round 9: migration-error diagnosis, no changes)
+## Current Session — 2026-07-24/25 (round 10: favicon redesign swap, shipped; round 9: migration-error diagnosis, no changes)
 
 > Specs 001–017 and all prior rounds (redesign/de-jargon/top-3-moves; UI/UX+dataviz pass 008-010;
 > 15-role expansion 011-012; salary-premium clarity 013-014; contrast/wrapping/glass-ui 015-017;
@@ -23,10 +23,13 @@
   status; the other 7 files show modified. Confirmed no test files or `index.html` reference the
   old design (`index.html`'s `<link>` tags point to the same filenames, so nothing else needs
   updating). Started the Vite dev server (`localhost:5173`), curled `/favicon.ico`, got `200` —
-  new file serves correctly — then stopped the dev server. **Not yet visually eyeballed in an
-  actual browser tab, and not yet committed** — waiting on the user to confirm the new design
-  looks right and to explicitly ask for the commit (per this repo's git protocol, commits aren't
-  made unprompted).
+  new file serves correctly — then stopped the dev server.
+  User then explicitly asked to commit and push. Staged and committed the 7 changed
+  `frontend/public/` files (`site.webmanifest` excluded — byte-identical, nothing to stage) as
+  `7210e55` (`feat: swap frontend favicon to new design`) and pushed to `origin/main`
+  (`78796e0..7210e55`). `assets/favicon_io/` (the new design's source files) deliberately left
+  untracked, same as before — asked the user whether to also track it as a source-of-truth for
+  future swaps; no answer yet.
 
 ### Accomplished (round 9, this section)
 - Diagnostic-only: user hit `ERROR: relation "skills_core" already exists (SQLSTATE 42P07)` when
@@ -84,19 +87,18 @@
   committed this sub-round.**
 
 ### Unfinished / blocked
-- **Round 10 (favicon swap)**: `frontend/public/`'s 7 changed favicon files are staged in the
-  working tree but not committed. Only machine-verified (curl 200); no human/browser visual check
-  of the new icon has happened yet. `assets/favicon_io/` (the source files) is still untracked —
-  now resolved as intentional source-asset storage, not cruft, given this round's use of it.
+- **Round 10 (favicon swap)**: `frontend/public/`'s 7 new favicon files are committed (`7210e55`)
+  and pushed. Only machine-verified via curl 200 during this session — no human/browser visual
+  confirmation of the new design has been reported back yet. `assets/favicon_io/` (the source
+  files) remains untracked, now understood to be intentional source-asset storage rather than
+  cruft; whether to also commit it as a tracked source-of-truth is still an open question.
 - The migration-error question from round 9 is resolved (DB schema fully up to date, 0001-0004 all
   applied) — but *why* the user kept re-running these files (3 times, including once against 0001
-  after confirming it was already applied) was never answered; low-priority now that round 10 has
-  moved on, but worth a light touch if it resurfaces.
+  after confirming it was already applied) was never answered; low-priority, not pursued further.
 
 ### Next steps
-1. Ask the user to confirm the new favicon design looks right in an actual browser tab (not just
-   the curl 200 check), then commit `frontend/public/`'s 7 changed files once confirmed — don't
-   commit unprompted.
+1. Confirm with the user that the new favicon design actually looks right once they've seen it
+   live (Vercel auto-deploys `origin/main`, so it should already be live).
 2. Decide whether to also commit `assets/favicon_io/` itself (the new source design files) so
    future favicon swaps have a tracked source-of-truth, or leave it untracked as scratch — ask the
    user.
