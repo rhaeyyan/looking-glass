@@ -583,6 +583,41 @@
   }
 }
 
+/* ---------- Spec 024: real-phone pinned-column crowding (a DIFFERENT concern from the 560px
+ * scatter-sizing block above — that one shrinks the plot; this one frees up horizontal room in the
+ * leverage table's sticky-column zone) -----------------------------------------------------------
+ * On real phones (~390-430px CSS px) the three pinned columns (.lev-num 2.25rem + .lev-skill 9rem +
+ * .lev-status 9.5rem ≈ 20.75rem/332px) eat almost the whole viewport, leaving no room to see the
+ * metric columns (Leverage, Demand, Scarcity, ...) without scrolling. Fix: unpin Status (it moves
+ * into the scrollable zone instead of the pinned one — no data is removed, just relocated) and
+ * shrink Skill's width; keep .lev-num exactly as-is (it's already the lightest column, not the
+ * source of the crowding). The Status cell's text label is visually hidden (clip-rect, NOT
+ * display:none) at this width only, since the ✓/✕ glyph + color already carries the same meaning
+ * (mirrors `.matrix-point-flag`'s existing glyph+color pattern) and the label text stays in the
+ * accessibility tree for screen readers. */
+@media (max-width: 480px) {
+  .lev-status,
+  .lev-status-h {
+    position: static;
+    left: auto;
+  }
+  .lev-skill,
+  .lev-skill-h {
+    width: 6rem;
+  }
+  .lev-status-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
 /* ---------- Top moves (spec 005, extended to a ranked top-3) ----------
  * A text-only surface — no chart, so no non-color-encoding channel is needed here. The headline
  * sentence + the numbered rank badges carry "start with this one"; rank is a real number, never

@@ -119,7 +119,7 @@ export function SkillLeverageTable({
                       <span aria-hidden="true" className="lev-status-icon">
                         {have ? '✓' : '✕'}
                       </span>
-                      <span>{have ? 'Already have' : 'Worth learning'}</span>
+                      <span className="lev-status-label">{have ? 'Already have' : 'Worth learning'}</span>
                     </td>
                   )}
                   <td className="lev-leverage">

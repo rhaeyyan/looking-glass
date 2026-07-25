@@ -5,7 +5,7 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-25 (round 13: sticky-Status ghosting fix + metric-column crowding fix, both via the real pipeline; cleared 2 stale ledger items)
+## Current Session — 2026-07-25 (round 14: mobile-friendly leverage table via Pine→Cedar→Cypress→Magnolia; round 13 sticky-Status + crowding fixes, both via the real pipeline)
 
 > Specs 001–022 and rounds 1–11.5 are archived in [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 > Rounds 12–12.8 (glass-parity cleanup, visual polish, hover/motion, sticky-column fixes —
@@ -47,12 +47,52 @@
     read `frontend/public/favicon-16x16.png`/`favicon-32x32.png` directly this round — both render
     a clean "LG" monogram on the app's blue accent, legible at both sizes. Confirmed.
 
+### Accomplished (round 14, this section)
+- User supplied a REAL-DEVICE mobile screenshot (~430 CSS px viewport, not simulated) showing the
+  three sticky/pinned columns (`.lev-num` 2.25rem + `.lev-skill` 9rem + `.lev-status` 9.5rem ≈
+  20.75rem/332px) eating almost the entire phone width — only a sliver of the Leverage column
+  visible, everything else requiring heavy horizontal scroll. User: "it looks very bad in mobile,
+  this table needs to be mobile friendly."
+- Routed via **Pine** → **Cedar** (COMPLEX — a real design tradeoff with multiple viable
+  approaches, not a cosmetic tweak, on a table with a recent track record of under-solved ad hoc
+  patches). Cedar read the current TSX/CSS, explicitly rejected a full card/stacked-layout mobile
+  restructure (too much DOM/a11y risk for the gain), and specced a decisive, minimal fix: below
+  **480px**, unpin only Status from the sticky set (keep Rank+Skill pinned — the minimum to not
+  lose your place scrolling 30 rows), shrink `.lev-skill`/`.lev-skill-h` from 9rem→6rem, and
+  visually-hide (clip-rect, NOT `display:none`) the Status label text so only the ✓/✕ glyph shows
+  — dropping the pinned footprint to ~8.25rem (~132px). Persisted
+  `specs/024-mobile-friendly-leverage-table.md`; user approved via `AskUserQuestion` (HITL).
+- **Cypress** wrote the failing tests first (position/width assertions targeting a not-yet-existing
+  `@media (max-width: 480px)` block, plus a DOM-presence regression guard for the label text and an
+  axe-core check — honest in its report about jsdom's inability to actually simulate a browser
+  reflowing at a real viewport width, so it scoped its claims accordingly) and added the one
+  `className="lev-status-label"` JSX attribute spec 024 explicitly authorized as its file to touch.
+  613/618 → confirmed exactly the 5 intended RED failures.
+- **Magnolia** implemented Cedar's exact spec: new, separate `@media (max-width: 480px)` block
+  (deliberately not merged into the existing 560px scatter-sizing block — different concern),
+  reusing the existing `.visually-hidden` clip-rect declarations verbatim for `.lev-status-label`.
+  618/618 passing, `tsc`/`eslint` clean.
+- Independently re-verified all of it myself: reran the full suite (618/618), diffed the CSS (one
+  clean, isolated block, nothing else touched), and screenshotted both a 428px viewport (matching
+  the user's real device) and a 768px desktop viewport. Confirmed: at 428px the Leverage column
+  and its full bar chart are now clearly visible with room to spare, Status renders icon-only, and
+  `page.evaluate` confirmed the label span (`"Already have"`) is still connected to the DOM, just
+  visually clipped — never removed. At 768px, confirmed byte-for-byte unaffected (Status stays
+  sticky with full text, Skill stays 9rem).
+- **Not committed** — asking the user before committing, per this session's established pattern.
+
 ### Unfinished / blocked
-- None from this session — both bugs fixed, verified, committed, and pushed; both stale ledger
-  items resolved.
+- **Round 14's fix is implemented and independently verified but not committed.** Files:
+  `frontend/src/components/matrix/matrix.css`, `frontend/src/components/matrix/
+  SkillLeverageTable.tsx` (one `className` addition), `frontend/src/components/matrix/
+  SkillLeverageTable.test.tsx`, plus the new `specs/024-mobile-friendly-leverage-table.md`
+  (untracked).
+- Round 13's two fixes (sticky-Status ghosting, metric-column crowding) are already committed +
+  pushed (`62b01a5`, `e9bdb21`) — no action needed there.
 
 ### Next steps
-1. Nothing outstanding from this session. Normal development can resume next session.
+1. Get the user's go-ahead, then commit (and likely push, per this session's pattern) round 14's
+   mobile-friendly leverage-table fix and the new spec file.
 
 ---
 

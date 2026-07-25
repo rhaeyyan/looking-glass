@@ -708,3 +708,180 @@ describe('<SkillLeverageTable /> spec 022 — CSS-only pill/bar/radius restyle (
     })
   })
 })
+
+// ---------------------------------------------------------------------------------------------
+// Spec 024 — mobile-friendly leverage table: shrink the pinned-column footprint at ≤480px so
+// metric data (Leverage, Demand, ...) is actually visible on a real phone viewport, while keeping
+// every number (including Status) genuinely accessible.
+//
+// This test suite reads matrix.css as raw text and asserts on rule bodies (same convention as the
+// spec-022 describe block above) rather than mounting a real browser at a given viewport width —
+// vitest.config's `test.css` is unset/false, so component-render tests never see applied CSS rules,
+// and jsdom does not evaluate `@media` queries against a simulated viewport at all. That means:
+//   - assertions (a)/(b) below are CSS-text assertions against a new `@media (max-width: 480px)`
+//     block in matrix.css — they are honest about testing declared rules, not rendered/computed
+//     styles in a real viewport.
+//   - assertion (c) is a genuine behavioral (RTL) test: it renders the real component and queries
+//     the DOM, so it actually proves the label text is present in the accessibility tree — this one
+//     IS a real assertion about rendered output, not just CSS text.
+//   - assertion (d) (axe) mounts the real component and runs the real axe-core engine against the
+//     real rendered DOM/CSSOM in jsdom's default viewport size. It genuinely exercises axe's rule
+//     engine, but it does NOT — and cannot, in jsdom — prove that a real browser reflows this table
+//     at 480px width the way a phone would. It is included as a structural regression guard (no
+//     a11y violations in the markup this SPEC touches), not as proof of correct 480px rendering.
+describe('<SkillLeverageTable /> spec 024 — mobile ≤480px: unpin Status, shrink Skill, keep Status text in the DOM', () => {
+  const MATRIX_DIR = path.dirname(fileURLToPath(import.meta.url))
+  const MATRIX_CSS_PATH = path.join(MATRIX_DIR, 'matrix.css')
+  const matrixCss = readFileSync(MATRIX_CSS_PATH, 'utf-8')
+
+  /** Finds the `{ ... }` block for a pattern via brace-depth counting (duplicated from the sibling
+   * spec-022 describe block's own local copy of this generic parsing utility — kept local to this
+   * describe block on purpose, per this suite's established "each section owns its own copy"
+   * convention, rather than hoisting a shared helper module for a two-line function). */
+  function block(css: string, selectorPattern: RegExp): string {
+    const match = selectorPattern.exec(css)
+    if (!match) {
+      throw new Error(`Selector pattern not found in stylesheet: ${selectorPattern}`)
+    }
+    const braceInMatch = match[0].lastIndexOf('{')
+    const openBrace =
+      braceInMatch !== -1
+        ? match.index + braceInMatch
+        : css.indexOf('{', match.index + match[0].length)
+    if (openBrace === -1 || css[openBrace] !== '{') {
+      throw new Error(`Could not locate an opening brace for selector pattern: ${selectorPattern}`)
+    }
+    let depth = 1
+    let i = openBrace + 1
+    while (depth > 0 && i < css.length) {
+      if (css[i] === '{') depth++
+      else if (css[i] === '}') depth--
+      i++
+    }
+    return css.slice(openBrace + 1, i - 1)
+  }
+
+  /** Every rule (inside an already-extracted, flat block of CSS text — e.g. the interior of one
+   * `@media` block) whose comma-separated selector list contains `needle` as a whole selector
+   * token (so `.lev-status` never accidentally matches `.lev-status-h`). Returns the concatenated
+   * bodies of every matching rule. */
+  function declarationsForIn(cssBlock: string, needle: string): string {
+    const ruleRe = /([^{}]+)\{([^{}]*)\}/g
+    let m: RegExpExecArray | null
+    let combined = ''
+    const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const selectorTokenRe = new RegExp(`(^|[\\s,])${escaped}($|[\\s,[:])`)
+    while ((m = ruleRe.exec(cssBlock))) {
+      const selectors = m[1].trim()
+      if (selectorTokenRe.test(selectors)) {
+        combined += m[2] + '\n'
+      }
+    }
+    return combined
+  }
+
+  /** Extracts the interior of the `@media (max-width: 480px) { ... }` block. Deliberately does NOT
+   * fall back to the existing 560px/520px blocks — per the SPEC, 480px must be its own distinct
+   * block, not merged into the scatter-sizing 560px block or the topmoves-grid 520px block. */
+  function mobile480Block(): string {
+    return block(matrixCss, /@media\s*\(max-width:\s*480px\)\s*\{/)
+  }
+
+  describe('(a) `.lev-status`/`.lev-status-h` are no longer sticky at ≤480px', () => {
+    it('a `@media (max-width: 480px)` block exists in matrix.css, distinct from the existing 560px/520px blocks', () => {
+      expect(() => mobile480Block()).not.toThrow()
+    })
+
+    it('`.lev-status`\'s `position` inside the 480px block is overridden away from `sticky`', () => {
+      const mediaBody = mobile480Block()
+      const body = declarationsForIn(mediaBody, '.lev-status')
+      const positionDecl = /position\s*:\s*([^;]+);/.exec(body)
+      expect(positionDecl).not.toBeNull()
+      expect(positionDecl![1].trim()).not.toBe('sticky')
+    })
+
+    it('`.lev-status-h`\'s `position` inside the 480px block is overridden away from `sticky`', () => {
+      const mediaBody = mobile480Block()
+      const body = declarationsForIn(mediaBody, '.lev-status-h')
+      const positionDecl = /position\s*:\s*([^;]+);/.exec(body)
+      expect(positionDecl).not.toBeNull()
+      expect(positionDecl![1].trim()).not.toBe('sticky')
+    })
+  })
+
+  describe('(b) `.lev-skill`/`.lev-skill-h` shrink from 9rem to 6rem at ≤480px', () => {
+    it('`.lev-skill`\'s `width` inside the 480px block is `6rem`', () => {
+      const mediaBody = mobile480Block()
+      const body = declarationsForIn(mediaBody, '.lev-skill')
+      const widthDecl = /width\s*:\s*([^;]+);/.exec(body)
+      expect(widthDecl).not.toBeNull()
+      expect(widthDecl![1].trim()).toBe('6rem')
+    })
+
+    it('`.lev-skill-h`\'s `width` inside the 480px block is `6rem`', () => {
+      const mediaBody = mobile480Block()
+      const body = declarationsForIn(mediaBody, '.lev-skill-h')
+      const widthDecl = /width\s*:\s*([^;]+);/.exec(body)
+      expect(widthDecl).not.toBeNull()
+      expect(widthDecl![1].trim()).toBe('6rem')
+    })
+  })
+
+  describe('unchanged invariants the 480px block must NOT touch', () => {
+    it('`.lev-num`\'s width (2.25rem) and sticky `left: 0` are unchanged at the top level (this SPEC does not touch `.lev-num`)', () => {
+      const body = block(matrixCss, /^\.lev-num \{/m)
+      expect(/width\s*:\s*2\.25rem;/.test(body)).toBe(true)
+      expect(/position\s*:\s*sticky;/.test(body)).toBe(true)
+      expect(/left\s*:\s*0;/.test(body)).toBe(true)
+    })
+
+    it('the base (top-level, non-media) `.lev-skill`/`.lev-skill-h` width is still `9rem` — only the 480px override changes it, the base rule is untouched', () => {
+      const body = block(matrixCss, /^\.lev-skill,\s*\n\.lev-skill-h \{/m)
+      expect(/width\s*:\s*9rem;/.test(body)).toBe(true)
+    })
+  })
+
+  describe('(c) the Status label text remains present/query-able in the DOM regardless of viewport (RTL cannot evaluate CSS visual clipping, so this is the correct behavioral guard)', () => {
+    it('renders "Already have" and "Worth learning" as query-able text nodes, still findable by RTL\'s getByText', () => {
+      render(
+        <SkillLeverageTable
+          rows={roleSkillProfileFixture}
+          roleName="Backend"
+          haveSkillKeys={HAVE_SKILL_KEYS}
+        />,
+      )
+      const table = screen.getByRole('table')
+      expect(within(table).getAllByText('Already have').length).toBeGreaterThan(0)
+      expect(within(table).getAllByText('Worth learning').length).toBeGreaterThan(0)
+    })
+
+    it('the label span is not removed even once the (future) `.lev-status-label` visual-hiding class is applied — this locks in "present in the DOM", not "display:none"', () => {
+      render(
+        <SkillLeverageTable
+          rows={roleSkillProfileFixture}
+          roleName="Backend"
+          haveSkillKeys={HAVE_SKILL_KEYS}
+        />,
+      )
+      const table = screen.getByRole('table')
+      const label = within(table).getAllByText(/Already have|Worth learning/)[0]
+      // getByText already guarantees this element is attached to the document and has visible
+      // text content in RTL's default (non-`hidden`) query mode — asserting again here documents
+      // the intent: this must stay true even after Magnolia's CSS clips it visually.
+      expect(label).toBeInTheDocument()
+    })
+  })
+
+  describe('(d) axe-core reports no violations with the Status column populated (structural regression guard — see the file-level note above on what jsdom can and cannot verify about 480px reflow)', () => {
+    it('has zero axe violations with the Status column populated (does not prove 480px reflow correctness — jsdom does not evaluate @media viewport queries)', async () => {
+      const { container } = render(
+        <SkillLeverageTable
+          rows={roleSkillProfileFixture}
+          roleName="Backend"
+          haveSkillKeys={HAVE_SKILL_KEYS}
+        />,
+      )
+      expect(await axe(container)).toHaveNoViolations()
+    })
+  })
+})
