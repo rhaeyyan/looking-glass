@@ -6,6 +6,61 @@
 
 ## Archived Sessions
 
+### 2026-07-25 — Sticky-Status ghosting fix (round 13), mobile-friendly table (round 14), breakpoint widening (round 15), via the real Pine→Cedar→Cypress→Redwood/Magnolia pipeline
+
+- **Round 13 — sticky-Status ghosting, real fix**: round 12.8's `@media (max-width: 560px)`
+  mobile-unpin only masked the bug below that breakpoint; user proved via screenshot it still
+  ghosts at full desktop width and asked for the actual multi-agent pipeline instead of another
+  direct patch. Ran it for real: **Pine** classified COMPLEX (2 failed patches = Rule 9 circuit
+  breaker) → **Cedar** diagnosed the true root cause (a sticky element's translucent `background`
+  is a single paint layer; a two-layer composite — translucent tint over opaque
+  `var(--surface-1)`, same declaration, same already-locked selector — fixes it at every width
+  unconditionally, no DOM change needed) and persisted
+  `specs/023-fix-leverage-table-sticky-status-opacity.md`; user approved via `AskUserQuestion`
+  (HITL) → **Cypress** amended 2 assertions in `SkillLeverageTable.test.tsx` first, confirmed they
+  failed red against the old CSS → **Redwood** implemented the fix and deleted the now-redundant
+  560px stopgap. 608/608 passing. Independently re-verified: reran the suite, diffed the CSS, and
+  screenshotted 1280px desktop mid-scroll before/after via `git stash`. **Committed + pushed**:
+  `62b01a5`.
+  Also fixed in the same round — **metric-column crowding** (Salary Premium/Days-to-fill/%-of-Role
+  columns ran text together when scrolled, since `table-layout: fixed` only had explicit widths on
+  the sticky lead columns): routed via **Pine** → **Magnolia** (no Cedar SPEC needed, first
+  attempt). Magnolia added an explicit `<colgroup>` with per-column widths and let the two
+  prose-like cells (Salary Premium, "Confirmed across postings" header) wrap instead of
+  overflowing. 608/608 passing. **Committed + pushed**: `e9bdb21`.
+  Also cleared 2 stale "still open" ledger items this round: the round-8 README refresh turned out
+  to already be committed (`fc69f21`), and the round-10 favicon was confirmed by actually viewing
+  the PNG assets (clean "LG" monogram, both sizes) rather than trusting a stale note.
+- **Round 14 — mobile-friendly leverage table**: user supplied a real-device mobile screenshot
+  (~430 CSS px, not simulated) showing the three sticky/pinned columns (`.lev-num` 2.25rem +
+  `.lev-skill` 9rem + `.lev-status` 9.5rem ≈ 332px) eating almost the entire phone width. Routed
+  via **Pine** → **Cedar** (COMPLEX — a real design tradeoff, not a cosmetic tweak, on a table with
+  a recent track record of under-solved ad hoc patches). Cedar explicitly rejected a full
+  card/stacked-layout mobile restructure (too much DOM/a11y risk for the gain) and specced a
+  decisive, minimal fix: below 480px, unpin only Status (keep Rank+Skill pinned), shrink
+  `.lev-skill` from 9rem→6rem, visually-hide (clip-rect, not `display:none`) the Status label text
+  so only the ✓/✕ glyph shows. Persisted `specs/024-mobile-friendly-leverage-table.md`; user
+  approved via `AskUserQuestion`. **Cypress** wrote failing tests first (613/618 → exactly the 5
+  intended RED failures), **Magnolia** implemented against them (618/618 passing). Independently
+  re-verified at 428px (matching the user's device) and 768px desktop — confirmed the label text
+  stays connected to the DOM (never removed), just visually clipped. **Committed + pushed**:
+  `3ddbd9f`.
+- **Round 15 — breakpoint widening after real-device retest**: user tested round 14's fix on their
+  actual phone and it visibly did NOT apply. Verified directly against the LIVE production site
+  (not just local dev) via Playwright: confirmed the deploy was current and the fix DID work
+  correctly at a simulated 428px viewport — so the fix itself was never broken. Round 14's chosen
+  breakpoint (480px, picked without real-hardware validation) simply didn't cover the user's
+  actual device, whose effective CSS viewport is apparently wider than 480px (real phones can
+  report a wider viewport than physical size implies, especially with browser zoom/display-scale
+  settings). Asked the user directly rather than guessing a third number blind; user chose to
+  widen the breakpoint generously to ~640px. Routed via **Pine** (SIMPLE — a user-decided value
+  change inside an already-approved mechanism, no fresh Cedar SPEC, Rule 9 doesn't apply since the
+  human supplied the corrective decision directly) → **Magnolia**, who changed the media query to
+  640px and updated Cypress's breakpoint-literal test assertions to match. 618/618 passing.
+  Independently re-verified by sweeping 8 viewport widths (428–768px), confirming the exact
+  transition sits at 640/641px, and specifically that 487px (the user's estimated actual device
+  width) now correctly triggers the mobile layout. **Committed + pushed**: `27554b4`.
+
 ### 2026-07-25 — Glass-parity cleanup (round 12), polish pass (12.5), hover/motion (12.6), leverage-table sticky-column overlap fixes (12.7/12.8)
 
 - **Round 12 — corner-bracket/glass-parity cleanup**: corrected a stale round-11 ledger note (specs

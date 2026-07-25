@@ -609,6 +609,13 @@
   .lev-status-h {
     position: static;
     left: auto;
+    /* With the text label visually hidden below, the pill only needs to fit the ✓/✕ glyph
+     * (.lev-status-icon, inherits the 0.75rem cell font-size) plus the cell's own unchanged
+     * 0.2rem/0.6rem (≈3px/10px) padding — the base 9.5rem was sized for the now-hidden
+     * "✕ Worth learning" text and left the pill a mostly-empty capsule once that text
+     * disappeared. 2.75rem (44px) comfortably covers padding + glyph + a touch of breathing
+     * room without clipping, confirmed by rendering at a real-device 487px viewport. */
+    width: 2.75rem;
   }
   .lev-skill,
   .lev-skill-h {
