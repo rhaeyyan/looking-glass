@@ -52,6 +52,20 @@ export function SkillLeverageTable({
           <caption className="visually-hidden">
             Skill profile for {roleName}, ranked by leverage score
           </caption>
+          <colgroup>
+            {/* The sticky lead columns (#, Skill, Status) intentionally have no <col> width here —
+                their widths already come from .lev-num/.lev-skill/.lev-status (spec 023) and must
+                stay exactly as-is. Every metric column below gets its own explicit width so none
+                of them split the leftover space evenly regardless of content length. */}
+            <col span={haveSkillKeys ? 3 : 2} />
+            <col className="lev-col-leverage" />
+            <col className="lev-col-demand" />
+            <col className="lev-col-scarcity" />
+            <col className="lev-col-salary" />
+            <col className="lev-col-days" />
+            <col className="lev-col-pctrole" />
+            <col className="lev-col-confirmed" />
+          </colgroup>
           <thead>
             <tr>
               <th scope="col" className="lev-num">
@@ -76,7 +90,9 @@ export function SkillLeverageTable({
               </th>
               <th scope="col">Days to fill</th>
               <th scope="col">% of role</th>
-              <th scope="col">Confirmed across postings</th>
+              <th scope="col" className="lev-confirmed-h">
+                Confirmed across postings
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -122,7 +138,7 @@ export function SkillLeverageTable({
                   </td>
                   <td className="lev-metric">{formatNum(row.demand_score)}</td>
                   <td className="lev-metric">{formatNum(row.scarcity_index)}</td>
-                  <td className="lev-metric">
+                  <td className="lev-salary">
                     {row.salary_premium_pct == null
                       ? '—'
                       : formatSalaryPremiumPhrase(row.salary_premium_pct)}

@@ -423,6 +423,50 @@
 .leverage-table td {
   white-space: nowrap;
 }
+
+/* Explicit widths for every non-sticky metric column: under table-layout: fixed,
+ * a column with no declared width just splits whatever space is left evenly among the other
+ * undeclared columns, regardless of how long its content actually is — that's what let the
+ * Salary Premium phrase run into its neighbors. Each column now gets its own width via <col>, so
+ * none of them fight each other for space. The first (sticky) span of columns is left undeclared
+ * here on purpose — those widths already come from .lev-num/.lev-skill/.lev-status below and must
+ * stay exactly as spec 023 set them. */
+.lev-col-leverage {
+  width: 8.5rem;
+}
+.lev-col-demand,
+.lev-col-scarcity,
+.lev-col-pctrole {
+  width: 4.25rem;
+}
+.lev-col-salary {
+  width: 13rem; /* the one prose-like column (formatSalaryPremiumPhrase) — reads fine wrapped */
+}
+.lev-col-days {
+  width: 4.5rem;
+}
+.lev-col-confirmed {
+  width: 8rem;
+}
+
+/* Salary Premium is a full sentence-like phrase, not a short number — let it wrap onto 2 lines in
+ * its own generously-sized column instead of forcing `nowrap` to spill into the next column
+ * (which was the actual bug). All other metric columns (Demand, Scarcity, Days to fill, % of
+ * role) stay on the shared `white-space: nowrap` rule above since their content is genuinely
+ * short numbers. */
+.lev-salary {
+  white-space: normal;
+  line-height: 1.35;
+}
+
+/* "Confirmed across postings" is the longest header label in the table; let it wrap to 2 lines
+ * in its own column rather than forcing nowrap to overflow the header cell. The data cells below
+ * it (Yes / No / —) are short and stay on the shared nowrap rule. */
+.lev-confirmed-h {
+  white-space: normal;
+  line-height: 1.25;
+}
+
 .lev-num {
   width: 2.25rem;
   text-align: right;
