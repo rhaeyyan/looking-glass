@@ -5,12 +5,35 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-25 (round 7 close-out: Vercel deploy fixed end-to-end)
+## Current Session — 2026-07-24/25 (round 8: README refresh; round 7: Vercel deploy fixed end-to-end)
 
 > Specs 001–017, the same-day earlier rounds (redesign/de-jargon/top-3-moves; UI/UX+dataviz pass
 > 008-010; 15-role expansion 011-012; salary-premium clarity 013-014; contrast/wrapping/glass-ui
-> 015-017; round 6 dark-mode glass-alpha fix), and the 2026-07-23 milestone session are archived in
-> [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
+> 015-017; round 6 dark-mode glass-alpha fix; round 7 Vercel deploy fix), and the 2026-07-23
+> milestone session are archived in [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
+
+### Accomplished (round 8, this section)
+- Doc-only task: updated `README.md`'s **Stack** and **Status** sections, which were stale since
+  before round 7's deploy fix and specs 007–017's post-MVP hardening. Verified current state
+  first rather than editing from memory: read `SESSION_STATE.md`, listed `specs/` (17 specs exist,
+  README previously implied only 001–006), and ran the frontend suite (`248/248 vitest` passing,
+  17 test files) to cite a real, current number.
+  **Stack table**: added a **Deploy** row — Vercel (`frontend/vercel.json`, Root Directory scoped
+  to `frontend/`), live at `https://looking-glass-zeta.vercel.app/` — which round 7 shipped but no
+  README section mentioned.
+  **Status section**: reworded "built and live-verified" to "built, live-verified, and deployed";
+  added a paragraph summarizing specs 007–017 (15-role coverage widening 011–012, WCAG passes
+  007/009/010/013–014, contrast/wrapping/glassmorphism 015–017 including the round-6 dark-mode
+  `--glass-alpha` regression) and the current 248/248 frontend test count. No code changed, no
+  tests added — README only.
+
+### Unfinished / blocked
+- None. This was a documentation-only update; nothing in the app changed.
+
+### Next steps
+- None blocking. Commit the `README.md` change (not yet committed as of this entry) — per
+  CLAUDE.md's git protocol, this session did not commit on its own since the user hasn't asked to
+  commit yet this round.
 
 ### Accomplished (round 7, this section)
 - User hit a Vercel deploy failure: `Error: No python entrypoint found...`. First hypothesis: no

@@ -169,20 +169,31 @@ coverage), and any forward-looking forecast axis.
 ## Stack
 
 - **Data / DB** — Supabase (Postgres); deterministic scoring in SQL / Python.
-- **Frontend** — React + TypeScript; the demand × scarcity matrix.
+- **Frontend** — React + TypeScript (Vite SPA); the demand × scarcity matrix.
 - **AI layer** — none currently in the runtime path (specs 005/006 made both narration and
   resume-skill extraction fully deterministic). The bounded-single-call mechanism — a server-
   side-proxied, schema-validated, swappable-provider LLM call (bounded, non-numeric) — remains
   documented as the pattern-in-reserve should a future feature need one.
+- **Deploy** — Vercel (`frontend/vercel.json`, root directory scoped to `frontend/`), live at
+  [looking-glass-zeta.vercel.app](https://looking-glass-zeta.vercel.app/); Supabase hosted (DB).
 
 ## Status
 
-**The full MVP is built and live-verified.** All five steps above — ingest, arbitrage scoring,
-role picker, resume gap layer, and top-gap narration — are code-complete and confirmed working
-end-to-end against the real Supabase database, for the six V1 high-coverage technical roles. The
-app currently makes zero LLM calls anywhere: both resume-skill extraction and result narration
-are fully deterministic (specs 005, 006). Next: whatever comes after V1 — polish, the
-moderate-coverage roles, or a genuinely new feature — is unspecced.
+**The full MVP is built, live-verified, and deployed.** All five walking-skeleton steps above —
+ingest, arbitrage scoring, role picker, resume gap layer, and top-gap narration — are
+code-complete and confirmed working end-to-end against the real Supabase database, for the six
+V1 high-coverage technical roles, and are live in production on Vercel. The app currently makes
+zero LLM calls anywhere: both resume-skill extraction and result narration are fully
+deterministic (specs 005, 006).
+
+Since the MVP shipped, 12 further specs (007–017, Python `pytest` + TS `vitest`/`@testing-library`
+throughout) hardened it: role coverage widened from 6 to all 15 `role_family` values (011–012);
+WCAG 2.2 AA passes on empty/loading states, the scatter legend, touch/motion, and salary-premium
+phrasing (007, 009, 010, 013–014); and a light/dark-mode contrast, responsive-text-wrapping, and
+glassmorphism pass on the card/nav chrome (015–017), including a post-ship dark-mode regression
+(`--glass-alpha` inert-value bug) that was caught from a user screenshot and fixed. 248/248
+frontend tests and the full `pytest` suite pass as of this writing. Next: whatever comes after V1
+— the moderate-coverage roles, or a genuinely new feature — is unspecced.
 
 ---
 
