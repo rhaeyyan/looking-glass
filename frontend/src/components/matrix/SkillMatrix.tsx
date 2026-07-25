@@ -110,10 +110,6 @@ export function SkillMatrix({
       data-testid="skill-matrix"
       data-reduced-motion={reduced ? 'true' : 'false'}
     >
-      <i className="corner tl" />
-      <i className="corner tr" />
-      <i className="corner bl" />
-      <i className="corner br" />
       <h2 id={titleId} className="matrix-title">
         Where each skill sits
       </h2>

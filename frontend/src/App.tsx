@@ -174,10 +174,6 @@ function App() {
       <main className="lg-main">
         <div className="lg-sidebar">
           <section className="card blueprint elev-sm">
-            <i className="corner tl" />
-            <i className="corner tr" />
-            <i className="corner bl" />
-            <i className="corner br" />
             <div className="card-kicker">Step 1</div>
             <div className="card-title">
               <span className="lg-step-badge" aria-hidden="true">
@@ -216,10 +212,6 @@ function App() {
           </section>
 
           <section className="card blueprint elev-sm">
-            <i className="corner tl" />
-            <i className="corner tr" />
-            <i className="corner bl" />
-            <i className="corner br" />
             <div className="card-kicker">Step 2</div>
             <div className="card-title">
               <span className="lg-step-badge" aria-hidden="true">
@@ -254,10 +246,6 @@ function App() {
         <div className="lg-results">
           {status === 'idle' && (
             <section className="card blueprint elev-sm lg-empty-state">
-              <i className="corner tl" />
-              <i className="corner tr" />
-              <i className="corner bl" />
-              <i className="corner br" />
               <div className="card-kicker">Get started</div>
               <div className="card-title">Your leverage matrix appears here</div>
               <p style={{ margin: 0, fontSize: '14px', opacity: 0.75 }}>
@@ -300,10 +288,6 @@ function App() {
 
           {analyzed && (
             <section className="card blueprint elev-sm lg-scorecard lg-fade">
-              <i className="corner tl" />
-              <i className="corner tr" />
-              <i className="corner bl" />
-              <i className="corner br" />
               <div className="lg-donut-wrap">
                 <div className="lg-donut" style={{ background: donutGradient }} aria-hidden="true">
                   <div className="lg-donut-hole">

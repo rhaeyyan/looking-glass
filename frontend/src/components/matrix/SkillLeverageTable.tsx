@@ -38,10 +38,6 @@ export function SkillLeverageTable({
 
   return (
     <section className="card blueprint elev-md leverage-root" aria-labelledby={titleId}>
-      <i className="corner tl" />
-      <i className="corner tr" />
-      <i className="corner bl" />
-      <i className="corner br" />
       <h2 id={titleId} className="ladder-title">
         {roleName} — every skill, ranked by leverage
       </h2>

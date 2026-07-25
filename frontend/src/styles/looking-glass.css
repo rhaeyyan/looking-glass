@@ -346,46 +346,6 @@ a {
   position: relative;
   border: 1px solid var(--color-divider);
 }
-.blueprint > .corner {
-  position: absolute;
-  width: 11px;
-  height: 11px;
-  color: color-mix(in srgb, var(--color-text) 55%, transparent);
-}
-.blueprint > .corner::before,
-.blueprint > .corner::after {
-  content: '';
-  position: absolute;
-  background: currentColor;
-}
-.blueprint > .corner::before {
-  left: 5px;
-  top: 0;
-  width: 1px;
-  height: 100%;
-}
-.blueprint > .corner::after {
-  top: 5px;
-  left: 0;
-  width: 100%;
-  height: 1px;
-}
-.blueprint > .corner.tl {
-  top: -6px;
-  left: -6px;
-}
-.blueprint > .corner.tr {
-  top: -6px;
-  right: -6px;
-}
-.blueprint > .corner.bl {
-  bottom: -6px;
-  left: -6px;
-}
-.blueprint > .corner.br {
-  bottom: -6px;
-  right: -6px;
-}
 
 /* Glassmorphism (spec 017) — layered onto the blueprint aesthetic (corner brackets, hairline
  * border above) rather than replacing it. Scoped to the combined `.card.blueprint` selector only:
@@ -417,6 +377,28 @@ a {
   border-radius: 13px;
 }
 .lg-sidebar .card.blueprint::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--sheen-a) 0%, var(--sheen-b) 55%, transparent 80%);
+}
+
+/* Full-parity pass — the results-column cards (empty state, scorecard, matrix, leverage table,
+ * loading skeleton) get the identical glass-2 + sheen treatment as the sidebar above, just at the
+ * shared --radius-card (15px) rather than the sidebar's tighter 13px. This retires the spec 017
+ * fallback these cards were still using (real in light mode, fully inert/transparent in dark
+ * mode), which is what left the results column looking flat/unfinished next to the mockup. */
+.lg-results .card.blueprint {
+  position: relative;
+  isolation: isolate;
+  background: var(--glass-2);
+  backdrop-filter: blur(16px);
+  border-radius: var(--radius-card);
+}
+.lg-results .card.blueprint::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -460,12 +442,19 @@ a {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent-soft));
   color: var(--on-accent);
   font-family: var(--font-heading);
-  font-weight: 600;
-  font-size: 12px;
+  font-weight: 700;
+  font-size: 11px;
   line-height: 1;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent) 58%, white) 0%,
+    color-mix(in srgb, var(--accent) 90%, white) 46%,
+    color-mix(in srgb, var(--accent) 90%, black) 47%,
+    color-mix(in srgb, var(--accent) 72%, black) 100%
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 .elev-sm {
   box-shadow: var(--shadow-sm);
@@ -494,14 +483,40 @@ a {
   opacity: 0.45;
   cursor: not-allowed;
 }
+/* Metallic-embossed primary button (matches the glass mockup's raised, brushed-metal call to
+ * action): a light-to-dark diagonal band gives it a lit, physical edge instead of a flat fill. */
 .btn-primary {
-  background: var(--color-accent);
-  color: var(--color-bg);
-  border-color: var(--color-accent);
+  color: var(--on-accent);
+  border-color: color-mix(in srgb, var(--accent) 70%, black);
+  border-radius: 9px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent) 55%, white) 0%,
+    color-mix(in srgb, var(--accent) 88%, white) 47%,
+    color-mix(in srgb, var(--accent) 92%, black) 48%,
+    color-mix(in srgb, var(--accent) 70%, black) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 var(--hi),
+    0 8px 20px color-mix(in srgb, var(--accent) 34%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .btn-primary {
+    transition:
+      transform 140ms ease-out,
+      box-shadow 200ms ease-out;
+  }
+  .btn-primary:hover {
+    transform: translateY(-1px);
+  }
 }
 .btn-primary:hover {
-  background: var(--color-accent-600);
-  border-color: var(--color-accent-600);
+  box-shadow:
+    inset 0 1px 0 var(--hi),
+    0 12px 26px color-mix(in srgb, var(--accent) 42%, transparent);
+}
+.btn-primary:active {
+  transform: translateY(0);
 }
 .btn-block {
   width: 100%;
@@ -569,6 +584,12 @@ textarea.input {
    * pill below. */
   border: 1px solid var(--accent);
   border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+  background: var(--glass-2);
+  box-shadow:
+    inset 0 1px 0 var(--edge),
+    inset 0 -1px 0 var(--edge-b);
 }
 .seg-opt {
   display: inline-flex;
@@ -592,13 +613,14 @@ textarea.input {
   height: 0;
   pointer-events: none;
 }
-.seg-opt + .seg-opt {
-  border-left: 1px solid var(--color-divider);
+.seg-opt {
+  border-radius: 999px;
 }
 .seg-opt:has(input:checked) {
   /* Glass v2 (spec 019): gradient-filled active pill (was a flat --color-accent fill). */
   background: linear-gradient(135deg, var(--accent), var(--accent-soft));
   color: var(--on-accent);
+  box-shadow: inset 0 1px 0 var(--hi);
 }
 .seg-opt:not(:has(input:checked)):hover {
   background: color-mix(in srgb, var(--color-text) 7%, transparent);
@@ -620,7 +642,11 @@ textarea.input {
    * `.card` surfaces spec 019 doesn't touch). A real, literal blur (not the spec 017 token) so
    * the sticky glass effect survives in dark mode too, where that old blur token goes inert. */
   background: var(--glass);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px) saturate(170%);
+  box-shadow:
+    inset 0 1px 0 var(--edge),
+    inset 0 -1px 0 var(--edge-b),
+    var(--shadow);
 }
 @media (prefers-reduced-motion: no-preference) {
   .nav {
