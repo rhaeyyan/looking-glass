@@ -5,12 +5,28 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-24/25 (round 9: migration-error diagnosis, no changes)
+## Current Session — 2026-07-24/25 (round 10: favicon redesign swap, in progress; round 9: migration-error diagnosis, no changes)
 
 > Specs 001–017 and all prior rounds (redesign/de-jargon/top-3-moves; UI/UX+dataviz pass 008-010;
 > 15-role expansion 011-012; salary-premium clarity 013-014; contrast/wrapping/glass-ui 015-017;
 > round 6 dark-mode glass-alpha fix; round 7 Vercel deploy fix; round 8 README refresh) are
 > archived in [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
+
+### Accomplished (round 10, this section)
+- User replaced the source files in `assets/favicon_io/` (previously-untracked, flagged as
+  ambiguous in round 9) with a new icon design, same 8 filenames as before. Confirmed the
+  filenames matched 1:1 against `frontend/public/`'s existing favicon set (the one committed in
+  `306753b`), then copied all 8 over (`about.txt`, `android-chrome-192x192.png`,
+  `android-chrome-512x512.png`, `apple-touch-icon.png`, `favicon-16x16.png`, `favicon-32x32.png`,
+  `favicon.ico`, `site.webmanifest`) into `frontend/public/`, overwriting the old design.
+  `site.webmanifest`'s content was byte-identical (JSON unchanged), so it shows unmodified in git
+  status; the other 7 files show modified. Confirmed no test files or `index.html` reference the
+  old design (`index.html`'s `<link>` tags point to the same filenames, so nothing else needs
+  updating). Started the Vite dev server (`localhost:5173`), curled `/favicon.ico`, got `200` —
+  new file serves correctly — then stopped the dev server. **Not yet visually eyeballed in an
+  actual browser tab, and not yet committed** — waiting on the user to confirm the new design
+  looks right and to explicitly ask for the commit (per this repo's git protocol, commits aren't
+  made unprompted).
 
 ### Accomplished (round 9, this section)
 - Diagnostic-only: user hit `ERROR: relation "skills_core" already exists (SQLSTATE 42P07)` when
@@ -68,22 +84,23 @@
   committed this sub-round.**
 
 ### Unfinished / blocked
-- The original migration-error question is resolved (DB schema fully up to date, 0001-0004 all
-  applied) — but *why* the user keeps re-running these files (now a 3rd time, against 0001 again)
-  is still unknown, and it's now the more pressing open question: they may be working from a
-  corrupted copy of the migration files outside the repo, which could bite them on a real future
-  migration. Asked directly; awaiting their answer.
-- `assets/favicon_io` is still untracked — unclear if it's meant to be committed (e.g. source
-  favicon assets for the round-8-adjacent "apply favicon to frontend" commit `306753b`) or is
-  scratch/download cruft. Ask the user before adding or ignoring it.
+- **Round 10 (favicon swap)**: `frontend/public/`'s 7 changed favicon files are staged in the
+  working tree but not committed. Only machine-verified (curl 200); no human/browser visual check
+  of the new icon has happened yet. `assets/favicon_io/` (the source files) is still untracked —
+  now resolved as intentional source-asset storage, not cruft, given this round's use of it.
+- The migration-error question from round 9 is resolved (DB schema fully up to date, 0001-0004 all
+  applied) — but *why* the user kept re-running these files (3 times, including once against 0001
+  after confirming it was already applied) was never answered; low-priority now that round 10 has
+  moved on, but worth a light touch if it resurfaces.
 
 ### Next steps
-1. Find out what the user was originally trying to accomplish (an app bug? routine DB-sync check?)
-   and where they're copying migration SQL from — now that the schema itself is confirmed current
-   and the file itself is confirmed syntactically correct, don't assume the underlying goal is met
-   just because each individual error has been explained.
-2. Ask the user about `assets/` (untracked) — commit, gitignore, or delete.
-3. Commit the `README.md` Stack/Status refresh from round 8 (not yet committed).
+1. Ask the user to confirm the new favicon design looks right in an actual browser tab (not just
+   the curl 200 check), then commit `frontend/public/`'s 7 changed files once confirmed — don't
+   commit unprompted.
+2. Decide whether to also commit `assets/favicon_io/` itself (the new source design files) so
+   future favicon swaps have a tracked source-of-truth, or leave it untracked as scratch — ask the
+   user.
+3. Commit the `README.md` Stack/Status refresh from round 8 (still not yet committed).
 
 ---
 
