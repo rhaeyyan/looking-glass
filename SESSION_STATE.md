@@ -59,6 +59,13 @@
   to run again regardless. Asked the user where they're copying migrations from (editor/chat/
   snippet vs. the repo file directly), since that's the likely source of the corruption and would
   affect future migrations too. **No files changed, nothing committed this sub-round.**
+- User's follow-up ("from file supabase/migrations? i am not sure what exactly you're asking")
+  indicated the copy-source question hadn't landed clearly. Clarified in plain terms, re-confirmed
+  0001 doesn't need to run again regardless of the copy-source, and ran `cat -A` on the file's tail
+  to show the actual bytes (normal `$`-terminated lines, no hidden characters, closing `)` present)
+  — proving the repo file itself has no defect. Asked directly whether there's a real app-level
+  issue behind this or if it was purely a DB-sync sanity check. **No files changed, nothing
+  committed this sub-round.**
 
 ### Unfinished / blocked
 - The original migration-error question is resolved (DB schema fully up to date, 0001-0004 all
