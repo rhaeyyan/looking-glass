@@ -6,6 +6,32 @@
 
 ## Archived Sessions
 
+### 2026-07-24/25 — Migration-error diagnosis (round 9, no changes), favicon redesign swap (round 10, shipped)
+
+- **Round 9 — recurring `skills_core already exists` migration error**: user repeatedly hit
+  `42P07`/`42710`/`42601` errors re-running `supabase/migrations/*.sql` files directly in the SQL
+  Editor/`psql` (no CLI migration tracking involved). Diagnosed each error correctly: 0001-0004 were
+  already fully applied against the linked Supabase project from an earlier session (confirmed via
+  `information_schema` introspection queries the user ran and pasted back); a later `42601` syntax
+  error was traced to copy-paste corruption (a dropped closing paren) in whatever the user pasted,
+  not a defect in the repo file (`cat -A` confirmed the committed file is byte-correct). End state:
+  DB schema fully up to date, nothing further needs to run; *why* the user kept re-running these
+  files was never answered (low-priority, not pursued). **Diagnostic-only — no files changed.**
+  Also committed this round's own ledger housekeeping (archiving rounds 5-8, trimming
+  `SESSION_STATE.md`): `a3bc079`, `91d4f0d`, `3d6f3c0`, `a3869de`, pushed to `origin/main`
+  (`306753b..a3869de`). `assets/` (untracked, containing `favicon_io`) was pre-existing, left as-is,
+  not investigated.
+- **Round 10 — favicon redesign swap**: user replaced `assets/favicon_io/`'s source files
+  (previously-untracked) with a new icon design, same 8 filenames as before. Confirmed 1:1 filename
+  match against `frontend/public/`'s existing favicon set, copied all 8 over (`site.webmanifest`
+  byte-identical, the other 7 modified). Confirmed no test files or `index.html` needed updates.
+  Verified via dev server + `curl /favicon.ico` → `200`. Committed the 7 changed files as `7210e55`
+  (`feat: swap frontend favicon to new design`) and pushed (`78796e0..7210e55`).
+  `assets/favicon_io/` deliberately left untracked (source-of-truth question asked, unanswered);
+  `assets/` was added to `.gitignore` in round 11 to stop it re-flagging as untracked cruft every
+  turn. **Still open**: no human/browser visual confirmation of the new favicon has been reported
+  back (only machine-verified via curl).
+
 ### 2026-07-23/24 — Light-mode contrast/wrapping/glassmorphism (specs 015–017), dark-mode glass-alpha fix (round 6), Vercel deploy fix (round 7), README refresh (round 8)
 
 - **Round 5 — light-mode contrast, responsive wrapping, glass-ui**: user reported light-mode text
