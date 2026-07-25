@@ -5,69 +5,54 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-25 (round 13: leverage-table sticky-Status ghosting, real fix via Pine→Cedar→Cypress→Redwood pipeline)
+## Current Session — 2026-07-25 (round 13: sticky-Status ghosting fix + metric-column crowding fix, both via the real pipeline; cleared 2 stale ledger items)
 
 > Specs 001–022 and rounds 1–11.5 are archived in [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
-> Rounds 12–12.7 (glass-parity cleanup, visual polish, hover/motion, sticky-column overlap-at-rest
-> fix — `c043929`, `d4ad589`, `1188418`, `d5ba193`, all pushed) are also archived there.
+> Rounds 12–12.8 (glass-parity cleanup, visual polish, hover/motion, sticky-column fixes —
+> `c043929`, `d4ad589`, `1188418`, `d5ba193` — all pushed) are also archived there.
 
 ### Accomplished (round 13, this section)
-- **Round 12.8 (this session's prior entry) is superseded** — its `@media (max-width: 560px)`
-  mobile-unpin "fix" only masked the sticky-Status-column translucency ghosting below that
-  breakpoint. User sent a fresh screenshot proving it still ghosts at full desktop width
-  (~1280px) and, fairly, called two same-session ad hoc patches "shoddy" and asked for the actual
-  multi-agent pipeline instead of another direct patch.
-- Ran the real pipeline this time: **Pine** classified it COMPLEX (2 failed direct-patch attempts
-  = Rule 9's circuit breaker) and routed to **Cedar**. Cedar diagnosed the true root cause — the
-  sticky `.lev-status[data-have='true'/'false']`'s translucent (~14%-alpha) `background` is a
-  SINGLE paint layer; anything scrolling underneath a sticky element shows through unless that
-  layer is opaque — and designed a fix that needs no DOM change: make `background` a two-layer
-  composite (`linear-gradient(var(--status-X-surface), var(--status-X-surface))` on top, opaque
-  `var(--surface-1)` underneath, same declaration, same already-locked selector). This also meant
-  the 560px stopgap could be deleted outright, since the fix holds at every width unconditionally.
-  Persisted as `specs/023-fix-leverage-table-sticky-status-opacity.md`; user approved via
-  `AskUserQuestion` before dispatch (HITL checkpoint).
-  - Cedar's spec also explicitly authorized a narrow amendment to 2 assertions in
-    `SkillLeverageTable.test.tsx` (loosening an exact-value match to a contains-match, since the
-    background becomes multi-layer) — confirmed none of the other 5 "locked" test files
-    (`glass-v2-tokens.test.ts`, `glassmorphism.test.ts`, `nav-sidebar-glass-restyle.test.ts`,
-    `scorecard-glass-restyle.test.ts`, `SkillMatrix.test.tsx`, `colorTokens.test.ts`) reference
-    `.lev-status` at all, so only one test file needed touching.
-  - **Cypress** applied the amendment first (TDD — red before green): confirmed the two new/
-    amended assertions correctly FAILED against the still-unfixed CSS (606/608), proving they
-    test the real mechanism, before any implementation changed.
-  - **Redwood** then implemented Cedar's exact two-layer CSS fix and deleted the now-redundant
-    560px stopgap. 608/608 passing, `tsc`/`eslint` clean.
-- Independently re-verified all of this myself rather than trusting the reports: reran
-  `npx vitest run` (608/608), diffed the actual CSS change (net negative line count — a value swap
-  plus a deletion, no new selectors/tokens), and screenshotted a 1280px desktop viewport
-  mid-horizontal-scroll before and after (via `git stash`/`stash pop` to compare against the
-  pre-fix code) — confirmed the Status pill ghosting is genuinely gone post-fix and was genuinely
-  present pre-fix. Noted a separate, pre-existing text-crowding issue in the non-sticky Salary
-  Premium/Days-to-fill/% of Role columns, present in both before/after shots — out of scope for
-  this spec, flagged to the user as a distinct issue, not fixed here.
-- **Not committed** — asking the user before committing, per this session's established pattern.
+- **Sticky-Status ghosting, real fix**: round 12.8's `@media (max-width: 560px)` mobile-unpin only
+  masked the bug below that breakpoint; user proved via screenshot it still ghosts at full desktop
+  width and asked for the actual multi-agent pipeline instead of another direct patch. Ran it for
+  real: **Pine** classified COMPLEX (2 failed patches = Rule 9 circuit breaker) → **Cedar**
+  diagnosed the true root cause (a sticky element's translucent `background` is a single paint
+  layer; a two-layer composite — translucent tint over opaque `var(--surface-1)`, same
+  declaration, same already-locked selector — fixes it at every width unconditionally, no DOM
+  change needed) and persisted `specs/023-fix-leverage-table-sticky-status-opacity.md`; user
+  approved via `AskUserQuestion` (HITL) → **Cypress** amended 2 assertions in
+  `SkillLeverageTable.test.tsx` first, confirmed they failed red against the old CSS → **Redwood**
+  implemented the fix and deleted the now-redundant 560px stopgap. 608/608 passing. Independently
+  re-verified (not just trusting reports): reran the suite myself, diffed the CSS, and
+  screenshotted 1280px desktop mid-scroll before/after via `git stash`. **Committed + pushed**:
+  `62b01a5`.
+- **Metric-column crowding, separate bug spotted during the above verification**: Salary
+  Premium/Days-to-fill/%-of-Role columns ran text together when scrolled — `table-layout: fixed`
+  only had explicit widths on the sticky lead columns, so the undeclared metric columns split
+  leftover space evenly regardless of content length, and Salary Premium's prose-length phrase
+  (`formatSalaryPremiumPhrase()`) had nowhere to go under `nowrap`. Routed via **Pine** → **Magnolia**
+  (UI/matrix ownership, no Cedar SPEC needed — first attempt, not a circuit-breaker case). Magnolia
+  added an explicit `<colgroup>` with per-column widths and let the two prose-like cells (Salary
+  Premium, "Confirmed across postings" header) wrap instead of overflowing. 608/608 passing,
+  `tsc`/`eslint` clean. Independently re-verified: diffed the CSS, screenshotted 1280px scrolled to
+  max — confirmed clean, non-overlapping columns. Cleaned up a stray "(spec 024)" comment reference
+  Magnolia left behind (no such spec file exists — this went direct, not through Cedar). **Committed
+  + pushed**: `e9bdb21`.
+- **Cleared 2 stale "still open" ledger items** carried forward unverified across several rounds
+  (per CLAUDE.md: treat the ledger as a hint, the repo as source of truth):
+  - **README Stack/Status refresh (round 8)**: `git log -- README.md` shows it was already
+    committed as `fc69f21` back in round 8 and is on `origin/main` — the ledger's repeated "not yet
+    committed" note was simply wrong, never re-verified before being copied forward. Nothing to do.
+  - **Favicon visual confirmation (round 10)**: only ever machine-verified via `curl`. Actually
+    read `frontend/public/favicon-16x16.png`/`favicon-32x32.png` directly this round — both render
+    a clean "LG" monogram on the app's blue accent, legible at both sizes. Confirmed.
 
 ### Unfinished / blocked
-- **Round 13's fix is implemented and independently verified but not committed.** Files:
-  `frontend/src/components/matrix/matrix.css`, `frontend/src/components/matrix/
-  SkillLeverageTable.test.tsx`, plus the new `specs/023-fix-leverage-table-sticky-status-opacity.md`
-  (untracked).
-- **Separate, out-of-scope bug spotted but not fixed**: the Salary Premium / Days-to-fill / % of
-  Role columns have their own text-crowding/overflow issue when the table is scrolled, visible in
-  both the before- and after-fix screenshots from this round — pre-existing, unrelated to the
-  sticky-Status ghosting this round fixed. Not yet reported as its own task.
-- Favicon visual confirmation (round 10) and the README Stack/Status refresh commit (round 8) are
-  still open from prior rounds — see [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md) for detail.
+- None from this session — both bugs fixed, verified, committed, and pushed; both stale ledger
+  items resolved.
 
 ### Next steps
-1. Get the user's go-ahead, then commit (and likely push, per this session's pattern) round 13's
-   `matrix.css` + `SkillLeverageTable.test.tsx` fix and the new spec file.
-2. Ask the user whether the Salary Premium/Days-to-fill/% of Role column crowding (spotted this
-   round, out of scope) should become its own follow-up task.
-3. Confirm with the user that the new favicon design actually looks right once they've seen it
-   live (Vercel auto-deploys `origin/main`).
-4. Commit the `README.md` Stack/Status refresh from round 8 (still not yet committed).
+1. Nothing outstanding from this session. Normal development can resume next session.
 
 ---
 
