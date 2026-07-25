@@ -6,6 +6,54 @@
 
 ## Archived Sessions
 
+### 2026-07-25 — Glass-parity cleanup (round 12), polish pass (12.5), hover/motion (12.6), leverage-table sticky-column overlap fixes (12.7/12.8)
+
+- **Round 12 — corner-bracket/glass-parity cleanup**: corrected a stale round-11 ledger note (specs
+  018-022 had already landed in `aa9d239`, verified via `npx vitest run`, 608/608). User said the
+  live app still looked unpolished vs. the Claude-Design mockup; found every card still had leftover
+  pre-glass `.blueprint > .corner` bracket ticks, and the results-column cards were still on the
+  inert (transparent-in-dark-mode) spec-017 `--glass-tint/--glass-alpha` pair rather than spec-019's
+  real `--glass-2` token. Removed all corner-bracket markup/CSS; added `.lg-results .card.blueprint`
+  (mirrors the existing sidebar rule); restyled `.btn-primary`/`.lg-step-badge` to a metallic
+  gradient; gave `.nav`/`.seg` glass chrome; flipped `.lev-status` to soft-fill. 608/608 passing,
+  zero test edits. **Committed + pushed**: `c043929`.
+- **Round 12.5 — closer visual match pass**: diffed 4 user-supplied screenshots against the mockup;
+  found the scatter's have/gap glyph key and the leverage table's Status column both lacked the
+  mockup's pill-chip styling (`.matrix-legend*` had zero CSS), headers weren't uppercase/tracked,
+  and the bubble fill was a flatter 3-stop gradient vs. the mockup's 5-stop "marble" band. Added the
+  legend chip markup/CSS, reshaped `bandedMetalFill()` to 5 stops, added ✓/✕ icon spans to the
+  Status pill (kept in a separate inner span so `getByText('Already have')`-style exact-match RTL
+  assertions still resolved). 608/608 passing, zero test edits. User said "only commit" (not push):
+  **committed** as `d4ad589`, left un-pushed at the time (later pushed alongside round 12.7, see
+  below).
+- **Round 12.6 — hover/motion pass**: cross-referenced the mockup's `.dc.html` inline
+  `style-hover`/`transition`/`animation` attributes against the app; most were already implemented,
+  three were missing (`.topmove` cards had zero hover CSS, the leverage table had no row-hover, the
+  scatter bubble hover never deepened its shadow). Added all three, gated behind
+  `prefers-reduced-motion`. First attempt used `var(--shadow)` (a glass-v2 token) and broke
+  `glass-v2-tokens.test.ts`'s boundary rule that matrix.css may only reference two spec-020-
+  authorized glass-v2 tokens; fixed by building the shadow from matrix.css's own `--border` token
+  instead. 608/608 passing. **Committed + pushed**: `1188418`.
+- **Round 12.7 — mobile sticky-column overlap at rest**: user reported the Status pill visually
+  overlapping the skill name next to it on a mobile screenshot. Root cause: `.leverage-table` never
+  set `table-layout: fixed`, so auto layout could widen the sticky `.lev-skill`/`.lev-status`
+  columns past the widths their hard-coded sticky `left` offsets assumed; separately, `.lev-status`'s
+  `7rem` width was too narrow for "✕ Worth learning" text, which overflowed onto the skill column
+  under `white-space: nowrap`. First attempt (wrap the pill in an inner span to fix the width issue)
+  broke `SkillLeverageTable.test.tsx`'s locked contract requiring `border-radius`/`padding`/
+  `position:sticky`/background directly on `.lev-status` itself — reverted. Landed fix: added
+  `table-layout: fixed`, widened `.lev-status`/`.lev-status-h` to `9.5rem`. 608/608 passing,
+  verified via before/after Playwright screenshots at a 390px viewport (no `chromium-cli` binary
+  available in this environment; used the `run` skill's generic dev-server + Playwright fallback
+  pattern). **Committed + pushed**: `d5ba193` (also pushed `d4ad589` from round 12.5 in the same
+  push, `1188418..d5ba193`).
+- Round 12.8 (mobile sticky-column overlap *while scrolling* — a deeper root cause the 12.7 fix
+  didn't reach) was still uncommitted as of this archiving pass — see `SESSION_STATE.md`'s current
+  session section for that entry's detail, not archived here yet.
+- Still open from this session: round 8's README Stack/Status refresh (not yet committed) and
+  round 10's favicon visual confirmation (machine-verified only) — see the entry above and the one
+  below for detail.
+
 ### 2026-07-24/25 — Migration-error diagnosis (round 9, no changes), favicon redesign swap (round 10, shipped)
 
 - **Round 9 — recurring `skills_core already exists` migration error**: user repeatedly hit
