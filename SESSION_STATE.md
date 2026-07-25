@@ -5,7 +5,7 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-24 (round 7: Vercel deploy — Python-entrypoint misdetection)
+## Current Session — 2026-07-25 (round 7 close-out: Vercel deploy fixed end-to-end)
 
 > Specs 001–017, the same-day earlier rounds (redesign/de-jargon/top-3-moves; UI/UX+dataviz pass
 > 008-010; 15-role expansion 011-012; salary-premium clarity 013-014; contrast/wrapping/glass-ui
@@ -31,24 +31,38 @@
   config but paths simplified for running from inside `frontend/` already (`buildCommand: npm run
   build`, `outputDirectory: dist`, no `cd frontend` prefix). Asked the user to also check/disable
   the "Include source files outside of the Root Directory" dashboard toggle — cannot toggle it
-  myself, no dashboard access.
+  myself, no dashboard access. Committed (`fbad320`) and pushed.
+- The Python-entrypoint error was gone after that, but the user then reported the app "doesn't
+  populate" at a preview URL. **Diagnosed via `curl -I`, not guessed**: that URL 302-redirected to
+  `vercel.com/sso-api` — Vercel Deployment Protection (SSO wall) on a preview-deployment hash URL,
+  not an app bug. Pointed the user at their production domain
+  (`https://looking-glass-zeta.vercel.app/`) instead.
+  Production URL returned a real `200` with correct hashed asset references — but the rendered
+  page was still blank. **Diagnosed by pulling the actual built JS bundle and grepping it**: no
+  literal `https://<ref>.supabase.co` project URL was baked in anywhere, and zero occurrences of
+  `VITE_SUPABASE` — only the SDK's own internal `*.supabase.co` allowlist string matched, confirming
+  the env vars were absent at build time. `frontend/src/lib/supabaseClient.ts:9` calls
+  `createClient(undefined, undefined)` unguarded at module top level, which throws before React
+  ever mounts (blank `<div id="root">`, no error boundary) — this is a real gap worth a future
+  spec (fail loudly/render a config-error state instead of a silent blank page).
+  Confirmed `frontend/.env` has real `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` values locally
+  (checked key *names* only via `grep -oE '^[A-Z_]+'`, never printed values to chat — these are
+  live credentials). Directed the user to add both to Vercel Settings → Environment Variables
+  (Production) and redeploy, since Vite inlines `import.meta.env.*` at build time, not runtime.
+  **User confirmed the app is now properly deployed.**
 
 ### Unfinished / blocked
-- `frontend/vercel.json` (add) and root `vercel.json` (delete) are staged/uncommitted. Not yet
-  pushed or verified against a real Vercel deploy.
-- Still waiting on the user to confirm the "Include source files outside of the Root Directory"
-  toggle state in the dashboard — if it's on and stays on, root-level `pyproject.toml` may still
-  leak into the build even with the corrected `frontend/vercel.json` in place.
+- None for the deploy itself — round 7 is fully resolved and verified live, not just reasoned
+  about.
+- Deferred (not this round): `supabaseClient.ts` has no guard/error-boundary for missing env vars
+  — a misconfigured deploy currently fails as a silent blank page rather than a diagnosable error.
+  Worth a small Cedar `[SPEC]` if this class of failure recurs.
 
 ### Next steps
-- Commit (`fix(deploy): relocate vercel.json into frontend/ to match dashboard Root Directory`)
-  and push once user confirms.
-- User to check/disable the "Include source files outside of the Root Directory" toggle in Vercel
-  dashboard Settings → General.
-- User to retry deploy and report back; if it *still* fails, next things to check: whether the
-  dashboard has a manual Build/Install/Output Command override (these take precedence over
-  vercel.json and were never confirmed clear), and whether the deploy is reading a stale cached
-  build (try "Redeploy" with cache disabled).
+- None blocking. If picking this up again: consider the `supabaseClient.ts` fail-loudly gap above,
+  and consider documenting the required `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` Vercel env
+  vars somewhere discoverable (e.g. a `frontend/.env.example` doesn't currently exist — only a
+  root-level `.env.example` for the backend's `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` exists).
 
 ### Accomplished (round 6, this section)
 - User supplied a screenshot (`screenshots/Screenshot from 2026-07-24 12-50-02.png`) showing dark
