@@ -5,7 +5,7 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-25 (round 14: mobile-friendly leverage table via Pine→Cedar→Cypress→Magnolia; round 13 sticky-Status + crowding fixes, both via the real pipeline)
+## Current Session — 2026-07-25 (round 15: widen spec-024 breakpoint 480px→640px after real-device retest; round 14 mobile-friendly table + round 13 sticky-Status/crowding fixes, all via the real pipeline)
 
 > Specs 001–022 and rounds 1–11.5 are archived in [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 > Rounds 12–12.8 (glass-parity cleanup, visual polish, hover/motion, sticky-column fixes —
@@ -79,20 +79,56 @@
   `page.evaluate` confirmed the label span (`"Already have"`) is still connected to the DOM, just
   visually clipped — never removed. At 768px, confirmed byte-for-byte unaffected (Status stays
   sticky with full text, Skill stays 9rem).
+- User approved via `AskUserQuestion`, then said "commit and push": **committed + pushed** as
+  `3ddbd9f`.
+
+### Accomplished (round 15, this section)
+- User tested round 14's fix on their ACTUAL phone (a second real-device screenshot, different
+  device/session than round 14's) and it visibly did NOT apply — still the old wide layout, full
+  "Worth learning" pill text. Rather than guess again, verified directly against the LIVE
+  production site (`https://looking-glass-zeta.vercel.app/`, not just local dev) via Playwright:
+  confirmed the deploy WAS current and the fix DOES work correctly at a simulated 428px viewport
+  (`.lev-status` → `position: static`, `.lev-skill` → `96px`/6rem). So the fix itself was never
+  broken — round 14's chosen breakpoint (480px, picked by Cedar without real-hardware validation)
+  simply didn't cover the user's actual device, whose effective CSS viewport width is apparently
+  wider than 480px (real phones can report a wider viewport than their physical size implies,
+  especially with browser zoom/display-scale settings).
+- Asked the user directly via `AskUserQuestion` rather than guessing a third breakpoint number
+  blind; user chose: widen the breakpoint generously to ~640px rather than a bigger card-layout
+  redesign. Routed via **Pine** (SIMPLE — a single already-user-decided value change inside an
+  already-approved mechanism, no fresh Cedar SPEC needed; Rule 9's circuit breaker doesn't apply
+  since the human supplied the corrective decision directly rather than the system proposing
+  another unvalidated guess) → **Magnolia**, who changed `@media (max-width: 480px)` to
+  `@media (max-width: 640px)` (updating the block's comment to explain why), updated Cypress's
+  breakpoint-literal test assertions to match, and confirmed the 560px scatter-sizing block and
+  the new 640px block target disjoint elements (no conflict in the 560-640px dual-activation
+  range). 618/618 passing, `tsc`/`eslint` clean.
+- Independently re-verified: reran the suite (618/618), diffed the CSS (one clean value+comment
+  change), and swept 8 viewport widths (428/487/550/620/640/641/700/768px) confirming the exact
+  transition sits at 640/641px — critically, 487px (my estimate of the user's actual device width
+  based on their screenshot) now correctly triggers the mobile layout, which it would NOT have
+  under the old 480px threshold. Screenshotted 487px directly: Leverage column/bar chart clearly
+  visible, Status icon-only, Skill narrower — exactly the intended fix.
 - **Not committed** — asking the user before committing, per this session's established pattern.
 
 ### Unfinished / blocked
-- **Round 14's fix is implemented and independently verified but not committed.** Files:
-  `frontend/src/components/matrix/matrix.css`, `frontend/src/components/matrix/
-  SkillLeverageTable.tsx` (one `className` addition), `frontend/src/components/matrix/
-  SkillLeverageTable.test.tsx`, plus the new `specs/024-mobile-friendly-leverage-table.md`
-  (untracked).
-- Round 13's two fixes (sticky-Status ghosting, metric-column crowding) are already committed +
-  pushed (`62b01a5`, `e9bdb21`) — no action needed there.
+- **Round 15's breakpoint widening is implemented and independently verified but not committed.**
+  Files: `frontend/src/components/matrix/matrix.css`,
+  `frontend/src/components/matrix/SkillLeverageTable.test.tsx` (breakpoint-literal updates only).
+- Rounds 13 and 14 are already committed + pushed (`62b01a5`, `e9bdb21`, `3ddbd9f`) — no action
+  needed there.
+- **Watch for a recurring pattern**: this is the second time a mobile fix for this exact table
+  didn't hold up on real hardware after passing simulated-viewport verification. If a THIRD
+  real-device report comes in against this same table, that's the Rule 9 signal to stop iterating
+  on breakpoint numbers and seriously revisit the card/stacked-layout redesign Cedar explicitly
+  rejected in spec 024 — don't reach for a fourth magic-number guess.
 
 ### Next steps
-1. Get the user's go-ahead, then commit (and likely push, per this session's pattern) round 14's
-   mobile-friendly leverage-table fix and the new spec file.
+1. Get the user's go-ahead, then commit (and likely push, per this session's pattern) round 15's
+   breakpoint widening.
+2. If the user reports on their actual device again, ask them to check/share their browser's
+   reported viewport width directly (e.g. via dev tools or a quick `window.innerWidth` check) rather
+   than iterating on more guessed breakpoint numbers.
 
 ---
 

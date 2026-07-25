@@ -594,8 +594,17 @@
  * source of the crowding). The Status cell's text label is visually hidden (clip-rect, NOT
  * display:none) at this width only, since the ✓/✕ glyph + color already carries the same meaning
  * (mirrors `.matrix-point-flag`'s existing glyph+color pattern) and the label text stays in the
- * accessibility tree for screen readers. */
-@media (max-width: 480px) {
+ * accessibility tree for screen readers.
+ *
+ * Breakpoint widened 480px -> 640px: 480px was picked without real-device validation and, per
+ * live user testing, did NOT trigger on the user's actual phone — real phones can report a wider
+ * effective CSS viewport than their physical screen size would suggest (browser zoom/display-scale
+ * settings inflate the reported width). 640px is a deliberately generous, safely-covering threshold
+ * for that real-world viewport-width variance. This overlaps the unrelated 560px scatter-sizing
+ * block above for the 560-640px range; both blocks target disjoint elements
+ * (.matrix-canvas/.matrix-zone-hi/.matrix-zone-lo vs. .lev-status/.lev-skill/.lev-status-label), so
+ * simultaneous activation in that range is not a conflict. */
+@media (max-width: 640px) {
   .lev-status,
   .lev-status-h {
     position: static;

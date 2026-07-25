@@ -710,7 +710,7 @@ describe('<SkillLeverageTable /> spec 022 — CSS-only pill/bar/radius restyle (
 })
 
 // ---------------------------------------------------------------------------------------------
-// Spec 024 — mobile-friendly leverage table: shrink the pinned-column footprint at ≤480px so
+// Spec 024 — mobile-friendly leverage table: shrink the pinned-column footprint at ≤640px so
 // metric data (Leverage, Demand, ...) is actually visible on a real phone viewport, while keeping
 // every number (including Status) genuinely accessible.
 //
@@ -718,7 +718,7 @@ describe('<SkillLeverageTable /> spec 022 — CSS-only pill/bar/radius restyle (
 // spec-022 describe block above) rather than mounting a real browser at a given viewport width —
 // vitest.config's `test.css` is unset/false, so component-render tests never see applied CSS rules,
 // and jsdom does not evaluate `@media` queries against a simulated viewport at all. That means:
-//   - assertions (a)/(b) below are CSS-text assertions against a new `@media (max-width: 480px)`
+//   - assertions (a)/(b) below are CSS-text assertions against a new `@media (max-width: 640px)`
 //     block in matrix.css — they are honest about testing declared rules, not rendered/computed
 //     styles in a real viewport.
 //   - assertion (c) is a genuine behavioral (RTL) test: it renders the real component and queries
@@ -727,9 +727,9 @@ describe('<SkillLeverageTable /> spec 022 — CSS-only pill/bar/radius restyle (
 //   - assertion (d) (axe) mounts the real component and runs the real axe-core engine against the
 //     real rendered DOM/CSSOM in jsdom's default viewport size. It genuinely exercises axe's rule
 //     engine, but it does NOT — and cannot, in jsdom — prove that a real browser reflows this table
-//     at 480px width the way a phone would. It is included as a structural regression guard (no
-//     a11y violations in the markup this SPEC touches), not as proof of correct 480px rendering.
-describe('<SkillLeverageTable /> spec 024 — mobile ≤480px: unpin Status, shrink Skill, keep Status text in the DOM', () => {
+//     at 640px width the way a phone would. It is included as a structural regression guard (no
+//     a11y violations in the markup this SPEC touches), not as proof of correct 640px rendering.
+describe('<SkillLeverageTable /> spec 024 — mobile ≤640px: unpin Status, shrink Skill, keep Status text in the DOM', () => {
   const MATRIX_DIR = path.dirname(fileURLToPath(import.meta.url))
   const MATRIX_CSS_PATH = path.join(MATRIX_DIR, 'matrix.css')
   const matrixCss = readFileSync(MATRIX_CSS_PATH, 'utf-8')
@@ -780,19 +780,19 @@ describe('<SkillLeverageTable /> spec 024 — mobile ≤480px: unpin Status, shr
     return combined
   }
 
-  /** Extracts the interior of the `@media (max-width: 480px) { ... }` block. Deliberately does NOT
-   * fall back to the existing 560px/520px blocks — per the SPEC, 480px must be its own distinct
+  /** Extracts the interior of the `@media (max-width: 640px) { ... }` block. Deliberately does NOT
+   * fall back to the existing 560px/520px blocks — per the SPEC, 640px must be its own distinct
    * block, not merged into the scatter-sizing 560px block or the topmoves-grid 520px block. */
   function mobile480Block(): string {
-    return block(matrixCss, /@media\s*\(max-width:\s*480px\)\s*\{/)
+    return block(matrixCss, /@media\s*\(max-width:\s*640px\)\s*\{/)
   }
 
-  describe('(a) `.lev-status`/`.lev-status-h` are no longer sticky at ≤480px', () => {
-    it('a `@media (max-width: 480px)` block exists in matrix.css, distinct from the existing 560px/520px blocks', () => {
+  describe('(a) `.lev-status`/`.lev-status-h` are no longer sticky at ≤640px', () => {
+    it('a `@media (max-width: 640px)` block exists in matrix.css, distinct from the existing 560px/520px blocks', () => {
       expect(() => mobile480Block()).not.toThrow()
     })
 
-    it('`.lev-status`\'s `position` inside the 480px block is overridden away from `sticky`', () => {
+    it('`.lev-status`\'s `position` inside the 640px block is overridden away from `sticky`', () => {
       const mediaBody = mobile480Block()
       const body = declarationsForIn(mediaBody, '.lev-status')
       const positionDecl = /position\s*:\s*([^;]+);/.exec(body)
@@ -800,7 +800,7 @@ describe('<SkillLeverageTable /> spec 024 — mobile ≤480px: unpin Status, shr
       expect(positionDecl![1].trim()).not.toBe('sticky')
     })
 
-    it('`.lev-status-h`\'s `position` inside the 480px block is overridden away from `sticky`', () => {
+    it('`.lev-status-h`\'s `position` inside the 640px block is overridden away from `sticky`', () => {
       const mediaBody = mobile480Block()
       const body = declarationsForIn(mediaBody, '.lev-status-h')
       const positionDecl = /position\s*:\s*([^;]+);/.exec(body)
@@ -809,8 +809,8 @@ describe('<SkillLeverageTable /> spec 024 — mobile ≤480px: unpin Status, shr
     })
   })
 
-  describe('(b) `.lev-skill`/`.lev-skill-h` shrink from 9rem to 6rem at ≤480px', () => {
-    it('`.lev-skill`\'s `width` inside the 480px block is `6rem`', () => {
+  describe('(b) `.lev-skill`/`.lev-skill-h` shrink from 9rem to 6rem at ≤640px', () => {
+    it('`.lev-skill`\'s `width` inside the 640px block is `6rem`', () => {
       const mediaBody = mobile480Block()
       const body = declarationsForIn(mediaBody, '.lev-skill')
       const widthDecl = /width\s*:\s*([^;]+);/.exec(body)
@@ -818,7 +818,7 @@ describe('<SkillLeverageTable /> spec 024 — mobile ≤480px: unpin Status, shr
       expect(widthDecl![1].trim()).toBe('6rem')
     })
 
-    it('`.lev-skill-h`\'s `width` inside the 480px block is `6rem`', () => {
+    it('`.lev-skill-h`\'s `width` inside the 640px block is `6rem`', () => {
       const mediaBody = mobile480Block()
       const body = declarationsForIn(mediaBody, '.lev-skill-h')
       const widthDecl = /width\s*:\s*([^;]+);/.exec(body)
@@ -827,7 +827,7 @@ describe('<SkillLeverageTable /> spec 024 — mobile ≤480px: unpin Status, shr
     })
   })
 
-  describe('unchanged invariants the 480px block must NOT touch', () => {
+  describe('unchanged invariants the 640px block must NOT touch', () => {
     it('`.lev-num`\'s width (2.25rem) and sticky `left: 0` are unchanged at the top level (this SPEC does not touch `.lev-num`)', () => {
       const body = block(matrixCss, /^\.lev-num \{/m)
       expect(/width\s*:\s*2\.25rem;/.test(body)).toBe(true)
@@ -835,7 +835,7 @@ describe('<SkillLeverageTable /> spec 024 — mobile ≤480px: unpin Status, shr
       expect(/left\s*:\s*0;/.test(body)).toBe(true)
     })
 
-    it('the base (top-level, non-media) `.lev-skill`/`.lev-skill-h` width is still `9rem` — only the 480px override changes it, the base rule is untouched', () => {
+    it('the base (top-level, non-media) `.lev-skill`/`.lev-skill-h` width is still `9rem` — only the 640px override changes it, the base rule is untouched', () => {
       const body = block(matrixCss, /^\.lev-skill,\s*\n\.lev-skill-h \{/m)
       expect(/width\s*:\s*9rem;/.test(body)).toBe(true)
     })
@@ -872,8 +872,8 @@ describe('<SkillLeverageTable /> spec 024 — mobile ≤480px: unpin Status, shr
     })
   })
 
-  describe('(d) axe-core reports no violations with the Status column populated (structural regression guard — see the file-level note above on what jsdom can and cannot verify about 480px reflow)', () => {
-    it('has zero axe violations with the Status column populated (does not prove 480px reflow correctness — jsdom does not evaluate @media viewport queries)', async () => {
+  describe('(d) axe-core reports no violations with the Status column populated (structural regression guard — see the file-level note above on what jsdom can and cannot verify about 640px reflow)', () => {
+    it('has zero axe violations with the Status column populated (does not prove 640px reflow correctness — jsdom does not evaluate @media viewport queries)', async () => {
       const { container } = render(
         <SkillLeverageTable
           rows={roleSkillProfileFixture}
