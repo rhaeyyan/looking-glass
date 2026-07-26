@@ -96,9 +96,6 @@ getting the top recommendation, is built, tested, and working end to end.
 
 ## Technical Notes & Methodology
 
-The sections above are the plain-English version. This section is the same information written
-for an engineering audience, including the exact scoring math and data pipeline.
-
 ### The score, precisely
 
 ```
