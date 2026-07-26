@@ -2,6 +2,9 @@
 
 Source: `kaggle-datasets/*.zip` extracted to `data/raw/{d1,d2,d3}/` (gitignored, local-only).
 
+Datasets considered and **rejected** are recorded in
+[dataset-evaluations.md](dataset-evaluations.md) — check there before re-evaluating a candidate.
+
 ## D1 — `data/raw/d1/skill-scarcity-index.csv`
 Columns: `snapshot_date, category, skill_name, demand_count, demand_pct, median_days_open,
 salary_premium_pct, repost_rate_pct, scarcity_score`
