@@ -14,6 +14,11 @@ pythonpath = ["."]
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+# Vendored third-party skill scripts under .claude/skills/ are not first-party code and are not
+# ours to restyle — they contributed 147 errors to a bare `ruff check .`, which made the command
+# AGENTS.md tells agents to run permanently red for reasons unrelated to the project (and would
+# have failed every Cypress audit, which treats a lint failure as a critical violation).
+extend-exclude = [".claude"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
