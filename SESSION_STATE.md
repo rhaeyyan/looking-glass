@@ -5,7 +5,7 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-25 (round 16: mobile Status column still an oversized capsule — width fix; black-box glitch investigated, likely device-specific)
+## Current Session — 2026-07-25 (round 17: mobile header-overlap + skill-crowding fix, plus a genuine pre-existing CSS specificity bug found & fixed; round 16 Status-width fix)
 
 > Specs 001–022 and rounds 1–11.5/12–12.8 are archived in
 > [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md). Rounds 13–15 (sticky-Status ghosting fix, mobile-
@@ -43,23 +43,73 @@
   487px — Status is now a compact icon-sized pill, and Leverage/Demand/Scarcity are all visible on
   one screen with zero scrolling. Confirmed 768px desktop is byte-for-byte unaffected (`152px`/
   `9.5rem`, still sticky).
+- User said "commit and push": **committed + pushed** as `5131405`.
+
+### Accomplished (round 17, this section)
+- User sent a FOURTH real-device screenshot: "this is an improvement, but we can do better."
+  Confirmed via reproduced-locally computed geometry (not eyeballing): (1) the "STATUS"/"LEVERAGE"
+  headers visually ran together — `.lev-status-h`'s 44px box had zero geometric overlap with its
+  neighbor per `getBoundingClientRect()`, yet the rendered "STATUS" glyphs painted past the
+  boundary since nothing clipped overflowing header text; (2) long skill names ("data
+  visualization", "data engineering", "attention to detail", "data governance") visually crowded
+  into the neighboring Status icon.
+- This being the 4th consecutive round of real-device mobile issues (the exact trigger a prior
+  round flagged for reconsidering the bigger card-layout redesign), asked the user directly via
+  `AskUserQuestion` rather than unilaterally deciding: keep refining the table, or switch to a
+  card/stacked mobile layout. **User chose: keep refining the table**, explicitly wanting a
+  properly-validated fix this time, not another single-screenshot spot-check.
+- Routed via **Pine** → **Cypress-first this time** (breaking the pattern): wrote a regression
+  test asserting (a) `.lev-status-h` has `overflow: hidden`/`text-overflow: ellipsis` so header
+  text can't bleed, and (b) `.lev-skill`'s available content width (declared width minus padding)
+  is mathematically ≥ the longest real skill name's longest word ("visualization", ~93px) —
+  honest in its report that both are heuristic proxies computed from the file's own real declared
+  CSS numbers, not real browser rendering (jsdom applies no cascade/layout in this project's
+  vitest config). Confirmed RED (619/621) before any implementation. **Magnolia** then fixed both:
+  visually-hid the header's "Status" text the same clip-rect way body cells already are (rather
+  than a meaningless truncated "S…"), and widened `.lev-skill`/`.lev-skill-h` from 6rem→8rem with
+  documented margin math. This required Cypress to correct one now-stale test from round 14 that
+  hardcoded `.lev-skill`'s width as exactly `'6rem'` — a legitimate update (the old value was an
+  unvalidated guess, the new one is content-derived), not a shortcut. 621/621 passing.
+- **Independently re-verifying this round caught a real bug the pipeline missed**: rendering
+  "business intelligence" at 487px showed it still visually overlapping the Status icon despite
+  the width fix. Investigated with real Playwright computed-style/`getClientRects()` inspection
+  (not jsdom, which can't see this): `.lev-skill`'s computed `white-space` was `nowrap`, not the
+  `normal` its own CSS declares — a previously-latent, PRE-EXISTING specificity bug (a more
+  specific shared rule, `.leverage-table th, .leverage-table td { white-space: nowrap }`, has
+  always silently outranked `.lev-skill`'s own `white-space: normal`, invisible until the mobile
+  breakpoint narrowed the column enough to actually need wrapping). Fixed directly by raising
+  `.lev-skill`/`.lev-skill-h`'s base-rule selector specificity (`.leverage-table .lev-skill` — two
+  classes now outranks the shared rule's one-class-plus-element). This immediately broke the
+  640px width override for the same reason (the override needed matching specificity too) —
+  caught and fixed that regression myself before it ever reached a report. Cypress updated one
+  test whose selector-matching regex needed to follow the new selector text, and added a new
+  specificity-guard regression test (comparing class-token counts between the two competing rules)
+  specifically so this exact bug class can't silently recur. Final: 622/622 passing, `tsc`/`eslint`
+  clean.
+- Verified thoroughly via real Playwright rendering (not just tests) at 487px (mobile) and 768px
+  (desktop): headers no longer overlap, all previously-crowded skill names ("business
+  intelligence" included) now wrap cleanly onto their own line inside the Skill column with clear
+  separation from the status icon, and desktop is confirmed correct (and, as a side effect of the
+  specificity fix, *more* correct than before — the same wrapping bug silently affected desktop
+  too, just less visibly at the wider 9rem column).
 - **Not committed** — asking the user before committing, per this session's established pattern.
 
 ### Unfinished / blocked
-- **Round 16's Status-width fix is implemented and independently verified but not committed.**
-  File: `frontend/src/components/matrix/matrix.css` only.
+- **Round 17's fixes are implemented and independently verified but not committed.** Files:
+  `frontend/src/components/matrix/matrix.css`,
+  `frontend/src/components/matrix/SkillLeverageTable.tsx` (header label wrapped in a span),
+  `frontend/src/components/matrix/SkillLeverageTable.test.tsx`.
 - **Black-box glitch (round 16) remains unresolved and likely unfixable from our end** — confirmed
   reproducible by the user, but could not be reproduced locally with identical data/DOM. If it
   recurs, the next useful piece of evidence would be the user's specific device/browser (not just
   another screenshot), since the DOM/CSS itself checks out clean.
 
 ### Next steps
-1. Get the user's go-ahead, then commit (and likely push, per this session's pattern) round 16's
-   Status-width fix.
-2. If mobile table issues recur a FOURTH time on real hardware, stop patching individual CSS
-   values and seriously revisit the card/stacked-layout redesign Cedar explicitly rejected in spec
-   024 — three rounds of narrow patches is enough evidence that iterative tweaks may be reaching
-   their limit, even though each individual round so far has had a clean, diagnosable root cause.
+1. Get the user's go-ahead, then commit (and likely push, per this session's pattern) round 17's
+   header/crowding/specificity fixes.
+2. This was round 4 of real-device mobile issues, and the user already explicitly chose to keep
+   refining rather than redesign — respect that choice, but if a 5th round surfaces, raise the
+   card-layout redesign question again rather than assuming another narrow patch is still right.
 
 ---
 

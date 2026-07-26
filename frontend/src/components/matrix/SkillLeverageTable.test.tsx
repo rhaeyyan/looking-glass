@@ -809,21 +809,21 @@ describe('<SkillLeverageTable /> spec 024 — mobile ≤640px: unpin Status, shr
     })
   })
 
-  describe('(b) `.lev-skill`/`.lev-skill-h` shrink from 9rem to 6rem at ≤640px', () => {
-    it('`.lev-skill`\'s `width` inside the 640px block is `6rem`', () => {
+  describe('(b) `.lev-skill`/`.lev-skill-h` shrink from 9rem to 8rem at ≤640px', () => {
+    it('`.lev-skill`\'s `width` inside the 640px block is `8rem`', () => {
       const mediaBody = mobile480Block()
       const body = declarationsForIn(mediaBody, '.lev-skill')
       const widthDecl = /width\s*:\s*([^;]+);/.exec(body)
       expect(widthDecl).not.toBeNull()
-      expect(widthDecl![1].trim()).toBe('6rem')
+      expect(widthDecl![1].trim()).toBe('8rem')
     })
 
-    it('`.lev-skill-h`\'s `width` inside the 640px block is `6rem`', () => {
+    it('`.lev-skill-h`\'s `width` inside the 640px block is `8rem`', () => {
       const mediaBody = mobile480Block()
       const body = declarationsForIn(mediaBody, '.lev-skill-h')
       const widthDecl = /width\s*:\s*([^;]+);/.exec(body)
       expect(widthDecl).not.toBeNull()
-      expect(widthDecl![1].trim()).toBe('6rem')
+      expect(widthDecl![1].trim()).toBe('8rem')
     })
   })
 
@@ -836,8 +836,53 @@ describe('<SkillLeverageTable /> spec 024 — mobile ≤640px: unpin Status, shr
     })
 
     it('the base (top-level, non-media) `.lev-skill`/`.lev-skill-h` width is still `9rem` — only the 640px override changes it, the base rule is untouched', () => {
-      const body = block(matrixCss, /^\.lev-skill,\s*\n\.lev-skill-h \{/m)
+      // Selector text is now `.leverage-table .lev-skill`/`.leverage-table .lev-skill-h` (two
+      // classes) rather than the bare `.lev-skill`/`.lev-skill-h` (one class) — a deliberate
+      // specificity fix so this rule's `white-space: normal` actually outranks the shared
+      // `.leverage-table th, .leverage-table td { white-space: nowrap }` rule elsewhere in the
+      // file (see matrix.css's own comment directly above this selector). The declared `width:
+      // 9rem` value itself is unchanged; only the selector prefix grew.
+      const body = block(
+        matrixCss,
+        /^\.leverage-table \.lev-skill,\s*\n\.leverage-table \.lev-skill-h \{/m,
+      )
       expect(/width\s*:\s*9rem;/.test(body)).toBe(true)
+    })
+  })
+
+  // Specificity regression guard: a static, mechanically-checkable proxy for "our intended
+  // `.lev-skill`/`.lev-skill-h` { white-space: normal } declaration will actually win the cascade
+  // against the shared `.leverage-table th, .leverage-table td { white-space: nowrap }` rule" —
+  // this is exactly the bug class this round's fix addressed (the base `.lev-skill` selector used
+  // to be one class alone, which lost to the shared rule's one-class-plus-one-element specificity,
+  // silently keeping `white-space: nowrap` in effect). jsdom applies no CSS cascade at all (see
+  // this file's own file-level notes above), so this selector-token-counting approach — not real
+  // browser rendering — is the only mechanical way this suite can catch a future regression of
+  // this specific bug (e.g. someone "simplifying" the selector back to bare `.lev-skill`).
+  describe('specificity regression guard — `.lev-skill`/`.lev-skill-h`\'s selector must stay at least as specific as the shared `.leverage-table th, .leverage-table td` nowrap rule it needs to outrank', () => {
+    /** Counts class tokens (`.foo`) in a single (non-comma) selector string. CSS specificity ranks
+     * class-token count strictly ahead of element-token count, so comparing class counts alone is
+     * sufficient here (both rules under test have zero ID selectors). */
+    function classTokenCount(selector: string): number {
+      return (selector.match(/\.[\w-]+/g) ?? []).length
+    }
+
+    it('`.leverage-table .lev-skill`\'s selector has a class-token count >= the shared `.leverage-table th`/`.leverage-table td` nowrap rule\'s selector (so it wins the cascade on class-count alone, per CSS specificity rules)', () => {
+      const sharedRuleMatch = /^\.leverage-table th,\s*\n\.leverage-table td \{/m.exec(matrixCss)
+      expect(sharedRuleMatch).not.toBeNull()
+      const sharedSelectors = sharedRuleMatch![0].replace(/\{$/, '').split(',').map((s) => s.trim())
+      const sharedMaxClassCount = Math.max(...sharedSelectors.map(classTokenCount))
+
+      const levSkillMatch =
+        /^\.leverage-table \.lev-skill,\s*\n\.leverage-table \.lev-skill-h \{/m.exec(matrixCss)
+      expect(levSkillMatch).not.toBeNull()
+      const levSkillSelectors = levSkillMatch![0]
+        .replace(/\{$/, '')
+        .split(',')
+        .map((s) => s.trim())
+      const levSkillMinClassCount = Math.min(...levSkillSelectors.map(classTokenCount))
+
+      expect(levSkillMinClassCount).toBeGreaterThanOrEqual(sharedMaxClassCount)
     })
   })
 
@@ -883,5 +928,169 @@ describe('<SkillLeverageTable /> spec 024 — mobile ≤640px: unpin Status, shr
       )
       expect(await axe(container)).toHaveNoViolations()
     })
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Regression guard — this is the 4th consecutive round of mobile ≤640px leverage-table bugs
+// discovered only via real-device screenshots, because each width was hand-picked and "verified"
+// against one or two screenshots/roles rather than the actual worst-case real content. Two
+// confirmed bugs from the latest real-device screenshot (reproduced via exact computed geometry):
+//   1. `.lev-status-h`'s "STATUS" header text overflows its 44px (2.75rem) column and visibly
+//      bleeds into the "LEVERAGE" header next to it, because the shared `white-space: nowrap` rule
+//      lets overflowing text paint outside the box with nothing clipping it.
+//   2. Longer real skill names ("data visualization", "data engineering", "attention to detail",
+//      "data governance") sit close enough to the narrow Status icon that skill text visually
+//      touches/overlaps the ✕/✓ glyph in the neighboring cell.
+//
+// Full-dataset honesty note: the frontend test tree ships NO static CSV/fixture of the full
+// 141-skill vocabulary — `RoleSkillRow` rows are fetched from Supabase at runtime (see
+// `frontend/src/lib/supabaseClient.ts`); `frontend/src/lib/roles.ts` only lists the 15 role-family
+// names, and `roleSkillProfile.fixture.ts` (this file's existing shared fixture) only has 4
+// short-name rows (Kubernetes/Rust/PostgreSQL/gRPC). So this suite cannot sweep "every real skill
+// name" — instead it uses the literal longest real skill names named in the bug report (the
+// worst-case content actually seen on a real device), per the task's documented fallback.
+//
+// Mechanism/limits (same honesty convention as the spec-024 block above): vitest.config's
+// `test.css` is unset, so rendering the component in jsdom never applies matrix.css at all, and
+// jsdom does not evaluate `@media` queries or rasterize glyphs even when CSS IS applied. Neither
+// "mount at a real viewport and read computed style" nor a `scrollWidth > clientWidth` DOM check
+// is meaningfully testable here (jsdom's layout engine does not lay out text — those properties
+// are 0 with no real font/metrics behind them). So — consistent with this file's OWN established
+// convention for spec-024 assertions (a)/(b) above — these tests read matrix.css as raw text and
+// reason about the REAL declared numbers (widths, padding, font-size, letter-spacing) already in
+// the file, combined with a conservative, explicitly-documented average-glyph-width heuristic
+// (0.55em/char — jsdom has no real font metrics, so this is an approximation, deliberately on the
+// generous/downward side so a PASS is a true lower bound, not an overclaim about pixel-perfect
+// browser rendering). This is a proxy, not a browser screenshot: it cannot prove pixel-perfect
+// rendering, but it DOES mechanically fail today against the current, unfixed CSS, and it WILL
+// mechanically pass once Magnolia's fix gives either column enough real, declared width/clipping
+// to cover this arithmetic — converting "eyeball one screenshot and hope" into "assert a number."
+describe('<SkillLeverageTable /> regression guard — mobile ≤640px must not let real, longest skill/header content bleed across cells', () => {
+  const MATRIX_DIR = path.dirname(fileURLToPath(import.meta.url))
+  const MATRIX_CSS_PATH = path.join(MATRIX_DIR, 'matrix.css')
+  const matrixCss = readFileSync(MATRIX_CSS_PATH, 'utf-8')
+
+  // Duplicated local copies of the brace-depth-aware CSS-text parsing helpers (per this suite's
+  // own "each section owns its own copy" convention — see the spec-022/spec-024 blocks above).
+  function block(css: string, selectorPattern: RegExp): string {
+    const match = selectorPattern.exec(css)
+    if (!match) {
+      throw new Error(`Selector pattern not found in stylesheet: ${selectorPattern}`)
+    }
+    const braceInMatch = match[0].lastIndexOf('{')
+    const openBrace =
+      braceInMatch !== -1
+        ? match.index + braceInMatch
+        : css.indexOf('{', match.index + match[0].length)
+    if (openBrace === -1 || css[openBrace] !== '{') {
+      throw new Error(`Could not locate an opening brace for selector pattern: ${selectorPattern}`)
+    }
+    let depth = 1
+    let i = openBrace + 1
+    while (depth > 0 && i < css.length) {
+      if (css[i] === '{') depth++
+      else if (css[i] === '}') depth--
+      i++
+    }
+    return css.slice(openBrace + 1, i - 1)
+  }
+
+  function declarationsForIn(cssBlock: string, needle: string): string {
+    const ruleRe = /([^{}]+)\{([^{}]*)\}/g
+    let m: RegExpExecArray | null
+    let combined = ''
+    const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const selectorTokenRe = new RegExp(`(^|[\\s,])${escaped}($|[\\s,[:])`)
+    while ((m = ruleRe.exec(cssBlock))) {
+      const selectors = m[1].trim()
+      if (selectorTokenRe.test(selectors)) {
+        combined += m[2] + '\n'
+      }
+    }
+    return combined
+  }
+
+  function mobileBlock(): string {
+    return block(matrixCss, /@media\s*\(max-width:\s*640px\)\s*\{/)
+  }
+
+  /** Parses a length declaration (`rem`/`px`/`em`) for `prop` out of a rule body and returns px,
+   * assuming the default 16px root font-size (this repo declares no `html { font-size }`
+   * override, verified by inspection — so `rem` == `px * 16` holds here). */
+  function pxDecl(body: string, prop: string): number | null {
+    const escaped = prop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const m = new RegExp(`${escaped}\\s*:\\s*([\\d.]+)(rem|px|em)\\s*;`).exec(body)
+    if (!m) return null
+    const val = parseFloat(m[1])
+    return m[2] === 'px' ? val : val * 16 // rem and em both resolve to *16 here (root/base 16px)
+  }
+
+  /** `padding: <vertical> <horizontal>;` shorthand -> horizontal px (one side). */
+  function horizontalPaddingPx(body: string): number {
+    const m = /padding\s*:\s*([\d.]+)(rem|px|em)\s+([\d.]+)(rem|px|em)\s*;/.exec(body)
+    if (!m) throw new Error('Expected a two-value padding shorthand declaration')
+    const val = parseFloat(m[3])
+    return m[4] === 'px' ? val : val * 16
+  }
+
+  // Real, longest skill names actually seen bleeding/crowding on the real-device screenshot (see
+  // file-level note above on why this is the literal bug-report list, not a full-vocabulary sweep).
+  const REALISTIC_LONG_SKILLS = [
+    'data visualization',
+    'data engineering',
+    'attention to detail',
+    'data governance',
+    'business intelligence',
+  ]
+  const longestWord = REALISTIC_LONG_SKILLS.flatMap((s) => s.split(' ')).sort(
+    (a, b) => b.length - a.length,
+  )[0]
+
+  // Conservative average glyph-advance heuristic for a proportional sans-serif at these sizes —
+  // documented, not derived from real font metrics (jsdom has none). Deliberately generous
+  // downward so satisfying this bound in the arithmetic below is a true lower-bound guarantee, not
+  // an overclaim of pixel-perfect browser measurement.
+  const AVG_CHAR_WIDTH_EM = 0.55
+
+  it('sanity check: at today\'s declared 640px sizes, the header word "STATUS" mathematically cannot fit inside `.lev-status-h`\'s own usable content box (documents WHY clipping is required — this assertion is about the file\'s real numbers, not a guess)', () => {
+    const headerRule = block(matrixCss, /\.matrix-table thead th\s*\{/)
+    const fontSizePx = pxDecl(headerRule, 'font-size')
+    const letterSpacingEm = parseFloat(/letter-spacing\s*:\s*([\d.]+)em\s*;/.exec(headerRule)![1])
+    expect(fontSizePx).not.toBeNull()
+
+    const cellPaddingRule = block(matrixCss, /\.matrix-table th,\s*\n\.matrix-table td\s*\{/)
+    const paddingPx = horizontalPaddingPx(cellPaddingRule)
+
+    const statusHWidthPx = pxDecl(declarationsForIn(mobileBlock(), '.lev-status-h'), 'width')!
+    const usableContentWidthPx = statusHWidthPx - 2 * paddingPx
+
+    const letterSpacingPx = letterSpacingEm * fontSizePx!
+    const word = 'STATUS'
+    const estimatedTextWidthPx =
+      word.length * (AVG_CHAR_WIDTH_EM * fontSizePx!) + (word.length - 1) * letterSpacingPx
+
+    expect(estimatedTextWidthPx).toBeGreaterThan(usableContentWidthPx)
+  })
+
+  it('`.lev-status-h` at ≤640px declares an overflow-containment rule (`overflow: hidden` or `text-overflow: ellipsis`) so header text that cannot fit (per the arithmetic above) is CLIPPED rather than painting across the neighboring header cell — this is the literal header-bleed bug from the real-device screenshot, and today\'s CSS has no such rule anywhere `.lev-status-h` applies', () => {
+    const mediaBody = mobileBlock()
+    const body = declarationsForIn(mediaBody, '.lev-status-h')
+    const hasOverflowHidden = /overflow\s*:\s*hidden\s*;/.test(body)
+    const hasTextOverflowEllipsis = /text-overflow\s*:\s*ellipsis\s*;/.test(body)
+    expect(hasOverflowHidden || hasTextOverflowEllipsis).toBe(true)
+  })
+
+  it('`.lev-skill`/`.lev-skill-h` at ≤640px is declared wide enough (given this file\'s own shared cell padding) that the longest single word among the real longest skill names ("visualization", from "data visualization") fits its available content width without being force-broken mid-word flush against the column edge next to the adjacent Status cell — today\'s 6rem width is narrower than that word\'s estimated glyph width, which is the crowding bug', () => {
+    const skillWidthPx = pxDecl(declarationsForIn(mobileBlock(), '.lev-skill'), 'width')!
+    const cellPaddingRule = block(matrixCss, /\.matrix-table th,\s*\n\.matrix-table td\s*\{/)
+    const paddingPx = horizontalPaddingPx(cellPaddingRule)
+    const availableContentWidthPx = skillWidthPx - 2 * paddingPx
+
+    const bodyFontSizeRule = block(matrixCss, /\.matrix-table\s*\{/)
+    const bodyFontSizePx = pxDecl(bodyFontSizeRule, 'font-size')!
+    const estimatedLongestWordWidthPx = longestWord.length * (AVG_CHAR_WIDTH_EM * bodyFontSizePx)
+
+    expect(availableContentWidthPx).toBeGreaterThanOrEqual(estimatedLongestWordWidthPx)
   })
 })

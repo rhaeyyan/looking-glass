@@ -76,7 +76,7 @@ export function SkillLeverageTable({
               </th>
               {haveSkillKeys && (
                 <th scope="col" className="lev-status-h">
-                  Status
+                  <span className="lev-status-h-label">Status</span>
                 </th>
               )}
               <th scope="col">Leverage</th>

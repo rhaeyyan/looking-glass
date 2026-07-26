@@ -480,8 +480,16 @@
   font-family: var(--font-mono, monospace);
   color: var(--text-muted);
 }
-.lev-skill,
-.lev-skill-h {
+/* Specificity note: `.leverage-table .lev-skill`/`.leverage-table .lev-skill-h` (two classes)
+ * deliberately outranks the shared `.leverage-table th, .leverage-table td { white-space: nowrap }`
+ * rule above (one class + one element = higher specificity than a bare `.lev-skill` alone would
+ * have). Without this, that shared rule silently won the cascade and `white-space: normal` below
+ * never actually took effect — invisible at the old 9rem width (wide enough that nothing needed
+ * to wrap) but a real bug once mobile narrows this column: long two-word skill names like
+ * "business intelligence" rendered as one unbroken line and overflowed into the neighboring
+ * column instead of wrapping onto a second line. */
+.leverage-table .lev-skill,
+.leverage-table .lev-skill-h {
   width: 9rem;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -616,12 +624,31 @@
      * disappeared. 2.75rem (44px) comfortably covers padding + glyph + a touch of breathing
      * room without clipping, confirmed by rendering at a real-device 487px viewport. */
     width: 2.75rem;
+    /* Belt-and-suspenders containment: `.lev-status-h`'s own text ("Status") is visually hidden
+     * via the same `.lev-status-label`-style clip-rect technique below (applied to a wrapping
+     * span in the header cell), so nothing should ever paint past this 44px box in practice — but
+     * declare `overflow: hidden` here too so this cell can never bleed into the neighboring
+     * "Leverage" header regardless of markup drift. */
+    overflow: hidden;
   }
-  .lev-skill,
-  .lev-skill-h {
-    width: 6rem;
+  /* Real-device screenshot regression: "data visualization"/"data engineering"/"attention to
+   * detail"/"data governance" (the longest real skill names) were crowding into the Status icon
+   * next door at the original 6rem. 8rem gives ~109px of usable content width after this file's
+   * shared 2 x 0.6rem cell padding — comfortably covers "visualization" (the longest single word
+   * among those names, ~93px at this file's 0.8125rem body font-size) with real headroom for the
+   * next slightly-longer real skill name, while the three pinned columns together (2.25rem +
+   * 8rem + 2.75rem = 13rem/208px) still stay well under half the pre-fix desktop-sized footprint
+   * (2.25rem + 9rem + 9.5rem ≈ 20.75rem/332px). */
+  /* Must match the base rule's `.leverage-table .lev-skill`/`.leverage-table .lev-skill-h`
+   * two-class selector, not just `.lev-skill`/`.lev-skill-h` alone — otherwise this override has
+   * LOWER specificity than the base rule it's trying to override (one class here vs. two classes
+   * there), and the base rule's `width: 9rem` silently wins even inside this @media block. */
+  .leverage-table .lev-skill,
+  .leverage-table .lev-skill-h {
+    width: 8rem;
   }
-  .lev-status-label {
+  .lev-status-label,
+  .lev-status-h-label {
     position: absolute;
     width: 1px;
     height: 1px;
