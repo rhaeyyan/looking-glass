@@ -92,16 +92,16 @@ The app is live: **[looking-glass-zeta.vercel.app](https://looking-glass-zeta.ve
 Everything described above, picking a role, pasting a resume, seeing your ranked gaps, and
 getting the top recommendation, is built, tested, and working end to end.
 
-## How it was built
+---
+
+## Technical Notes & Methodology
+
+### How it was built
 
 [**Development Report**](DEVELOPMENT_REPORT.md) — the full build history from the first commit
 to the post-mortem: what shipped, what was deleted, the AI layer that was built and then removed,
 the one CSS bug that survived four rounds and 622 green tests, and what the team changed about
 its own process afterward.
-
----
-
-## Technical Notes & Methodology
 
 ### The score, precisely
 
