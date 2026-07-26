@@ -14,14 +14,25 @@ The migrations intentionally do not use `IF NOT EXISTS`: a migration is meant to
 Re-running one will always fail this way. **Do not make them idempotent, and do not re-run them.**
 Reconcile the ledger instead:
 
+Prerequisites, in order. `login` is interactive (it opens a browser), so it can't be scripted:
+
 ```bash
-supabase migration list      # local vs remote, side by side — check this first
-supabase migration repair --status applied \
-  20260722134021 20260722140908 20260722160652 20260723122104
-supabase db push             # should now report nothing to do
+supabase login                              # or export SUPABASE_ACCESS_TOKEN=...
+supabase link --project-ref <your-project-ref>
 ```
 
-`migration repair --status applied` only writes to the tracking table; it never touches your schema.
+Then reconcile:
+
+```bash
+supabase migration list --linked            # local vs remote, side by side — check this first
+supabase migration repair --linked --status applied \
+  20260722134021 20260722140908 20260722160652 20260723122104
+supabase db push                            # should now report nothing to do
+```
+
+`--linked` is required to target the remote project; the alternatives are `--db-url` or `--local`
+(verified against `supabase migration repair --help`, CLI 2.109.1). `--status applied` only writes to
+the tracking table; it never touches your schema.
 
 Because `repair` tells the CLI to skip these forever, confirm the schema really is complete first:
 
