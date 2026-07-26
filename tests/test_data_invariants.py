@@ -32,13 +32,27 @@ import pytest
 
 RAW_DIR = Path(__file__).resolve().parent.parent / "data" / "raw"
 
+# The four CSVs run_pipeline() actually reads. Guarding on these — not on RAW_DIR.exists() —
+# because a *partially* populated data/raw/ defeated a directory-only check: an abandoned
+# d4/Coursera.csv from the dropped learning-resource feature kept the directory alive after the
+# d1/d2/d3 extracts were cleaned up, so this module ran anyway and produced 16 FileNotFoundError
+# failures that read as real regressions. Skip when the inputs are missing; never half-run.
+REQUIRED_CSVS = (
+    RAW_DIR / "d1" / "skill-scarcity-index.csv",
+    RAW_DIR / "d2" / "skill-demand-index.csv",
+    RAW_DIR / "d3" / "skills-2026-overall.csv",
+    RAW_DIR / "d3" / "skills-2026-by-role.csv",
+)
+
+_MISSING = [str(p.relative_to(RAW_DIR.parent.parent)) for p in REQUIRED_CSVS if not p.is_file()]
+
 pytestmark = pytest.mark.skipif(
-    not RAW_DIR.exists(),
+    bool(_MISSING),
     reason=(
-        "data/raw/ is gitignored and absent on this machine (fresh clone/CI) — integration "
-        "tests for the real 141-skill core / 58-skill corroboration / 450-row role-profile "
-        "invariants are skipped. Run the Kaggle extraction locally (see data/schema-notes.md) "
-        "to exercise this file."
+        "the gitignored Kaggle extracts are absent (fresh clone/CI) — integration tests for the "
+        "real 141-skill core / 58-skill corroboration / 450-row role-profile invariants are "
+        "skipped. Run the Kaggle extraction locally (see data/schema-notes.md) to exercise this "
+        f"file. Missing: {', '.join(_MISSING)}"
     ),
 )
 
