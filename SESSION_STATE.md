@@ -5,7 +5,25 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-25 (round 18: the "black box" mystery finally solved — stuck touch-`:hover` row highlight, not a rendering glitch)
+## Current Session — 2026-07-25 (round 19: post-mortem + orchestration overhaul)
+
+- Team post-mortem on agent orchestration. Root finding: ceremony was priced by *file type*, and the
+  verification environment was never part of any contract — so the harness could not reproduce what
+  the user's thumb could.
+- Shipped all 11 approved fixes: committed Playwright oracle harness (4 named profiles) with round
+  18's touch-`:hover` fix pinned as a regression spec; `Verification Oracle` now a required `[SPEC]`
+  field; Pine re-cut to INVARIANT/OBSERVABLE/UNKNOWN; invariants de-prosed to point at
+  `tests/test_data_invariants.py`; Stop hook inverted to gate on the oracle, not on ledger prose.
+- Verified: 10/10 e2e, 622/622 vitest, eslint+tsc clean. Oracle proven to *catch* the bug (removing
+  the `@media (hover: hover)` guard fails 4 touch tests, including light mode — the variant invisible
+  to the eye for 3 rounds). 16 pytest failures are pre-existing: `data/raw/` CSVs are gitignored.
+- **Correction to round 18 below:** it records the hover fix as "Not committed"; it landed as
+  `a83c6c6`. Left in place per the new append-only rule.
+- Next: nothing blocked. Round 19 work is uncommitted, awaiting go-ahead.
+
+---
+
+## Round 18 — 2026-07-25 (the "black box" mystery finally solved — stuck touch-`:hover` row highlight, not a rendering glitch)
 
 > Specs 001–022 and rounds 1–11.5/12–12.8 are archived in
 > [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md). Rounds 13–17 (sticky-Status ghosting fix,
