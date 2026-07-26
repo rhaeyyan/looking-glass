@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A superseded run tells you nothing; don't pay for it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python — ruff + pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv (reads .python-version / pyproject requires-python)
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      # `uvx` runs ruff ephemerally rather than adding it to pyproject: under AGENTS.md Rule 8
+      # only Cedar authorizes a new declared dependency, and a lint tool does not need to be one.
+      - name: Lint
+        run: uvx ruff check .
+
+      # `-rs` prints the skip reasons. The data-invariant integration tests need the gitignored
+      # Kaggle extracts under data/raw/, which are not in the repo, so they skip here — the summary
+      # below makes that visible instead of letting a green check imply they ran.
+      - name: Test
+        run: uv run pytest -q -rs
+
+  frontend:
+    name: Frontend — eslint + build + vitest + e2e oracle
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Covers `tsc --noEmit` and proves the production bundle still builds.
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npx vitest run
+
+      # The browser binary is NOT carried by package.json — only the @playwright/test harness is.
+      # Without this step `npm run e2e` fails on a missing executable. `--with-deps` also pulls the
+      # system libraries chromium needs on a bare runner.
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      # The oracle (AGENTS.md, "Verification oracles"). Runs all four device/theme profiles; the
+      # harness stubs Supabase same-origin with dummy credentials, so no secrets are needed and
+      # nothing here touches a live project.
+      - name: E2E oracle
+        run: npm run e2e
+
+      - name: Upload oracle report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
+          if-no-files-found: ignore

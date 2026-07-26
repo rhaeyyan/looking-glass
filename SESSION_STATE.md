@@ -19,7 +19,16 @@
   to the eye for 3 rounds). 16 pytest failures are pre-existing: `data/raw/` CSVs are gitignored.
 - **Correction to round 18 below:** it records the hover fix as "Not committed"; it landed as
   `a83c6c6`. Left in place per the new append-only rule.
-- Next: nothing blocked. Round 19 work is uncommitted, awaiting go-ahead.
+- Pushed to `main` (`614e03f`, `d3f1d79`, `526fc8a`); branch deleted. Then added CI
+  (`.github/workflows/ci.yml`) and fixed two latent problems it surfaced: the data-invariant skip
+  guard checked only that `data/raw/` existed, which a leftover `d4/Coursera.csv` from the dropped
+  learning-resource feature kept alive — so 16 tests half-ran and failed on missing CSVs; and a bare
+  `ruff check .` was 147 errors deep in vendored `.claude/skills/` code, which would have failed
+  every Cypress audit. Now 202 passed / 16 cleanly skipped, ruff green.
+- **CI cannot verify the data invariants** — they need the gitignored Kaggle extracts. CI prints the
+  skip reasons (`-rs`) so a green check never implies they ran. Open option: a Kaggle secret + a
+  fetch step would close this.
+- Next: nothing blocked.
 
 ---
 
