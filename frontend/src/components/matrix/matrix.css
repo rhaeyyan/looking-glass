@@ -411,8 +411,17 @@
    * needs room, which desyncs the offsets and makes the pinned columns overlap. */
   table-layout: fixed;
 }
-.leverage-table tbody tr:hover {
-  background: var(--page-plane);
+/* `(hover: hover)` gated: touch devices report a synthetic `:hover` on tap that never clears
+ * without a real pointerleave event, "sticking" this row highlight on whatever row was last
+ * touched — the "black box" reported across several rounds turned out to be exactly this (confirmed
+ * by explicitly hovering a row and getting an identical `rgb(13, 13, 13)` background match to
+ * `--page-plane` in dark mode). Only non-sticky cells (Leverage/Demand/etc.) show it, since the
+ * sticky Rank/Skill cells paint their own opaque background on top. Real pointer devices (mouse)
+ * report `hover: hover` and keep this affordance; touch-only devices never receive the rule at all. */
+@media (hover: hover) {
+  .leverage-table tbody tr:hover {
+    background: var(--page-plane);
+  }
 }
 @media (prefers-reduced-motion: no-preference) {
   .leverage-table tbody tr {

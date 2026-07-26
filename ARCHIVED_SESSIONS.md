@@ -6,7 +6,43 @@
 
 ## Archived Sessions
 
-### 2026-07-25 — Sticky-Status ghosting fix (round 13), mobile-friendly table (round 14), breakpoint widening (round 15), via the real Pine→Cedar→Cypress→Redwood/Magnolia pipeline
+### 2026-07-25 — Mobile Status-column width fix (round 16), header-overlap/skill-crowding fix + a latent white-space specificity bug (round 17)
+
+- **Round 16 — Status column still an oversized capsule**: round 15's breakpoint fix DID take
+  effect (Status correctly rendered icon-only) but the 640px media block hid Status's text label
+  and unpinned it without ever overriding its WIDTH — it stayed at the base `9.5rem` (sized to fit
+  the now-hidden text), so the pill rendered as a near-empty colored block around one tiny icon.
+  Routed via **Pine** (SIMPLE) → **Magnolia**, who added `width: 2.75rem` to
+  `.lev-status`/`.lev-status-h` inside the existing 640px block. Also investigated a black-box
+  glitch reported at one row ("css3") — could not reproduce it locally with identical data/DOM at
+  the time (later solved in round 18, see current session). 618/618 passing. Independently
+  re-verified at 487px (Status now compact, Leverage/Demand/Scarcity all visible with zero
+  scrolling) and 768px desktop (byte-for-byte unaffected). **Committed + pushed**: `5131405`.
+- **Round 17 — header overlap, skill-name crowding, and a latent CSS specificity bug**: a 4th
+  real-device screenshot showed "STATUS"/"LEVERAGE" headers visually running together (confirmed
+  via `getBoundingClientRect()`: zero geometric overlap, yet rendered glyphs painted past the
+  44px header box with nothing to clip them) and long skill names ("data visualization", "data
+  engineering", "attention to detail", "data governance") crowding into the Status icon. This being
+  the 4th consecutive round of real-device mobile issues, asked the user directly whether to keep
+  refining the table or switch to a card/stacked mobile layout — user chose to keep refining, but
+  wanted a properly-validated fix this time. Routed via **Pine** → **Cypress-first** (breaking the
+  pattern): wrote a regression test with heuristic proxies for both bugs, confirmed RED (619/621)
+  before any implementation → **Magnolia** visually-hid the header's "Status" text the same way
+  body cells already are, and widened `.lev-skill`/`.lev-skill-h` from 6rem→8rem with documented
+  margin math (requiring one legitimate test-value correction from Cypress). 621/621 passing.
+  **Independently re-verifying caught a bug the pipeline missed**: "business intelligence" was
+  still overlapping despite the width fix — real Playwright computed-style inspection showed
+  `.lev-skill`'s `white-space` was `nowrap`, not the `normal` its own CSS declares. Root cause: a
+  more specific shared rule (`.leverage-table th, .leverage-table td { white-space: nowrap }`) has
+  ALWAYS silently outranked `.lev-skill`'s own `white-space: normal` — invisible until the mobile
+  breakpoint narrowed the column enough to actually need wrapping. Fixed directly by raising the
+  base rule's selector specificity (`.leverage-table .lev-skill`), which broke the 640px width
+  override for the identical reason (caught and fixed before it ever reached a report). Cypress
+  added a specificity-guard regression test so this bug class can't silently recur. Final:
+  622/622 passing. Verified via real Playwright rendering at 487px and 768px — headers clean, all
+  previously-crowded skill names wrap properly, desktop got *more* correct as a side effect (the
+  same wrapping bug silently affected desktop too, just less visibly at 9rem). **Committed +
+  pushed**: `316868e`.
 
 - **Round 13 — sticky-Status ghosting, real fix**: round 12.8's `@media (max-width: 560px)`
   mobile-unpin only masked the bug below that breakpoint; user proved via screenshot it still
