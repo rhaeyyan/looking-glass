@@ -28,7 +28,16 @@
 - **CI cannot verify the data invariants** — they need the gitignored Kaggle extracts. CI prints the
   skip reasons (`-rs`) so a green check never implies they ran. Open option: a Kaggle secret + a
   fetch step would close this.
-- Next: nothing blocked.
+- Diagnosed the recurring `skills_core already exists` (42P07): the schema was applied by pasting
+  DDL into the Dashboard SQL Editor, which records nothing in
+  `supabase_migrations.schema_migrations`, so the CLI reads an empty ledger and replays from the
+  first migration. This is round 9's unanswered "why does the user keep re-running these files".
+  Fix is `supabase migration repair --status applied`, not re-running DDL — documented in
+  `supabase/README.md` with a pre-flight introspection check.
+- Added `supabase/config.toml` (the project was never `supabase init`'d) and renamed the migrations
+  to the CLI's timestamp format; `supabase/.temp/` gitignored so no project ref is ever committed.
+- Next: user still needs to run `migration repair` + `db push` against the live project — untested
+  here by design (no CLI installed, and no agent-run commands against their production DB).
 
 ---
 

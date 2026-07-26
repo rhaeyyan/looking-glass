@@ -4,6 +4,10 @@
 !.env.example
 *.local
 
+# Supabase CLI local state — `supabase link` writes the remote project ref here. Never commit it.
+supabase/.temp/
+supabase/.branches/
+
 # Node
 node_modules/
 dist/

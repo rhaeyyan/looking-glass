@@ -1,0 +1,16 @@
+# Supabase CLI project config.
+#
+# Deliberately minimal. `project_id` is the only required key — every other section has a built-in
+# default — and the operations this repo actually needs (`supabase link`, `migration list`,
+# `migration repair`, `db push`) read nothing else. Running `supabase init` would scatter ~150 lines
+# of local-dev defaults (auth providers, realtime, storage, inbucket, edge runtime) that this project
+# does not use: there is no local Supabase stack here, and there are no edge functions any more —
+# spec 006 deleted the last one.
+#
+# `project_id` names the LOCAL project (it prefixes local Docker container names). It is not the
+# remote project ref and is not a credential.
+#
+# The remote link is NOT stored here. `supabase link --project-ref <ref>` writes it to
+# supabase/.temp/, which is gitignored — so no project ref, connection string, or key is ever
+# committed (AGENTS.md, Security / Zero-Trust).
+project_id = "looking-glass"
