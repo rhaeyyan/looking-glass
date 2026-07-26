@@ -2,7 +2,7 @@
 
 Upserts the Task 4 pipeline outputs (`list[SkillCoreRow]`, `list[RoleProfileRow]`) into the
 `skills_core` / `skill_role_profile` tables defined by
-`supabase/migrations/0001_init_skills_schema.sql`.
+`supabase/migrations/20260722134021_init_skills_schema.sql`.
 
 Fully deterministic: no scoring, no LLM, no schema/DDL here — this module only writes
 already-computed rows through an already-constructed `supabase-py` client (dependency injection;

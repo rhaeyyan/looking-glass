@@ -1,7 +1,8 @@
 """Failing tests (RED phase) for the arbitrage-score migration SQL — Task 3 of
 specs/002-arbitrage-score.md.
 
-`supabase/migrations/0002_arbitrage_scores.sql` does not exist yet (that's Task 4, Redwood).
+`supabase/migrations/20260722140908_arbitrage_scores.sql` does not exist yet (that's Task 4,
+Redwood).
 Reading it here is expected to raise `FileNotFoundError` until Task 4 lands — that is the
 correct RED-phase failure mode per this task's [SPEC].
 
@@ -48,7 +49,10 @@ from pathlib import Path
 import pytest
 
 MIGRATION_PATH = (
-    Path(__file__).resolve().parents[1] / "supabase" / "migrations" / "0002_arbitrage_scores.sql"
+    Path(__file__).resolve().parents[1]
+    / "supabase"
+    / "migrations"
+    / "20260722140908_arbitrage_scores.sql"
 )
 
 SKILLS_CORE_TABLE = "skills_core"

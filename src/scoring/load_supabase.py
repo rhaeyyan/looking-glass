@@ -1,7 +1,7 @@
 """Supabase data loader — Task 4 of specs/002-arbitrage-score.md.
 
 Upserts the arbitrage-scoring pipeline's output (`list[ArbitrageScoreRow]`) into the
-`skill_arbitrage_scores` table defined by `supabase/migrations/0002_arbitrage_scores.sql`.
+`skill_arbitrage_scores` table defined by `supabase/migrations/20260722140908_arbitrage_scores.sql`.
 
 Fully deterministic: no scoring, no LLM, no schema/DDL here — this module only writes
 already-computed rows through an already-constructed `supabase-py` client (dependency injection;

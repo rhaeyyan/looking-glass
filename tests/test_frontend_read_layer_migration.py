@@ -1,7 +1,8 @@
 """Failing tests (RED phase) for the frontend read-layer migration SQL — Task 1 of
 specs/003-role-picker-matrix.md.
 
-`supabase/migrations/0003_frontend_read_layer.sql` does not exist yet (that's Task 2, Redwood).
+`supabase/migrations/20260722160652_frontend_read_layer.sql` does not exist yet (that's Task 2,
+Redwood).
 Reading it here is expected to raise `FileNotFoundError` until Task 2 lands — that is the correct
 RED-phase failure mode per this task's [SPEC] (same pattern as
 `tests/test_arbitrage_schema.py`, Task 3/`specs/002-arbitrage-score.md`).
@@ -23,8 +24,9 @@ concrete footguns motivate the exact assertions below:
      `arbitrage_scores` view, retrofitted here, and on the new `role_skill_arbitrage` view).
 
 Expected contract (this file is the source of truth for the RLS/view shape;
-`supabase/migrations/0001_init_skills_schema.sql` and `0002_arbitrage_scores.sql` are the source
-of truth for the table/column names referenced below — the three must agree):
+`supabase/migrations/20260722134021_init_skills_schema.sql` and
+`20260722140908_arbitrage_scores.sql` are the source of truth for the table/column names
+referenced below — the three must agree):
 
     -- SELECT-only, anon-readable, on all three underlying tables:
     CREATE POLICY ... ON skills_core           FOR SELECT TO anon USING (true);
@@ -62,7 +64,10 @@ from pathlib import Path
 import pytest
 
 MIGRATION_PATH = (
-    Path(__file__).resolve().parents[1] / "supabase" / "migrations" / "0003_frontend_read_layer.sql"
+    Path(__file__).resolve().parents[1]
+    / "supabase"
+    / "migrations"
+    / "20260722160652_frontend_read_layer.sql"
 )
 
 SKILLS_CORE_TABLE = "skills_core"
@@ -279,9 +284,10 @@ def test_role_skill_arbitrage_view_selects_column(migration_sql, column):
 
 # ==================================================================================================
 # Task 1 of specs/005-template-narrator.md: schema-exposure RED tests for
-# `0004_role_arbitrage_narration_fields.sql`.
+# `20260723122104_role_arbitrage_narration_fields.sql`.
 #
-# `supabase/migrations/0004_role_arbitrage_narration_fields.sql` does not exist yet (that's Task 2,
+# `supabase/migrations/20260723122104_role_arbitrage_narration_fields.sql` does not exist yet
+# (that's Task 2,
 # Redwood). Every test below reads it as plain text, same no-live-DB convention as the 0003 suite
 # above, and is expected to fail (file not found, or an assertion against missing content) until
 # Task 2 lands — that is the correct RED-phase failure mode for this task.
@@ -299,7 +305,7 @@ MIGRATION_0004_PATH = (
     Path(__file__).resolve().parents[1]
     / "supabase"
     / "migrations"
-    / "0004_role_arbitrage_narration_fields.sql"
+    / "20260723122104_role_arbitrage_narration_fields.sql"
 )
 
 # The two new columns this migration must expose (Task 1's [SPEC] edge cases).

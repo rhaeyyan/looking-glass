@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Publishable/anon key only — RLS (supabase/migrations/0003_frontend_read_layer.sql) is the real
+// Publishable/anon key only — RLS (supabase/migrations/20260722160652_frontend_read_layer.sql) is the real
 // security boundary. Never the Secret key, never a hardcoded value: both come from Vite's env at
 // runtime so no credential ever lands in source or in a commit.
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -8,8 +8,8 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// Mirrors `role_skill_arbitrage` (supabase/migrations/0003_frontend_read_layer.sql,
-// supabase/migrations/0004_role_arbitrage_narration_fields.sql) column for column. `skill_key`/
+// Mirrors `role_skill_arbitrage` (supabase/migrations/20260722160652_frontend_read_layer.sql,
+// supabase/migrations/20260723122104_role_arbitrage_narration_fields.sql) column for column. `skill_key`/
 // `demand_score`/`scarcity_index`/`arbitrage_score`/`scarcity_data_completeness`/
 // `d3_corroborated`/`d3_pct_of_all_postings`/`salary_premium_pct`/`median_days_open` are nullable:
 // the view's LEFT JOIN means a role skill with no D1/D2 arbitrage-score match still surfaces with

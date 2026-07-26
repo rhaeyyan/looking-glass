@@ -4,7 +4,7 @@
 -- client. This migration is pure DDL: it appends two existing `skills_core`-origin columns
 -- (already flowing into `arbitrage_scores` since spec 002) to the `role_skill_arbitrage` view.
 -- Zero new computation, zero new joins — the same LEFT JOIN from
--- supabase/migrations/0003_frontend_read_layer.sql, unchanged.
+-- supabase/migrations/20260722160652_frontend_read_layer.sql, unchanged.
 --
 -- `CREATE OR REPLACE VIEW` requires the new columns to be appended at the END of the existing
 -- SELECT list (Postgres will refuse an in-place column reorder/removal), so

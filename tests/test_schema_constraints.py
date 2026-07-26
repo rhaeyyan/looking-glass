@@ -1,7 +1,8 @@
 """Failing tests (RED phase) for the Supabase migration SQL — Task 5 of
 specs/001-ingest-pipeline.md.
 
-`supabase/migrations/0001_init_skills_schema.sql` does not exist yet (that's Task 6, Redwood).
+`supabase/migrations/20260722134021_init_skills_schema.sql` does not exist yet (that's Task 6,
+Redwood).
 Reading it here is expected to raise `FileNotFoundError` until Task 6 lands — that is the
 correct RED-phase failure mode per this task's [SPEC].
 
@@ -56,7 +57,10 @@ from pathlib import Path
 import pytest
 
 MIGRATION_PATH = (
-    Path(__file__).resolve().parents[1] / "supabase" / "migrations" / "0001_init_skills_schema.sql"
+    Path(__file__).resolve().parents[1]
+    / "supabase"
+    / "migrations"
+    / "20260722134021_init_skills_schema.sql"
 )
 
 SKILLS_CORE_TABLE = "skills_core"
