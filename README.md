@@ -222,12 +222,10 @@ coverage), and any forward-looking forecast axis.
 
 - **Data / DB**: Supabase (Postgres); deterministic scoring in SQL / Python.
 - **Frontend**: React + TypeScript (Vite SPA); the demand × scarcity matrix.
-- **AI layer**: none currently in the runtime path (resume-skill extraction and narration are
-  both fully deterministic). A bounded-single-call mechanism, a server-side-proxied,
-  schema-validated, swappable-provider AI call, restricted to narration or extraction only, never
-  scoring, remains documented as the pattern-in-reserve should a future feature need one.
 - **Deploy**: Vercel (`frontend/vercel.json`, root directory scoped to `frontend/`), live at
   [looking-glass-zeta.vercel.app](https://looking-glass-zeta.vercel.app/); Supabase hosted (DB).
+> **AI layer**: REMOVED. none currently in the runtime path (resume-skill extraction and narration are
+  both fully deterministic).
 
 ### Status
 
