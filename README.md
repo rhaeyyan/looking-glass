@@ -78,7 +78,7 @@ survey opinions, not AI-generated guesses:
 Where all three datasets agree, a skill gets an extra "confirmed" badge in the app, so you know
 that number isn't resting on a single source.
 
-**A Note:** not every role has equally rich data. Technical roles like Backend or
+> **Note:** not every role has equally rich data. Technical roles like Backend or
 Data Engineering have deep coverage; most of their skills carry a full leverage score. Roles
 like Product Manager or Designer have thinner coverage in these particular datasets, so more of
 their gaps show up flagged as "we know it's in demand, but we don't have enough data yet to
