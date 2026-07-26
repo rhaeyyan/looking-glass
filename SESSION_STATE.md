@@ -5,7 +5,20 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-25 (round 19: post-mortem + orchestration overhaul)
+## Current Session — 2026-07-26 (round 20: development report)
+
+- Wrote `DEVELOPMENT_REPORT.md` — full narrative history, initial commit → post-mortem, sourced
+  from the commit log plus `SESSION_STATE.md`/`ARCHIVED_SESSIONS.md`. Linked from README under a
+  new "How it was built" section.
+- Doc-only round; no oracle applies. Measured stats re-derived from the log rather than quoted:
+  154 commits, 45 ledger-only (29%), 68 code-touching (44%), 71 `docs:` vs 28 `feat:` + 21 `fix:`,
+  28 commits touching `matrix.css`.
+- Next: unchanged from round 19 — user still needs `supabase migration repair --status applied`
+  + `db push` against the live project.
+
+---
+
+## Round 19 — 2026-07-25 (post-mortem + orchestration overhaul)
 
 - Team post-mortem on agent orchestration. Root finding: ceremony was priced by *file type*, and the
   verification environment was never part of any contract — so the harness could not reproduce what
