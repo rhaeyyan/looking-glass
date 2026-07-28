@@ -6,6 +6,135 @@
 
 ## Archived Sessions
 
+### 2026-07-27 (round 21) — V2 scope-expansion branch: skill-alias fuzzy matching + skill-group breakdown
+
+- Opened `feature/v2-scope-expansion` (local commits rebased/pushed cleanly against two upstream
+  README-only commits first). Scope: the four V2 candidates from README's new "Planned V2 scope
+  expansion" section — skill-alias fuzzy matching, seniority in the role picker, LinkedIn role
+  expansion, category-level UI granularity.
+- Shipped two full SPEC→red→build→audit→commit cycles:
+  - **Spec 025** (skill-alias fuzzy matching): static `ALIAS_TABLE` reusing spec 006's existing
+    boundary/overlap/negation regex machinery — no new matching engine, no LLM. Passed Cypress
+    audit clean on first pass. 5 canonical aliases shipped (k8s, postgres, js, ts, py); `ai`/`ml`
+    deliberately excluded — `ai` is itself a real distinct D3 skill, aliasing would collide.
+  - **Spec 026 + 027** (category-level UI granularity): mid-draft, Cedar's first pass targeted the
+    wrong field (`d2_primary_category`, the 6-value category vocabulary) — human redirected to
+    `skill_group` (a finer, unenumerated D2 taxonomy) before persisting. 026 = data layer (view
+    passthrough + `computeSkillGroupBreakdown()`, dynamic groupby, no hardcoded enum since the
+    real value set wasn't enumerable in-checkout). Live query during 026 found **37 distinct
+    skill_group values** (past the spec's own 15–20 tipping point) — recorded in
+    `data/schema-notes.md`. 027 = UI (`SkillGroupBreakdown` panel, filterable scrollable list
+    reusing `SkillLeverageTable`'s idiom, toggle-filters-the-existing-matrix via a plain
+    `.filter()` in `App.tsx`). 027 failed its first Cypress audit on a real defect — the selected
+    toggle relied on color alone; fixed with a visible ✓+"Selected" text badge (1 of 2 allowed
+    rejection-loop retries used). Second audit: PASS.
+- Verified-With (final state): `frontend/src/lib/resumeSkills.test.ts` +
+  `skillAliases.test.ts`, `tests/test_frontend_read_layer_migration.py`,
+  `frontend/src/lib/skillGroupBreakdown.test.ts`,
+  `frontend/src/components/matrix/SkillGroupBreakdown.test.tsx`,
+  `frontend/e2e/skill-group-breakdown.spec.ts @ mobile-touch-dark @ desktop-dark`. 664/664 vitest,
+  239/239 pytest (16 skipped, pre-existing `data/raw/` gitignore gap), 10/10 e2e.
+- Branch not yet merged to `main` — no PR opened this session (not requested).
+- Next: two V2 candidates remain unstarted on this branch — seniority in the target-role picker
+  (would also revive the AI Requirements Index dataset as context-only framing copy) and role
+  expansion via the LinkedIn/arshkon postings dataset. Both need fresh dataset-evaluation work
+  before a SPEC can be drafted, unlike 025/026/027 which built on data already in hand.
+
+### 2026-07-26 (round 20) — development report
+
+- Wrote `DEVELOPMENT_REPORT.md` — full narrative history, initial commit → post-mortem, sourced
+  from the commit log plus `SESSION_STATE.md`/`ARCHIVED_SESSIONS.md`. Linked from README under a
+  new "How it was built" section.
+- Doc-only round; no oracle applies. Measured stats re-derived from the log rather than quoted:
+  154 commits, 45 ledger-only (29%), 68 code-touching (44%), 71 `docs:` vs 28 `feat:` + 21 `fix:`,
+  28 commits touching `matrix.css`.
+- Next: unchanged from round 19 — user still needs `supabase migration repair --status applied`
+  + `db push` against the live project. **Superseded**: resolved by the time of round 22 — README's
+  Status section (commit `774ebdb`) confirms the app is live-verified against the real Supabase
+  project.
+
+### 2026-07-25 (round 19) — post-mortem + orchestration overhaul
+
+- Team post-mortem on agent orchestration. Root finding: ceremony was priced by *file type*, and the
+  verification environment was never part of any contract — so the harness could not reproduce what
+  the user's thumb could.
+- Shipped all 11 approved fixes: committed Playwright oracle harness (4 named profiles) with round
+  18's touch-`:hover` fix pinned as a regression spec; `Verification Oracle` now a required `[SPEC]`
+  field; Pine re-cut to INVARIANT/OBSERVABLE/UNKNOWN; invariants de-prosed to point at
+  `tests/test_data_invariants.py`; Stop hook inverted to gate on the oracle, not on ledger prose.
+- Verified: 10/10 e2e, 622/622 vitest, eslint+tsc clean. Oracle proven to *catch* the bug (removing
+  the `@media (hover: hover)` guard fails 4 touch tests, including light mode — the variant invisible
+  to the eye for 3 rounds). 16 pytest failures are pre-existing: `data/raw/` CSVs are gitignored.
+- **Correction to round 18 below:** it records the hover fix as "Not committed"; it landed as
+  `a83c6c6`. Left in place per the new append-only rule.
+- Pushed to `main` (`614e03f`, `d3f1d79`, `526fc8a`); branch deleted. Then added CI
+  (`.github/workflows/ci.yml`) and fixed two latent problems it surfaced: the data-invariant skip
+  guard checked only that `data/raw/` existed, which a leftover `d4/Coursera.csv` from the dropped
+  learning-resource feature kept alive — so 16 tests half-ran and failed on missing CSVs; and a bare
+  `ruff check .` was 147 errors deep in vendored `.claude/skills/` code, which would have failed
+  every Cypress audit. Now 202 passed / 16 cleanly skipped, ruff green.
+- **CI cannot verify the data invariants** — they need the gitignored Kaggle extracts. CI prints the
+  skip reasons (`-rs`) so a green check never implies they ran. Open option: a Kaggle secret + a
+  fetch step would close this.
+- Diagnosed the recurring `skills_core already exists` (42P07): the schema was applied by pasting
+  DDL into the Dashboard SQL Editor, which records nothing in
+  `supabase_migrations.schema_migrations`, so the CLI reads an empty ledger and replays from the
+  first migration. This is round 9's unanswered "why does the user keep re-running these files".
+  Fix is `supabase migration repair --status applied`, not re-running DDL — documented in
+  `supabase/README.md` with a pre-flight introspection check.
+- Added `supabase/config.toml` (the project was never `supabase init`'d) and renamed the migrations
+  to the CLI's timestamp format; `supabase/.temp/` gitignored so no project ref is ever committed.
+- Next: user still needs to run `migration repair` + `db push` against the live project — untested
+  here by design (no CLI installed, and no agent-run commands against their production DB).
+  **Superseded**: resolved by the time of round 22 (see round 20 note above).
+
+### 2026-07-25 (round 18) — the "black box" mystery finally solved — stuck touch-`:hover` row highlight, not a rendering glitch
+
+> Specs 001–022 and rounds 1–11.5/12–12.8 are archived further below in this file. Rounds 13–17
+> (sticky-Status ghosting fix, mobile-friendly table redesign, breakpoint widening, Status-width
+> fix, header-overlap/skill-crowding fix + a latent specificity bug — `62b01a5`, `e9bdb21`,
+> `3ddbd9f`, `27554b4`, `5131405`, `316868e`, all pushed) are also archived there as of this
+> round's ledger trim.
+
+### Accomplished (round 18, this section)
+- User sent a FIFTH real-device screenshot: same recurring black rectangle (now visible on TWO
+  rows in one screenshot — "next.js" and "responsive design"), plus a claim that "demand only,
+  scarcity unknown" text was overlapping into other cells. Asked the user to confirm which issue
+  they meant; they pointed specifically at the demand-only text.
+- Investigated the text-overlap claim first: reproduced locally in light mode, dark mode (found the
+  real theme toggle is a radio `<input>`, not a `<button>` — my first dark-mode attempt silently
+  failed to switch themes), and directly against the LIVE production site with the user's exact
+  role ("Frontend") — **could not reproduce any text overlap anywhere**; `.lev-demandonly`
+  correctly inherits `white-space: normal`/`overflow-wrap: anywhere` from round 17's specificity
+  fix and wraps cleanly in every render.
+- **While testing in dark mode, personally reproduced the "black box" for the first time this
+  session** (rows "redux" and "frontend"), finally making it investigable. Used
+  `document.elementFromPoint()` plus a full ancestor-chain style dump at the black box's exact
+  pixel coordinates — found the `<tr>` itself had `background: rgb(13, 13, 13)`, an exact match
+  for `var(--page-plane)` (`#0d0d0d`) in dark mode. That's the value `.leverage-table tbody
+  tr:hover` sets. Confirmed with certainty by explicitly hovering the ORIGINAL "css3" row (from
+  round 16's very first report) and getting the identical `rgb(13, 13, 13)` — not a coincidence.
+  **Root cause**: touch devices trigger a synthetic `:hover` on tap that never clears without a
+  real pointer-leave event a mouse would send, "sticking" the hover highlight on whichever row was
+  last touched. It only appeared in the non-sticky columns (Leverage/Demand/etc.) because the
+  sticky Rank/Skill cells paint their own opaque background on top, masking it there — exactly
+  matching every occurrence across 4 rounds: different arbitrary rows each time (wherever the
+  user's finger last was), dark-mode-only visually dramatic (light mode's `--page-plane` is
+  near-white, barely visible), always confined to non-sticky cells. This was never a rendering
+  glitch, a data bug, or device-specific — it was a real, well-known category of CSS bug (stuck
+  `:hover` on touch) that a headless-navigation Playwright script could never trigger, which is
+  exactly why 3 prior investigation attempts failed to reproduce it.
+- **Fixed directly** (diagnosis was airtight — exact color match, mechanism confirmed by explicit
+  hover reproduction): wrapped `.leverage-table tbody tr:hover` in `@media (hover: hover)`, the
+  standard fix so touch-only devices (which report `hover: none`) never receive the rule at all.
+  622/622 tests still pass (nothing tests this exact rule). Verified with an actual
+  touch-emulated Playwright context (`hasTouch: true, isMobile: true`, confirmed
+  `matchMedia('(hover: hover)').matches === false`): hovering the "css3" row now leaves its
+  background `rgba(0, 0, 0, 0)` — transparent, no stuck highlight — and a full-table screenshot on
+  that touch device shows zero black boxes anywhere.
+- **Not committed** — asking the user before committing, per this session's established pattern.
+  **Superseded**: landed as `a83c6c6` (see round 19's correction note above).
+
 ### 2026-07-25 — Mobile Status-column width fix (round 16), header-overlap/skill-crowding fix + a latent white-space specificity bug (round 17)
 
 - **Round 16 — Status column still an oversized capsule**: round 15's breakpoint fix DID take

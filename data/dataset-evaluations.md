@@ -72,7 +72,7 @@ proposed use: does the denominator cancel?** Results:
 |---|---|---|
 | Absolute `pct`, any trend/delta | **No** | tracks pool size inversely at every step |
 | Category rank ordering | **No** | `security` #2 (27.3) on 07-09 → last (3.3) on 07-10; `data` #2 in March → #5 in July |
-| **Seniority gradient (ordering)** | **Yes** | monotonic in all 6 categories; order survives 07-10 while levels drop ~2.5x — entry/mid/senior share one pool at one instant, so dilution is common-mode |
+| **Seniority gradient (ordering)** | **Yes** | monotonic in 5 of 6 categories on real data (`data` shows entry≈mid, statistically tied at that sample size — see 2026-07-28 update below — with a real senior jump, not a genuine three-step increase); order survives 07-10 while levels drop ~2.5x — entry/mid/senior share one pool at one instant, so dilution is common-mode |
 | **`required_count / listings_with_ai`** | **Yes** | 96–100% everywhere; both terms drawn from the same listing set. `security` (78%) is small-count noise |
 | genai/ml mix | **Partial** | `engineering` 67.4→67.5 and `product` 75.4→76.9 across the boundary, but `ai` 66.3→51.1 and `data` 38.6→28.9 break. Category-dependent robustness is unusable in a shipped feature |
 
@@ -113,6 +113,48 @@ Parked rather than closed. Any **one** of these makes it worth re-opening:
 3. **A skill-level source with timestamps lands and needs corroboration.** Then this becomes a
    sanity check on that source's category aggregates rather than a data input in its own right.
 
+**2026-07-28 update: spec 028 satisfies condition #2.** `specs/028-seniority-role-picker.md`
+(Redwood) shipped `frontend/src/lib/seniorityFraming.ts` — a static `SENIORITY_GRADIENT` table +
+`ROLE_TO_DATAMATA_CATEGORY` mapping + `getSeniorityFraming(role, seniority)` template function,
+data-layer only (no UI; spec 029 covers the picker control). Initially shipped with 8 of 18 cells
+PLACEHOLDER because the gitignored raw file was absent from the checkout; the raw file has since
+landed (currently at `data/raw/ai-requirements/ai-requirements-index.csv` — note, NOT at the
+`data/raw/AI-Skills-in-Job-Requirements/` path this doc originally cited above; it briefly lived at
+`data/raw/archive/` before a later dataset pull — the arshkon LinkedIn Job Postings set, see the
+entry below — reused that directory name and displaced it, so this citation reflects the current,
+correct path as of 2026-07-28) and **all 18 cells are
+now real, live-extracted figures** (2026-07-28 pull, same 2026-07-22 snapshot, `tier=any_ai`). The
+3 previously-cited values here — `engineering`'s full triple (3.0/7.3/11.0), `security`'s
+entry+senior (0.0/5.6), `devops`'s entry (0.0) — were cross-checked against the raw pull and match
+exactly.
+
+**Finding, investigated and resolved (2026-07-28)**: the `data` category's real figures are
+entry_pct=7.4, mid_pct=7.2, senior_pct=11.0 — entry_pct nominally > mid_pct, which appeared to
+**break** the "monotonic in all 6 categories" claim in the "Which cuts survive" table above (line
+75). That claim predates this category ever being pulled. Direct investigation against the raw CSV
+(`data/raw/ai-requirements/ai-requirements-index.csv`) resolved this as **sample-size noise, not a real
+inversion**:
+
+- `data`/entry's pool is ~370-380 total listings; `data`/mid's pool is ~3,800-4,300 — roughly 10x
+  larger. At entry's sample size (~375, p≈0.07), the standard error is ~1.3 percentage points.
+- Across the surrounding week's snapshots, entry and mid trade places: 07-17 entry(8.0)>mid(7.4);
+  07-18 entry(7.2)<mid(7.5); 07-19 entry(6.9)<mid(7.4); 07-22 entry(7.4)>mid(7.2). That's
+  statistically indistinguishable noise in either direction, not a resolvable ordering.
+- `senior` (10.9-12.0% across the same window) is robustly and consistently **above** both entry
+  and mid on every single date — that part of the gradient *is* a real, non-noise signal.
+
+**Verdict, precisely stated**: the seniority-gradient ordering claim holds as designed for 5 of the
+6 categories on real data (`ai`, `devops`, `engineering`, `product`, `security`). For `data`,
+entry≈mid are statistically tied at the sample size this dataset offers — not a genuine three-step
+monotonic increase — while the senior jump remains real and matches the dataset's core validated
+claim (AI requirements concentrate at senior level). This is a documented, evidenced exception for
+`data` specifically, not a blanket loosening of the monotonic tolerance across all 6 categories,
+and not a silent reconciliation of the numbers. `frontend/src/lib/seniorityFraming.ts` carries the
+true 7.4/7.2/11.0 values un-adjusted (see that file's `SENIORITY_GRADIENT.data` comment for the
+same SE/pool-size reasoning inline), and `seniorityFraming.test.ts` is expected to encode `data` as
+a named exception to the monotonic-invariant suite rather than assert the blanket claim against it
+(Cypress, spec 028 follow-up) — no re-derivation of this reasoning should be needed there.
+
 Companion V2 candidate: the arshkon LinkedIn postings set (parked for role expansion; derives real
 scarcity from four timestamps, but its "skills" are LinkedIn job-function codes, not skills). The two
 are complementary — that set has time and grain problems of the opposite kind.
@@ -131,3 +173,188 @@ reasoned about.
 The extracted directory arrived named `'AI-Skills-in-Job-Requirements\n'` — with a literal trailing
 newline — which breaks `cd`, globs, and any ingest path built by string concatenation. Renamed
 2026-07-26. Worth checking for on any future extract.
+
+---
+
+## ai_job_market.csv / AI Job Market Dataset.csv / ai_job_salary_dataset_10k.csv
+
+- **Evaluated**: 2026-07-27
+- **Files**: `data/raw/ai_job_market.csv`, `data/raw/AI Job Market Dataset.csv`,
+  `data/raw/ai_job_salary_dataset_10k.csv` (gitignored, local-only; source/license unrecorded —
+  no dataset card or manifest was found alongside any of the three).
+- **Verdict: REJECTED, all three — not PARKED.** Unlike the AI Requirements Index above, there is
+  no real signal here to wait on; the rejection reason (synthetic generation) doesn't resolve with
+  a future pull, a picker change, or a corroborating source. Evaluated together because all three
+  fail the identical test in the identical way.
+
+### The test: does the categorical distribution look like a labor market or a random-number generator?
+
+Real job-posting data follows a power law — a handful of skills/roles dominate, a long tail barely
+appears (this is exactly what D1/D2/D3's own skill-frequency data looks like). Synthetic data
+built from `random.choice()` over a fixed list instead produces a **flat** distribution — every
+category roughly equally likely, converging on the uniform rate as row count grows. All three
+files show the flat signature, not the power-law one:
+
+| File | Rows | Evidence of uniform-random generation |
+|---|---|---|
+| `ai_job_market.csv` | 2,000 | 22 distinct skills, each appearing in **20.3–22.6%** of rows (a ≤2.3-point spread); 8 job titles split 230–271 each (expected 250 if uniform); company names are Faker-library output (`"Foster and Sons"`, `"Boyd, Myers and Ramirez"`) |
+| `AI Job Market Dataset.csv` | 10,345 | Only 5 binary skill flags, each true in **49.3–51.1%** of rows — a coin flip; 6 job titles split 1676–1773 each (expected 1724); `job_posting_year` runs through **2026**, i.e. postings dated into the future relative to any real crawl |
+| `ai_job_salary_dataset_10k.csv` | 10,000 | 10 distinct skills, each appearing in **29.0–31.0%** of rows; 8 job roles split 1218–1289 each (expected 1250) |
+
+No real labor-market crawl produces a skill-mention spread this tight across a double-digit
+distinct-value set — D1/D2's own real skill frequencies span orders of magnitude, not a ~2-point
+band. This is the fingerprint of independent-per-row random sampling from a fixed pool, not
+scraped postings.
+
+### Why this is a harder rejection than the AI Requirements Index
+
+That dataset had a real, if collection-biased, signal — the seniority gradient survived
+denominator-cancellation testing and was PARKED as a future CONTEXT-ONLY source. These three have
+**no real signal to extract, biased or otherwise** — there is nothing to be robust or fragile,
+because the values were never observations of a labor market to begin with. Any per-skill demand,
+scarcity, or salary figure derived from them would silently report the generator's random seed as
+if it were market data — an INVARIANT-lane failure (CLAUDE.md): the numbers stay plausible while
+meaning nothing, with no visible sign anything is wrong.
+
+### Relevance to the two open V2 candidates
+
+Neither remaining V2 candidate is helped:
+
+- **Seniority in the target-role picker** — `experience_level`/`years_experience` fields exist in
+  all three, but carry the same uniform-random problem (no reason to believe a "senior" row's
+  skill/salary values are drawn from anything different than an "entry" row's); a synthetic
+  seniority split adds nothing the (real, PARKED) AI Requirements Index's seniority gradient
+  doesn't already offer more defensibly.
+- **Role expansion via the LinkedIn/arshkon dataset** — these three have single-point
+  `posted_date`/`job_posting_month`/`job_posting_year` fields, not a real multi-snapshot time
+  series; they don't substitute for or corroborate the arshkon set's timestamp dimension.
+
+### Park conditions
+
+None. Re-open only if a *different*, non-synthetic release under one of these filenames surfaces
+(re-run the distribution-flatness test above first — that is the fast, cheap check that closed
+this evaluation and should gate any future candidate under a similar name).
+
+---
+
+## LinkedIn Job Postings (2023-2024) — arshkon set
+
+- **Evaluated**: 2026-07-28
+- **Files**: `data/raw/archive/postings.csv`, `data/raw/archive/{companies,jobs,mappings}/*.csv`
+  (gitignored, local-only; extracted from `data/raw/archive.zip`). Kaggle listing:
+  `arshkon/linkedin-job-postings`. **License**: not bundled with the download (no dataset card or
+  license file in the extracted archive) — unresolved; check the Kaggle listing directly before
+  any ingest/redistribution.
+- **Verdict: REJECTED as the role-expansion source the V2 candidate proposed. The pre-built
+  skill join is REJECTED outright (same "wrong grain" failure as the AI Requirements Index).
+  PARKED, narrowly, for a materially different use than originally proposed** — see "The one
+  narrow path that survives" below.
+
+### Shape
+
+Real crawl, not synthetic — confirmed by the checks below, not assumed from the listing's
+reputation. `wc -l postings.csv` reports 3,383,602 lines; that number is an artifact of
+embedded newlines inside quoted `description` fields, not row count. The true grain, verified by
+parsing with a real CSV reader:
+
+| File | Rows | Grain |
+|---|---|---|
+| `postings.csv` | **123,849** (distinct `job_id`) | one row per real job posting, `title` + free-text `description` + `original_listed_time`/`listed_time`/`closed_time`/`expiry` (real Unix-ms timestamps) + `min_salary`/`max_salary`/`normalized_salary` + `formatted_experience_level` |
+| `jobs/job_skills.csv` | 213,768 rows, 126,807 distinct `job_id` | `(job_id, skill_abr)` — **`skill_abr` is one of exactly 36 values** (`mappings/skills.csv`) |
+| `companies/*.csv`, `mappings/industries.csv`, `jobs/{benefits,salaries,job_industries}.csv` | — | company/industry/benefits metadata, not skill-level |
+
+### Confirmed real (not synthetic) — same test this doc already established
+
+- **Title distribution is a genuine power law**: 72,521 distinct titles across 123,849 postings;
+  the single most common title ("Sales Manager") accounts for only 0.5% of rows. This is the
+  opposite signature of the three synthetic CSVs rejected above (which clustered every category
+  within a 2-3 point band of the uniform rate) — real labor-market data, not `random.choice()`.
+- **Timestamps are real and dated**: `original_listed_time` spans **2023-12-05 to 2024-04-20**
+  (verified directly, not read from a manifest), with posting volume ramping up through the window
+  (150-33,600+ postings/day in the final two weeks) — consistent with an actual scrape converging
+  on a cutoff date, not a fabricated uniform spread.
+
+### Why the pre-built skill join is rejected — same failure mode as the AI Requirements Index
+
+`mappings/skills.csv` has exactly 36 rows. Read in full:
+
+```
+ART Art/Creative        SUPL Supply Chain       LGL  Legal
+DSGN Design             ANLS Analyst            ENG  Engineering
+ADVR Advertising        HCPR Health Care Provider  QA Quality Assurance
+PRDM Product Management RSCH Research           BD   Business Development
+DIST Distribution       SCI  Science             IT   Information Technology
+EDU  Education          GENB General Business    ADM  Administrative
+TRNG Training           CUST Customer Service     PROD Production
+PRJM Project Management STRA Strategy/Planning    MRKT Marketing
+CNSL Consulting         FIN  Finance              PR   Public Relations
+PRCH Purchasing         OTHR Other                WRT  Writing/Editing
+                                                   ACCT Accounting/Auditing
+                                                   HR   Human Resources
+                                                   MNFC Manufacturing
+                                                   SALE Sales
+                                                   MGMT Management
+```
+
+This is a **job-function taxonomy** (Engineering, IT, Marketing, Sales — the kind of dropdown a
+LinkedIn profile picks one of), not a skill vocabulary. There is no `python`, `kubernetes`,
+`react`, or any entry from the 141-skill core anywhere in it. Exactly the wrong-grain failure
+that rejected the AI Requirements Index as a join input (`category × seniority × tier`, no
+`skill_name` column) — confirmed here directly rather than inferred from the earlier flag in this
+doc ("its 'skills' are LinkedIn job-function codes, not skills," written before this dataset was
+in hand). The top categories by volume (`IT` 26,137, `SALE` 22,475, `MGMT` 20,861, `MNFC` 18,185,
+`HCPR` 17,369) confirm this is a general cross-industry crawl, not a tech-sector-focused one —
+Sales, Manufacturing, and Health Care Provider all outrank or nearly match `IT`.
+
+### Why role expansion doesn't work either
+
+The app's 15 `role_family` values (Backend, Full Stack, Data Scientist/ML, DevOps/Cloud/SRE, …)
+are all tech-sector roles. This dataset's top 10 titles by volume are Sales Manager, Customer
+Service Representative, Project Manager, Administrative Assistant, Senior Accountant, Executive
+Assistant, Salesperson, Registered Nurse, Receptionist, Staff Accountant — a general LinkedIn
+labor-market crawl, not a tech-role corpus. Mapping these titles onto the existing 15 technical
+role_family values would be as lossy as the AI Requirements Index's 6-category mapping, without
+even that dataset's grain being right to begin with.
+
+### The one narrow path that survives (tested, not assumed)
+
+`description` is real free text (avg. 3,766 chars, max 23,201) and could, in principle, be
+regex-matched against the 141-skill core the same way spec 006's `resumeSkills.ts` already
+extracts skills from resume text — an entirely different path from the broken `skill_abr` join,
+using only `postings.csv` and the existing deterministic vocabulary-scoped matcher. Sanity-tested
+directly (1-in-20 sample, 6,193 postings, description-body substring match, no boundary/negation
+handling applied — a cruder proxy than `resumeSkills.ts`'s real matcher):
+
+| Skill | Hit rate | | Skill | Hit rate |
+|---|---|---|---|---|
+| Excel | 14.0% | | JavaScript | 1.7% |
+| SQL | 4.5% | | Machine Learning | 1.2% |
+| Python | 3.9% | | React | 1.1% |
+| AWS | 2.3% | | Kubernetes | 0.8% |
+| Java | 2.0% | | Docker | 0.8% |
+
+A real, non-uniform, order-of-magnitude spread — the same power-law shape D1/D2's own skill
+frequencies show, not the flat synthetic signature. So a real per-skill, real-dated signal is
+technically extractable from this file. **Two things stop this from being a live V2 candidate
+today, not just a technicality**:
+
+1. **The crawl is stale.** Dec 2023–Apr 2024 is roughly two years behind this project's other
+   snapshot dates (D1/D2/D3 and the AI Requirements Index are all dated 2026). A "real
+   timestamps" feature built on a frozen ~2023-2024 window doesn't corroborate or extend anything
+   currently shipped — it would need a fresh pull to be worth the ingest path.
+2. **It's real, uncosted work**, not a static-table drop-in like specs 025/028 — it means building
+   and running a description-level extractor across 123,849 rows (a genuinely new deterministic
+   component, not a config change), then deciding what a "skill demand over time" feature would
+   even show given the tech/non-tech skew above.
+
+### Park conditions (what would revive this)
+
+1. **A fresher pull** (2026-dated or later) — the single blocking issue for the time-series
+   angle; re-run the title-power-law and description-hit-rate checks above on any reopen, don't
+   assume they still hold.
+2. **A concrete feature spec** for what a real-dated, extracted-from-free-text skill signal would
+   render (e.g., "postings mentioning `{skill}` per month," which needs the fresh pull above to be
+   worth showing) — this doc is not that spec, only the evidence that the extraction is viable.
+
+Not reviving the original "role expansion" framing from README's V2 candidate list — that's
+closed by the tech/non-tech title-skew finding above, independent of pull freshness.

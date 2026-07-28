@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
-import { ROLES } from './lib/roles'
+import { ROLES, type Role } from './lib/roles'
 import { fetchRoleSkillProfile, type RoleSkillRow } from './lib/supabaseClient'
 import { extractResumeSkills } from './lib/resumeSkills'
 import { computeSkillGap } from './lib/gap'
 import { narrateTopGaps } from './lib/narrate'
 import { formatNum } from './lib/format'
 import { normalizeSkillName } from './lib/normalize'
+import { getSeniorityFraming, type SeniorityLevel } from './lib/seniorityFraming'
 import { SkillMatrix } from './components/matrix/SkillMatrix'
 import { SkillLeverageTable } from './components/matrix/SkillLeverageTable'
+import { SkillGroupBreakdown } from './components/matrix/SkillGroupBreakdown'
 import { TopGapNarration } from './components/matrix/TopGapNarration'
+import { SeniorityFraming } from './components/matrix/SeniorityFraming'
 
 type Status = 'idle' | 'loading' | 'success' | 'error'
 type TopGaps = ReturnType<typeof narrateTopGaps>
@@ -51,6 +54,10 @@ function App() {
   const [validationError, setValidationError] = useState('')
   const [haveSkillKeys, setHaveSkillKeys] = useState<Set<string> | undefined>(undefined)
   const [topGaps, setTopGaps] = useState<TopGaps | undefined>(undefined)
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
+  // specs/029: local-only, plain <select> state — never touched by handleRoleChange, never
+  // refetches, never feeds computeSkillGap/the matrix/the table. See seniorityNote below.
+  const [selectedSeniority, setSelectedSeniority] = useState<SeniorityLevel | ''>('')
 
   // Theme is applied to the document root so the design system's `:root[data-theme]` overrides win
   // over the `prefers-color-scheme` default in both directions.
@@ -63,6 +70,7 @@ function App() {
     setSelectedRole(role)
     setHaveSkillKeys(undefined)
     setTopGaps(undefined)
+    setSelectedGroup(null)
 
     if (!role) {
       setStatus('idle')
@@ -104,6 +112,13 @@ function App() {
   const hasRows = status === 'success' && rows.length > 0
   const analyzed = haveSkillKeys !== undefined
 
+  // Derived, not stored (spec 029): recomputes automatically on role/seniority change, so there is
+  // no stale-note bug and nothing to reset in handleRoleChange. Independent of `analyzed` — visible
+  // as soon as Step 1 is complete, before or after Step 2 (the SPEC's Bounded-AI boundary: this
+  // note never depends on haveSkillKeys/topGaps/the gap pipeline at all).
+  const seniorityNote =
+    hasRows && selectedSeniority ? getSeniorityFraming(selectedRole as Role, selectedSeniority) : null
+
   // Ranked-for-display (top move chip). Never mutates state's `rows`.
   const ranked = [...rows].sort(byArbitrageDesc)
   const topMove = ranked[0]
@@ -121,6 +136,13 @@ function App() {
       else gapCount++
     }
   }
+  // A plain array `.filter()` over the already-fetched rows — SkillMatrix/SkillLeverageTable never
+  // learn about `selectedGroup` themselves, so their own hard-won a11y/touch-hover fixes (spec 018)
+  // are untouched by this task (spec 027's Intellectual Control).
+  const filteredRows = selectedGroup
+    ? rows.filter((r) => (r.skill_group ?? 'Uncategorized') === selectedGroup)
+    : rows
+
   const havePct = rows.length ? Math.round((haveCount / rows.length) * 100) : 0
   const goodDeg = rows.length ? (haveCount / rows.length) * 360 : 0
   const gapDeg = rows.length ? (gapCount / rows.length) * 360 : 0
@@ -195,6 +217,21 @@ function App() {
                     {role}
                   </option>
                 ))}
+              </select>
+            </div>
+
+            <div className="field">
+              <label htmlFor="seniority-picker">Experience level (optional)</label>
+              <select
+                id="seniority-picker"
+                className="input"
+                value={selectedSeniority}
+                onChange={(event) => setSelectedSeniority(event.target.value as SeniorityLevel | '')}
+              >
+                <option value="">Not specified</option>
+                <option value="entry">Entry level</option>
+                <option value="mid">Mid level</option>
+                <option value="senior">Senior level</option>
               </select>
             </div>
 
@@ -283,6 +320,7 @@ function App() {
                   </span>
                 )}
               </div>
+              <SeniorityFraming note={seniorityNote} />
             </header>
           )}
 
@@ -323,8 +361,17 @@ function App() {
 
           {hasRows && (
             <>
-              <SkillMatrix rows={rows} haveSkillKeys={haveSkillKeys} />
-              <SkillLeverageTable rows={rows} haveSkillKeys={haveSkillKeys} roleName={selectedRole} />
+              <SkillGroupBreakdown
+                rows={rows}
+                haveSkillKeys={haveSkillKeys}
+                onSelectGroup={setSelectedGroup}
+              />
+              <SkillMatrix rows={filteredRows} haveSkillKeys={haveSkillKeys} />
+              <SkillLeverageTable
+                rows={filteredRows}
+                haveSkillKeys={haveSkillKeys}
+                roleName={selectedRole}
+              />
             </>
           )}
         </div>

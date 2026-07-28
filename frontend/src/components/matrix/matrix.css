@@ -13,7 +13,8 @@
 .matrix-root,
 .ladder-root,
 .narration-root,
-.leverage-root {
+.leverage-root,
+.breakdown-root {
   color-scheme: light;
   --surface-1: #fcfcfb;
   --page-plane: #f9f9f7;
@@ -66,7 +67,8 @@
   :root:not([data-theme='light']) .matrix-root,
   :root:not([data-theme='light']) .ladder-root,
   :root:not([data-theme='light']) .narration-root,
-  :root:not([data-theme='light']) .leverage-root {
+  :root:not([data-theme='light']) .leverage-root,
+  :root:not([data-theme='light']) .breakdown-root {
     color-scheme: dark;
     --surface-1: #1a1a19;
     --page-plane: #0d0d0d;
@@ -90,7 +92,8 @@
 :root[data-theme='dark'] .matrix-root,
 :root[data-theme='dark'] .ladder-root,
 :root[data-theme='dark'] .narration-root,
-:root[data-theme='dark'] .leverage-root {
+:root[data-theme='dark'] .leverage-root,
+:root[data-theme='dark'] .breakdown-root {
   color-scheme: dark;
   --surface-1: #1a1a19;
   --page-plane: #0d0d0d;
@@ -111,7 +114,8 @@
 }
 
 .matrix-title,
-.ladder-title {
+.ladder-title,
+.breakdown-title {
   margin: 0 0 0.25rem;
   font-size: 1.05rem;
   font-weight: 600;
@@ -119,7 +123,8 @@
 }
 
 .matrix-hint,
-.ladder-hint {
+.ladder-hint,
+.breakdown-hint {
   margin: 0 0 1rem;
   font-size: 0.8125rem;
   color: var(--text-secondary);
@@ -822,4 +827,160 @@
   font-size: 0.6875rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+/* ---------- Skill-group breakdown (spec 027) ---------- */
+
+.breakdown-root {
+  border-radius: var(--radius-card);
+}
+
+.breakdown-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0 0 0.875rem;
+  max-width: 26rem;
+}
+
+.breakdown-filter-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.breakdown-filter-input {
+  font-size: 0.875rem;
+}
+
+.breakdown-empty {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Bounded, scrollable list (spec 027 Constraints) — a real 37-value skill_group enumeration never
+ * dumps as an unbounded page-length list. The max-height is generous enough to show several
+ * entries at once while still forcing scroll for the full set. */
+.breakdown-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 20rem;
+  overflow-y: auto;
+}
+
+.breakdown-item {
+  margin: 0;
+}
+
+.breakdown-entry {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.breakdown-entry:hover {
+  border-color: var(--series-1);
+}
+
+.breakdown-entry:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+/* Selection is carried by aria-pressed (semantic, non-color channel) AND this visual highlight —
+ * never color alone. The transition is opt-in behind prefers-reduced-motion below; with no
+ * override, browsers apply no transition at all, so a reduced-motion user only ever sees the
+ * static end state. */
+.breakdown-entry[data-selected] {
+  border-color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 12%, var(--surface-1));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .breakdown-entry {
+    transition:
+      border-color 160ms ease,
+      background 160ms ease;
+  }
+}
+
+.breakdown-entry-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+/* Visible, non-color selection cue (SPEC Constraints: no color-only encoding). Mirrors
+ * SkillMatrix's own ✓/✕ glyph convention — the border/background tint above is reinforcement
+ * only; this badge is the load-bearing channel for a sighted, color-vision-deficient user who
+ * cannot rely on the tint alone. */
+.breakdown-entry-selected-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  margin-left: 0.5em;
+  padding: 0.1rem 0.5rem;
+  border-radius: 99px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--status-good);
+  background: var(--status-good-surface);
+  vertical-align: middle;
+}
+
+.breakdown-entry-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdown-entry-havegap {
+  color: var(--text-muted);
+}
+
+/* ---------- Seniority framing note (spec 029) ----------
+ * Rendered directly inside App.tsx's global `.lg-results-head`, OUTSIDE any `.matrix-root` /
+ * `.narration-root` wrapper — so it reads off the app-global --color-*/--radius-md tokens (same
+ * family App.tsx's own inline styles already use for tags/cards), not the matrix-scoped --text-*
+ * custom properties declared at the top of this file, which only exist inside those root classes.
+ * No transition/animation here (SPEC Constraints: none needed for a plain sentence).
+ */
+.seniority-note {
+  margin: 0.6rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--color-text) 75%, transparent);
+  max-width: 60ch;
+}
+
+.seniority-note-cue {
+  display: inline-block;
+}
+
+/* Visible, non-color-only "context, not a score input" cue (WCAG 1.4.1, mirrors round 21's
+ * SkillGroupBreakdown fix): the "Context —" text prefix is the load-bearing channel, reinforced
+ * by the aria-hidden glyph above — never a border/italic/color treatment alone. */
+.seniority-note-label {
+  font-weight: 700;
+  color: var(--color-accent);
 }
