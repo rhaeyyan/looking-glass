@@ -72,7 +72,7 @@ proposed use: does the denominator cancel?** Results:
 |---|---|---|
 | Absolute `pct`, any trend/delta | **No** | tracks pool size inversely at every step |
 | Category rank ordering | **No** | `security` #2 (27.3) on 07-09 → last (3.3) on 07-10; `data` #2 in March → #5 in July |
-| **Seniority gradient (ordering)** | **Yes** | monotonic in all 6 categories; order survives 07-10 while levels drop ~2.5x — entry/mid/senior share one pool at one instant, so dilution is common-mode |
+| **Seniority gradient (ordering)** | **Yes** | monotonic in 5 of 6 categories on real data (`data` shows entry≈mid, statistically tied at that sample size — see 2026-07-28 update below — with a real senior jump, not a genuine three-step increase); order survives 07-10 while levels drop ~2.5x — entry/mid/senior share one pool at one instant, so dilution is common-mode |
 | **`required_count / listings_with_ai`** | **Yes** | 96–100% everywhere; both terms drawn from the same listing set. `security` (78%) is small-count noise |
 | genai/ml mix | **Partial** | `engineering` 67.4→67.5 and `product` 75.4→76.9 across the boundary, but `ai` 66.3→51.1 and `data` 38.6→28.9 break. Category-dependent robustness is unusable in a shipped feature |
 
@@ -112,6 +112,46 @@ Parked rather than closed. Any **one** of these makes it worth re-opening:
    not joinable.
 3. **A skill-level source with timestamps lands and needs corroboration.** Then this becomes a
    sanity check on that source's category aggregates rather than a data input in its own right.
+
+**2026-07-28 update: spec 028 satisfies condition #2.** `specs/028-seniority-role-picker.md`
+(Redwood) shipped `frontend/src/lib/seniorityFraming.ts` — a static `SENIORITY_GRADIENT` table +
+`ROLE_TO_DATAMATA_CATEGORY` mapping + `getSeniorityFraming(role, seniority)` template function,
+data-layer only (no UI; spec 029 covers the picker control). Initially shipped with 8 of 18 cells
+PLACEHOLDER because the gitignored raw file was absent from the checkout; the raw file has since
+landed (at `data/raw/archive/ai-requirements-index.csv` — note, NOT at the
+`data/raw/AI-Skills-in-Job-Requirements/` path this doc originally cited above; the extracted
+directory landed under a different name this time, flagged not reconciled) and **all 18 cells are
+now real, live-extracted figures** (2026-07-28 pull, same 2026-07-22 snapshot, `tier=any_ai`). The
+3 previously-cited values here — `engineering`'s full triple (3.0/7.3/11.0), `security`'s
+entry+senior (0.0/5.6), `devops`'s entry (0.0) — were cross-checked against the raw pull and match
+exactly.
+
+**Finding, investigated and resolved (2026-07-28)**: the `data` category's real figures are
+entry_pct=7.4, mid_pct=7.2, senior_pct=11.0 — entry_pct nominally > mid_pct, which appeared to
+**break** the "monotonic in all 6 categories" claim in the "Which cuts survive" table above (line
+75). That claim predates this category ever being pulled. Direct investigation against the raw CSV
+(`data/raw/archive/ai-requirements-index.csv`) resolved this as **sample-size noise, not a real
+inversion**:
+
+- `data`/entry's pool is ~370-380 total listings; `data`/mid's pool is ~3,800-4,300 — roughly 10x
+  larger. At entry's sample size (~375, p≈0.07), the standard error is ~1.3 percentage points.
+- Across the surrounding week's snapshots, entry and mid trade places: 07-17 entry(8.0)>mid(7.4);
+  07-18 entry(7.2)<mid(7.5); 07-19 entry(6.9)<mid(7.4); 07-22 entry(7.4)>mid(7.2). That's
+  statistically indistinguishable noise in either direction, not a resolvable ordering.
+- `senior` (10.9-12.0% across the same window) is robustly and consistently **above** both entry
+  and mid on every single date — that part of the gradient *is* a real, non-noise signal.
+
+**Verdict, precisely stated**: the seniority-gradient ordering claim holds as designed for 5 of the
+6 categories on real data (`ai`, `devops`, `engineering`, `product`, `security`). For `data`,
+entry≈mid are statistically tied at the sample size this dataset offers — not a genuine three-step
+monotonic increase — while the senior jump remains real and matches the dataset's core validated
+claim (AI requirements concentrate at senior level). This is a documented, evidenced exception for
+`data` specifically, not a blanket loosening of the monotonic tolerance across all 6 categories,
+and not a silent reconciliation of the numbers. `frontend/src/lib/seniorityFraming.ts` carries the
+true 7.4/7.2/11.0 values un-adjusted (see that file's `SENIORITY_GRADIENT.data` comment for the
+same SE/pool-size reasoning inline), and `seniorityFraming.test.ts` is expected to encode `data` as
+a named exception to the monotonic-invariant suite rather than assert the blanket claim against it
+(Cypress, spec 028 follow-up) — no re-derivation of this reasoning should be needed there.
 
 Companion V2 candidate: the arshkon LinkedIn postings set (parked for role expansion; derives real
 scarcity from four timestamps, but its "skills" are LinkedIn job-function codes, not skills). The two
