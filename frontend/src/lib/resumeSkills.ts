@@ -32,6 +32,14 @@
 //     abbreviation that tokenizes identically (`R&D`).
 //   - A negation cue further back than the fixed window, with no intervening sentence terminator,
 //     fails to suppress a match.
+//
+// Spec 025 — alias matching: for each vocabulary entry, `ALIAS_TABLE` (./skillAliases.ts) supplies
+// zero or more additional surface forms (e.g. "k8s" for "Kubernetes") searched with this exact
+// same boundary/overlap/negation machinery, never a second matching engine. An alias hit is
+// attributed back to its canonical vocabulary entry; the alias string itself is never returned.
+
+import { normalizeSkillName } from './normalize'
+import { ALIAS_TABLE } from './skillAliases'
 
 const NEGATION_CUES = [
   'no',
@@ -91,17 +99,43 @@ function isNegated(text: string, matchStart: number): boolean {
   return NEGATION_CUES.some((cue) => buildBoundaryPattern(cue).test(window))
 }
 
+interface SearchTerm {
+  // The literal string to search for — either a vocabulary entry itself or one of its aliases.
+  value: string
+  // Index into `orderedByLengthDesc` (and therefore back into the original vocabulary entry) that
+  // this search term's match must be attributed to — never the alias string itself.
+  index: number
+}
+
+// Flattens each vocabulary entry into its canonical search term plus any `ALIAS_TABLE` aliases,
+// then globally orders all of them longest-first (ties broken by vocabulary order, canonical
+// before its own aliases) so the existing overlap-resolution rule — a shorter span discarded if it
+// overlaps a span already claimed by a longer one — applies uniformly across canonical and alias
+// spans alike, exactly as edge case 5 requires.
+function buildSearchTerms(orderedByLengthDesc: Array<{ value: string; index: number }>): SearchTerm[] {
+  const terms: SearchTerm[] = []
+
+  for (const { value, index } of orderedByLengthDesc) {
+    terms.push({ value, index })
+    const aliases = ALIAS_TABLE[normalizeSkillName(value)] ?? []
+    for (const alias of aliases) {
+      terms.push({ value: alias, index })
+    }
+  }
+
+  return terms.sort((a, b) => b.value.length - a.value.length || a.index - b.index)
+}
+
 export function extractResumeSkills(resumeText: string, vocabulary: string[]): string[] {
   const orderedByLengthDesc = vocabulary
     .map((value, index) => ({ value, index }))
     .sort((a, b) => b.value.length - a.value.length || a.index - b.index)
 
   const claimedSpans: Array<[number, number]> = []
-  const result: string[] = []
+  const affirmedIndices = new Set<number>()
 
-  for (const { value } of orderedByLengthDesc) {
+  for (const { value, index } of buildSearchTerms(orderedByLengthDesc)) {
     const spans = findSpans(resumeText, value)
-    let affirmed = false
 
     for (const span of spans) {
       if (overlapsAny(span, claimedSpans)) {
@@ -109,11 +143,14 @@ export function extractResumeSkills(resumeText: string, vocabulary: string[]): s
       }
       claimedSpans.push(span)
       if (!isNegated(resumeText, span[0])) {
-        affirmed = true
+        affirmedIndices.add(index)
       }
     }
+  }
 
-    if (affirmed) {
+  const result: string[] = []
+  for (const { value, index } of orderedByLengthDesc) {
+    if (affirmedIndices.has(index)) {
       result.push(value)
     }
   }

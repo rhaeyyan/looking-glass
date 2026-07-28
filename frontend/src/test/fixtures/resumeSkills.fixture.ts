@@ -197,3 +197,58 @@ export const RESUME_SKILLS_WITH_VARIANTS = [
 // An extracted skill with no corresponding role-profile skill at all — must be silently ignored,
 // never surfaced as an error and never added to the output.
 export const RESUME_SKILL_WITH_NO_ROLE_MATCH = 'terraform'
+
+// ---------------------------------------------------------------------------------------------
+// Spec 025 — skill-alias fuzzy matching fixtures
+// ---------------------------------------------------------------------------------------------
+// These fixtures assume an `ALIAS_TABLE` entry `{'kubernetes': ['k8s']}` (per spec 025's
+// illustrative Inputs/Outputs section) is wired into `extractResumeSkills`. Today (pre-Redwood)
+// no such table exists, so every one of these cases is expected to fail red.
+
+// Edge case 1 — alias match, basic
+export const ALIAS_BASIC_RESUME_TEXT = '5 years with k8s clusters'
+export const ALIAS_BASIC_VOCABULARY = ['Kubernetes']
+export const ALIAS_BASIC_EXPECTED = ['Kubernetes']
+
+// Edge case 3 — alias + negation
+export const ALIAS_NEGATION_RESUME_TEXT = 'no k8s experience'
+export const ALIAS_NEGATION_VOCABULARY = ['Kubernetes']
+export const ALIAS_NEGATION_EXPECTED: string[] = []
+
+// Edge case 4 — alias + any-affirmed-anywhere-wins (one negated alias occurrence, one affirmed
+// canonical occurrence elsewhere)
+export const ALIAS_ANY_AFFIRMED_ANYWHERE_RESUME_TEXT =
+  "no k8s experience, but I've since learned Kubernetes"
+export const ALIAS_ANY_AFFIRMED_ANYWHERE_VOCABULARY = ['Kubernetes']
+export const ALIAS_ANY_AFFIRMED_ANYWHERE_EXPECTED = ['Kubernetes']
+
+// Edge case 5 — overlap resolution across alias and canonical spans. "postgres sql" is aliased to
+// PostgreSQL per spec 025's illustrative table; the text also contains the literal alias
+// "postgres" as a prefix of "postgres sql" — both could independently match overlapping text, and
+// the existing longest-first/overlap-discard rule must resolve this without double-counting or a
+// crash, returning the canonical entry exactly once.
+export const ALIAS_OVERLAP_RESUME_TEXT = 'I have run postgres sql in production for years.'
+export const ALIAS_OVERLAP_VOCABULARY = ['PostgreSQL']
+export const ALIAS_OVERLAP_EXPECTED = ['PostgreSQL']
+
+// Edge case 6 — a vocabulary entry with no alias-table entry behaves exactly as spec 006 today
+// (backward compatible): "Rust" has no known alias, so a resume mentioning only an unrelated
+// abbreviation must not match it.
+export const ALIAS_NO_ENTRY_RESUME_TEXT = 'I enjoy woodworking and gardening on weekends.'
+export const ALIAS_NO_ENTRY_VOCABULARY = ['Rust']
+export const ALIAS_NO_ENTRY_EXPECTED: string[] = []
+
+// Edge case 7 — case-insensitivity for aliases ("K8S", "Postgres" both match)
+export const ALIAS_CASE_INSENSITIVE_RESUME_TEXT =
+  'Comfortable administering K8S and Postgres databases.'
+export const ALIAS_CASE_INSENSITIVE_VOCABULARY = ['Kubernetes', 'PostgreSQL']
+export const ALIAS_CASE_INSENSITIVE_EXPECTED = ['Kubernetes', 'PostgreSQL']
+
+// Edge case 9 — empty vocabulary / no aliases found anywhere still yields []
+export const ALIAS_EMPTY_VOCABULARY_RESUME_TEXT = 'I have used k8s and postgres extensively.'
+export const ALIAS_EMPTY_VOCABULARY: string[] = []
+export const ALIAS_EMPTY_VOCABULARY_EXPECTED: string[] = []
+
+export const ALIAS_NO_MATCH_ANYWHERE_RESUME_TEXT = 'I enjoy hiking and playing chess on weekends.'
+export const ALIAS_NO_MATCH_ANYWHERE_VOCABULARY = ['Kubernetes', 'PostgreSQL']
+export const ALIAS_NO_MATCH_ANYWHERE_EXPECTED: string[] = []

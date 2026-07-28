@@ -30,6 +30,30 @@ import {
   NO_MATCHES_RESUME_TEXT,
   NO_MATCHES_VOCABULARY,
   NO_MATCHES_EXPECTED,
+  ALIAS_BASIC_RESUME_TEXT,
+  ALIAS_BASIC_VOCABULARY,
+  ALIAS_BASIC_EXPECTED,
+  ALIAS_NEGATION_RESUME_TEXT,
+  ALIAS_NEGATION_VOCABULARY,
+  ALIAS_NEGATION_EXPECTED,
+  ALIAS_ANY_AFFIRMED_ANYWHERE_RESUME_TEXT,
+  ALIAS_ANY_AFFIRMED_ANYWHERE_VOCABULARY,
+  ALIAS_ANY_AFFIRMED_ANYWHERE_EXPECTED,
+  ALIAS_OVERLAP_RESUME_TEXT,
+  ALIAS_OVERLAP_VOCABULARY,
+  ALIAS_OVERLAP_EXPECTED,
+  ALIAS_NO_ENTRY_RESUME_TEXT,
+  ALIAS_NO_ENTRY_VOCABULARY,
+  ALIAS_NO_ENTRY_EXPECTED,
+  ALIAS_CASE_INSENSITIVE_RESUME_TEXT,
+  ALIAS_CASE_INSENSITIVE_VOCABULARY,
+  ALIAS_CASE_INSENSITIVE_EXPECTED,
+  ALIAS_EMPTY_VOCABULARY_RESUME_TEXT,
+  ALIAS_EMPTY_VOCABULARY,
+  ALIAS_EMPTY_VOCABULARY_EXPECTED,
+  ALIAS_NO_MATCH_ANYWHERE_RESUME_TEXT,
+  ALIAS_NO_MATCH_ANYWHERE_VOCABULARY,
+  ALIAS_NO_MATCH_ANYWHERE_EXPECTED,
 } from '../test/fixtures/resumeSkills.fixture'
 
 // MILESTONE (spec 006, Task 2): this locks the FIRST fully-deterministic resume-skill-extraction
@@ -172,5 +196,75 @@ describe('extractResumeSkills', () => {
     for (const skill of result) {
       expect(BASIC_MATCH_VOCABULARY).toContain(skill)
     }
+  })
+
+  // -----------------------------------------------------------------------------------------
+  // Spec 025 — skill-alias fuzzy matching. Today's implementation has no ALIAS_TABLE, so every
+  // case below is expected to fail RED until Redwood wires alias lookups into the existing
+  // boundary/overlap/negation machinery.
+  // -----------------------------------------------------------------------------------------
+
+  // Edge case 1 — alias match, basic
+  it('[alias] matches a known alias/abbreviation onto its canonical vocabulary entry ("k8s" -> "Kubernetes")', () => {
+    const result = extractResumeSkills(ALIAS_BASIC_RESUME_TEXT, ALIAS_BASIC_VOCABULARY)
+
+    expect(result).toEqual(ALIAS_BASIC_EXPECTED)
+  })
+
+  // Edge case 3 — alias + negation
+  it('[alias] excludes a skill whose only mention is a negated alias ("no k8s experience")', () => {
+    const result = extractResumeSkills(ALIAS_NEGATION_RESUME_TEXT, ALIAS_NEGATION_VOCABULARY)
+
+    expect(result).toEqual(ALIAS_NEGATION_EXPECTED)
+  })
+
+  // Edge case 4 — alias + any-affirmed-anywhere-wins
+  it('[alias] includes a skill negated via alias once but affirmed via the canonical spelling elsewhere', () => {
+    const result = extractResumeSkills(
+      ALIAS_ANY_AFFIRMED_ANYWHERE_RESUME_TEXT,
+      ALIAS_ANY_AFFIRMED_ANYWHERE_VOCABULARY,
+    )
+
+    expect(result).toEqual(ALIAS_ANY_AFFIRMED_ANYWHERE_EXPECTED)
+  })
+
+  // Edge case 5 — overlap resolution across alias and canonical spans
+  it('[alias] resolves overlapping alias/canonical spans without double-counting or crashing', () => {
+    const result = extractResumeSkills(ALIAS_OVERLAP_RESUME_TEXT, ALIAS_OVERLAP_VOCABULARY)
+
+    expect(result).toEqual(ALIAS_OVERLAP_EXPECTED)
+  })
+
+  // Edge case 6 — no alias-table entry behaves exactly as spec 006 today (backward compatible)
+  it('[alias] a vocabulary entry with no alias-table entry is unaffected (backward compatible)', () => {
+    const result = extractResumeSkills(ALIAS_NO_ENTRY_RESUME_TEXT, ALIAS_NO_ENTRY_VOCABULARY)
+
+    expect(result).toEqual(ALIAS_NO_ENTRY_EXPECTED)
+  })
+
+  // Edge case 7 — case-insensitivity for aliases
+  it('[alias] matches aliases case-insensitively ("K8S", "Postgres")', () => {
+    const result = extractResumeSkills(
+      ALIAS_CASE_INSENSITIVE_RESUME_TEXT,
+      ALIAS_CASE_INSENSITIVE_VOCABULARY,
+    )
+
+    expect(result.sort()).toEqual([...ALIAS_CASE_INSENSITIVE_EXPECTED].sort())
+  })
+
+  // Edge case 9 — empty vocabulary / no aliases found anywhere
+  it('[alias] returns [] for an empty vocabulary even when alias strings are present in the text', () => {
+    const result = extractResumeSkills(ALIAS_EMPTY_VOCABULARY_RESUME_TEXT, ALIAS_EMPTY_VOCABULARY)
+
+    expect(result).toEqual(ALIAS_EMPTY_VOCABULARY_EXPECTED)
+  })
+
+  it('[alias] returns [] when no alias or canonical form of any vocabulary entry is mentioned', () => {
+    const result = extractResumeSkills(
+      ALIAS_NO_MATCH_ANYWHERE_RESUME_TEXT,
+      ALIAS_NO_MATCH_ANYWHERE_VOCABULARY,
+    )
+
+    expect(result).toEqual(ALIAS_NO_MATCH_ANYWHERE_EXPECTED)
   })
 })
