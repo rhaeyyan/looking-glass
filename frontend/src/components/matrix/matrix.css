@@ -14,7 +14,8 @@
 .ladder-root,
 .narration-root,
 .leverage-root,
-.breakdown-root {
+.breakdown-root,
+.filter-status-root {
   color-scheme: light;
   --surface-1: #fcfcfb;
   --page-plane: #f9f9f7;
@@ -68,7 +69,8 @@
   :root:not([data-theme='light']) .ladder-root,
   :root:not([data-theme='light']) .narration-root,
   :root:not([data-theme='light']) .leverage-root,
-  :root:not([data-theme='light']) .breakdown-root {
+  :root:not([data-theme='light']) .breakdown-root,
+  :root:not([data-theme='light']) .filter-status-root {
     color-scheme: dark;
     --surface-1: #1a1a19;
     --page-plane: #0d0d0d;
@@ -93,7 +95,8 @@
 :root[data-theme='dark'] .ladder-root,
 :root[data-theme='dark'] .narration-root,
 :root[data-theme='dark'] .leverage-root,
-:root[data-theme='dark'] .breakdown-root {
+:root[data-theme='dark'] .breakdown-root,
+:root[data-theme='dark'] .filter-status-root {
   color-scheme: dark;
   --surface-1: #1a1a19;
   --page-plane: #0d0d0d;
@@ -983,4 +986,98 @@
 .seniority-note-label {
   font-weight: 700;
   color: var(--color-accent);
+}
+
+/* ---------- Filter status bar (spec 030) ----------
+ * `.filter-status-root` is registered in the shared token block above (alongside .matrix-root /
+ * .breakdown-root / etc.) purely so `--series-1`/`--border`/`--text-muted`/`--surface-1`/
+ * `--status-good*` resolve wherever this standalone component ends up mounted — it is not wired
+ * into App.tsx's tree yet (spec 033), so it cannot rely on being nested inside another root.
+ *
+ * Non-color encoding (WCAG 1.4.1): the filtered/unfiltered states already differ by their full
+ * sentence text (never by color alone); the ✓/✕ glyphs below are reinforcement, wrapped
+ * aria-hidden so the surrounding sentence carries the announced meaning, mirroring
+ * `.matrix-legend-chip` / `.lev-status-icon` / `.breakdown-entry-selected-badge`'s existing idiom
+ * in this file.
+ */
+.filter-status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--surface-1);
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+/* Filtered state: same border/background as SkillGroupBreakdown's own selected-entry treatment
+ * (`.breakdown-entry[data-selected]`), so the two components read as one coherent "active filter"
+ * language. Reinforcement only — the ✓ glyph + sentence text already carry the state. */
+.filter-status-bar[data-filtered] {
+  border-color: var(--series-1);
+  background: color-mix(in srgb, var(--series-1) 8%, var(--surface-1));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .filter-status-bar {
+    transition:
+      border-color 160ms ease,
+      background 160ms ease;
+  }
+}
+
+.filter-status-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--status-good);
+  background: var(--status-good-surface);
+}
+
+.filter-status-text {
+  flex: 1 1 auto;
+  color: var(--text-secondary);
+}
+
+.filter-status-clear {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filter-status-clear:hover {
+  border-color: var(--series-1);
+  color: var(--text-primary);
+}
+
+.filter-status-clear:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .filter-status-clear {
+    transition:
+      border-color 160ms ease,
+      color 160ms ease;
+  }
 }
