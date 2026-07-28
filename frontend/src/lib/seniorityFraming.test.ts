@@ -10,18 +10,20 @@
 // [SPEC]; this suite mirrors its "Edge Cases" list 1:1 plus the extra mid/senior + non-engineering
 // fixture coverage called out in the handoff.
 //
-// FIXTURE-VALIDATION NOTE (judgment call, flagged per the handoff): only two of six
-// `SENIORITY_GRADIENT` categories have real, live-verified figures in
-// `data/dataset-evaluations.md` as of this writing —
-//   engineering: entry 3.0, mid 7.3, senior 11.0
-//   security:    entry 0.0, senior 5.6 (mid NOT validated)
-// Byte-for-byte fixture assertions below are restricted to exactly those validated numbers.
-// `ai`/`data`/`devops`/`product` (all three levels) and `security`'s `mid_pct` are exercised only
-// structurally (shape, monotonicity, label rendering) — never a hardcoded fabricated number, per
-// the SPEC's Constraints ("an absent figure blocks completion, it does not get estimated"). This
-// also means the `mid` template fixture below deliberately uses `engineering` (not `security`,
-// whose mid_pct is unknown) and the `senior`/second-`entry` fixtures deliberately use `security`
-// (not `ai`/`data`/`devops`/`product`, none of which are validated at all).
+// FIXTURE-VALIDATION NOTE (updated 2026-07-28 — all 18 `SENIORITY_GRADIENT` cells are now real,
+// live-extracted figures, sourced from `data/raw/ai-requirements/ai-requirements-index.csv`; see
+// `dataset-evaluations.md` for the full extraction record). At the time this suite was first
+// written (RED phase, before Redwood's build), only `engineering`'s full triple and `security`'s
+// entry+senior were validated — the byte-for-byte fixtures below are still scoped to exactly
+// those two categories, not because the other four are unverified (they aren't, anymore), but
+// because expanding fixture coverage to all six wasn't itself required by the SPEC. `ai`/`data`/
+// `devops`/`product` (all three levels) and `security`'s `mid_pct` remain exercised only
+// structurally (shape, monotonicity, label rendering), which is still sufficient — a
+// byte-for-byte assertion on every cell would be redundant with the monotonic-invariant and
+// source-diff checks already in this file. This also means the `mid` template fixture below
+// deliberately uses `engineering` (not `security`) and the `senior`/second-`entry` fixtures
+// deliberately use `security` (not `ai`/`data`/`devops`/`product`) — an arbitrary choice of which
+// two categories to lock byte-for-byte, not a statement about which are trustworthy.
 //
 // Number-rendering judgment call: the templates interpolate `{entry_pct}` etc. directly from the
 // numeric field (per the SPEC's literal template strings, no `.toFixed()` mentioned) — so a whole
@@ -48,7 +50,7 @@ const SOURCE_PATH = path.join(LIB_DIR, 'seniorityFraming.ts')
 const ALL_SIX_CATEGORIES: DatamataCategory[] = ['ai', 'data', 'devops', 'engineering', 'product', 'security']
 
 // The 5 categories that hold the strict `entry_pct <= mid_pct <= senior_pct` ordering on real,
-// live-extracted data (2026-07-28 pull, data/raw/archive/ai-requirements-index.csv). `data` is
+// live-extracted data (2026-07-28 pull, data/raw/ai-requirements/ai-requirements-index.csv). `data` is
 // deliberately excluded from this list and asserted separately below — see the dedicated
 // `SENIORITY_GRADIENT.data` describe block for the evidenced reason (NOT a blanket loosening: if
 // a future data refresh regresses strict ordering in any of these 5, this must still catch it).
@@ -113,7 +115,7 @@ describe('ROLE_TO_DATAMATA_CATEGORY — exhaustive mapping', () => {
 // ---------------------------------------------------------------------------------------------
 // Edge case 4: monotonic gradient invariant — entry_pct <= mid_pct <= senior_pct, 5 of 6
 // categories strictly, `data` as a named exception. Real, live-extracted figures landed
-// 2026-07-28 (data/raw/archive/ai-requirements-index.csv) and `data` genuinely reads
+// 2026-07-28 (data/raw/ai-requirements/ai-requirements-index.csv) and `data` genuinely reads
 // entry_pct=7.4 > mid_pct=7.2 — investigated and resolved as sample-size noise (see
 // SENIORITY_GRADIENT.data's own comment in seniorityFraming.ts and dataset-evaluations.md's
 // seniority-gradient section for the full writeup: data/entry's pool is ~370-380 listings vs.

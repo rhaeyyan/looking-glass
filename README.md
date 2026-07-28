@@ -220,23 +220,34 @@ coverage), and any forward-looking forecast axis.
 
 ### Planned V2 scope expansion
 
-Four candidates under active SPEC work on `feature/v2-scope-expansion`, all deterministic
-(Bounded-AI discipline still applies — no LLM calls):
+Four candidates were scoped on `feature/v2-scope-expansion`, all deterministic (Bounded-AI
+discipline still applies — no LLM calls). All four are now resolved — three shipped, one
+evaluated and parked:
 
-- **Skill-alias fuzzy matching** — a static, curated alias table (e.g. `k8s` → Kubernetes,
-  `postgres` → PostgreSQL) extending step 4's existing boundary/overlap/negation matching, so
-  common abbreviations no longer fall through as silent false negatives. See
+- **Skill-alias fuzzy matching** *(shipped)* — a static, curated alias table (e.g. `k8s` →
+  Kubernetes, `postgres` → PostgreSQL) extending step 4's existing boundary/overlap/negation
+  matching, so common abbreviations no longer fall through as silent false negatives. See
   [specs/025-skill-alias-fuzzy-matching.md](specs/025-skill-alias-fuzzy-matching.md).
-- **Seniority in the target-role picker** — lets the role picker narrow by level, not just
-  `role_family`, and gives the AI Requirements Index's one robust cut (its seniority gradient —
-  see [data/dataset-evaluations.md](data/dataset-evaluations.md)) something to attach to as
-  context-only framing copy, never a score input.
-- **Role expansion via the LinkedIn postings dataset** (arshkon set) — parked companion to the
-  seniority idea; carries real timestamps the current D1/D2/D3 sources lack, opening the door to
-  a genuine time-series demand feature.
-- **Category-level granularity in the UI** — surfaces per-`skill_group` breakdowns (already
-  carried by D1/D2) on the matrix, so a user can see *which* category is driving their score, not
-  just the blended per-role number.
+- **Category-level granularity in the UI** *(shipped)* — surfaces per-`skill_group` breakdowns
+  (already carried by D1/D2) on the matrix, so a user can see *which* category is driving their
+  score, not just the blended per-role number. See
+  [specs/026-skill-group-breakdown.md](specs/026-skill-group-breakdown.md) and
+  [specs/027-skill-group-breakdown-ui.md](specs/027-skill-group-breakdown-ui.md).
+- **Seniority in the target-role picker** *(shipped)* — lets the role picker narrow by level, not
+  just `role_family`, and gives the AI Requirements Index's one robust cut (its seniority
+  gradient — see [data/dataset-evaluations.md](data/dataset-evaluations.md)) something to attach
+  to as context-only framing copy, never a score input. See
+  [specs/028-seniority-role-picker.md](specs/028-seniority-role-picker.md) and
+  [specs/029-seniority-role-picker-ui.md](specs/029-seniority-role-picker-ui.md).
+- **Role expansion via the LinkedIn postings dataset** (arshkon set) *(evaluated, rejected as
+  proposed)* — the pre-built skill join turned out to be the same wrong-grain failure that
+  rejected the AI Requirements Index (its 36-value `skill_abr` field is a job-function taxonomy,
+  not a skill vocabulary), and the postings themselves are a general cross-industry crawl skewed
+  away from this app's 15 tech-only roles. A narrower path — deterministic skill-mention
+  extraction from the postings' free-text descriptions, corroborated with real per-posting
+  timestamps — tested viable but is parked pending a fresher pull (the current one is a
+  2023–2024 crawl). Full verdict in
+  [data/dataset-evaluations.md](data/dataset-evaluations.md).
 
 ### Stack
 
