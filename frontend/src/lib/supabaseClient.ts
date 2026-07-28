@@ -32,6 +32,13 @@ export interface RoleSkillRow {
   // new frozen fixtures for this spec still supply an explicit `number | null` value.
   salary_premium_pct?: number | null
   median_days_open?: number | null
+  // Populated via supabase/migrations/20260727090000_expose_skill_group.sql, sourced from
+  // skills_core.skill_group (join_core.py's dominant-D2-row collapse). Nullable for the same
+  // reason as every other arbitrage_scores-sourced field: a row with no skill_key match has no
+  // skill_group. Optional (`?:`) for the same reason as salary_premium_pct/median_days_open
+  // above: existing RoleSkillRow literals elsewhere in the codebase (predating this field) omit
+  // it entirely rather than setting it to `null`.
+  skill_group?: string | null
 }
 
 // Deterministic query only — filters the already-computed `role_skill_arbitrage` view by the
@@ -40,7 +47,7 @@ export async function fetchRoleSkillProfile(role: string): Promise<RoleSkillRow[
   const { data, error } = await supabase
     .from('role_skill_arbitrage')
     .select(
-      'role_family, skill_name_raw, skill_key, pct_of_role, postings_with_skill, demand_score, scarcity_index, arbitrage_score, scarcity_data_completeness, d3_corroborated, d3_pct_of_all_postings, salary_premium_pct, median_days_open',
+      'role_family, skill_name_raw, skill_key, pct_of_role, postings_with_skill, demand_score, scarcity_index, arbitrage_score, scarcity_data_completeness, d3_corroborated, d3_pct_of_all_postings, salary_premium_pct, median_days_open, skill_group',
     )
     .eq('role_family', role)
 

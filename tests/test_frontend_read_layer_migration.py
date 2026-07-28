@@ -418,3 +418,199 @@ def test_narration_migration_new_columns_appended_at_end_of_select_list(migratio
         f"expected the SELECT list to end with `salary_premium_pct, median_days_open` (in that "
         f"order) — got the last two columns as {last_two}, full column list: {columns}"
     )
+
+
+# ==================================================================================================
+# specs/026-skill-group-breakdown.md: schema-exposure RED tests for the new
+# `<timestamp>_expose_skill_group.sql` migration.
+#
+# Per spec 026's Files list, the migration's own filename timestamp is not fixed by the SPEC (only
+# its trailing slug, `_expose_skill_group.sql`, is) — so, unlike the 0003/0004 suites above, this
+# suite locates the file by glob rather than a hardcoded path. No matching file exists yet (that's
+# Redwood's job): the `migration_sql_skill_group` fixture below fails its own assertion with a clear
+# "no file matched" message until it lands — that is the correct RED-phase failure mode for this
+# task, same discipline as the 0003/0004 suites' "file not found" RED.
+#
+# Per spec 026's [SPEC] Inputs/Outputs, this migration must `CREATE OR REPLACE VIEW` on BOTH
+# `arbitrage_scores` (appending `skills_core.skill_group`) and `role_skill_arbitrage` (appending a
+# straight passthrough of `arbitrage_scores.skill_group`, NOT sourced from `skill_role_profile`,
+# which has no such column) — append-only, at the end of each existing SELECT list, with
+# `WITH (security_invoker = true)` repeated verbatim on both `CREATE OR REPLACE VIEW` statements
+# (same owner-bypass RLS footgun the 0003/0004 suites above guard against).
+# ==================================================================================================
+
+MIGRATIONS_DIR = Path(__file__).resolve().parents[1] / "supabase" / "migrations"
+SKILL_GROUP_MIGRATION_GLOB = "*_expose_skill_group.sql"
+
+# The full pre-existing `arbitrage_scores` view column list (supabase/migrations/
+# 20260722140908_arbitrage_scores.sql), in its exact existing order — `skill_group` must be
+# appended AFTER these, never interleaved or reordered (Postgres's append-only
+# `CREATE OR REPLACE VIEW` requirement).
+ARBITRAGE_SCORES_COLUMNS = [
+    "skill_key",
+    "d1_demand_pct",
+    "d2_demand_pct",
+    "scarcity_score",
+    "salary_premium_pct",
+    "median_days_open",
+    "d3_corroborated",
+    "d3_pct_of_all_postings",
+    "demand_score",
+    "scarcity_index",
+    "scarcity_data_completeness",
+    "arbitrage_score",
+]
+ARBITRAGE_SCORES_COLUMNS_WITH_SKILL_GROUP = ARBITRAGE_SCORES_COLUMNS + ["skill_group"]
+
+# The full `role_skill_arbitrage` view column list as of the 0004/narration migration, with
+# `skill_group` appended last.
+ROLE_SKILL_ARBITRAGE_COLUMNS_WITH_SKILL_GROUP = ROLE_SKILL_ARBITRAGE_COLUMNS_WITH_NARRATION + [
+    "skill_group"
+]
+
+
+def _find_skill_group_migration() -> Path | None:
+    matches = sorted(MIGRATIONS_DIR.glob(SKILL_GROUP_MIGRATION_GLOB))
+    return matches[0] if matches else None
+
+
+@pytest.fixture(scope="module")
+def migration_sql_skill_group() -> str:
+    """Locate and read the skill_group migration file as plain text. No DB connection, no
+    credentials — same convention as every other fixture in this module."""
+    path = _find_skill_group_migration()
+    assert path is not None, (
+        f"expected exactly one migration file matching `{SKILL_GROUP_MIGRATION_GLOB}` in "
+        f"{MIGRATIONS_DIR} per specs/026-skill-group-breakdown.md's Files list "
+        f"(`<timestamp>_expose_skill_group.sql`) — found none. This is the expected RED-phase "
+        f"failure until Redwood adds the migration."
+    )
+    return path.read_text(encoding="utf-8")
+
+
+def test_skill_group_migration_file_exists_and_is_nonempty():
+    path = _find_skill_group_migration()
+    assert path is not None, (
+        f"expected a migration file matching `{SKILL_GROUP_MIGRATION_GLOB}` in {MIGRATIONS_DIR}"
+    )
+    assert path.read_text(encoding="utf-8").strip(), "migration file must not be empty"
+
+
+def test_skill_group_migration_parentheses_are_balanced(migration_sql_skill_group):
+    assert migration_sql_skill_group.count("(") == migration_sql_skill_group.count(")"), (
+        "unbalanced parentheses in migration SQL — not syntactically well-formed"
+    )
+
+
+@pytest.mark.parametrize("view_name", [ARBITRAGE_SCORES_VIEW, ROLE_SKILL_ARBITRAGE_VIEW])
+def test_skill_group_migration_uses_create_or_replace_view(migration_sql_skill_group, view_name):
+    """Regression guard, mirroring the 0004 suite's equivalent: this must be
+    `CREATE OR REPLACE VIEW` on BOTH views, not a `DROP VIEW` + fresh `CREATE VIEW` — Postgres
+    only accepts an append-only column-list change via `REPLACE`."""
+    assert re.search(
+        rf"create\s+or\s+replace\s+view\s+(?:\w+\.)?\"?{re.escape(view_name)}\"?\b",
+        migration_sql_skill_group,
+        re.IGNORECASE,
+    ), (
+        f"expected `CREATE OR REPLACE VIEW {view_name} ...` in the migration SQL:\n"
+        f"{migration_sql_skill_group}"
+    )
+
+
+@pytest.mark.parametrize("view_name", [ARBITRAGE_SCORES_VIEW, ROLE_SKILL_ARBITRAGE_VIEW])
+def test_skill_group_migration_view_still_declares_security_invoker(
+    migration_sql_skill_group, view_name
+):
+    """Regression guard for the edge case shared with the 0004 suite: replacing either view must
+    not silently drop `WITH (security_invoker = true)` — the owner-bypass RLS footgun."""
+    options, _ = _extract_view_with_options(migration_sql_skill_group, view_name)
+    assert re.search(r"security_invoker\s*=\s*true", options, re.IGNORECASE), (
+        f"expected `CREATE OR REPLACE VIEW {view_name} WITH (security_invoker = true) AS ...;` "
+        f"— got WITH options: {options!r}"
+    )
+
+
+@pytest.mark.parametrize("column", ARBITRAGE_SCORES_COLUMNS_WITH_SKILL_GROUP)
+def test_skill_group_migration_arbitrage_scores_view_selects_column(
+    migration_sql_skill_group, column
+):
+    _, body = _extract_view_with_options(migration_sql_skill_group, ARBITRAGE_SCORES_VIEW)
+    assert re.search(rf'"?{re.escape(column)}"?', body, re.IGNORECASE), (
+        f"expected the `{ARBITRAGE_SCORES_VIEW}` view to select `{column}`:\n{body}"
+    )
+
+
+@pytest.mark.parametrize("column", ROLE_SKILL_ARBITRAGE_COLUMNS_WITH_SKILL_GROUP)
+def test_skill_group_migration_role_skill_arbitrage_view_selects_column(
+    migration_sql_skill_group, column
+):
+    _, body = _extract_view_with_options(migration_sql_skill_group, ROLE_SKILL_ARBITRAGE_VIEW)
+    assert re.search(rf'"?{re.escape(column)}"?', body, re.IGNORECASE), (
+        f"expected the `{ROLE_SKILL_ARBITRAGE_VIEW}` view to select `{column}`:\n{body}"
+    )
+
+
+def test_skill_group_migration_appended_at_end_of_arbitrage_scores_select_list(
+    migration_sql_skill_group,
+):
+    """Regression guard for the append-only requirement: `skill_group` must be the LAST entry in
+    `arbitrage_scores`'s SELECT list — reordering/interleaving it would break `CREATE OR REPLACE
+    VIEW`'s append-only contract even if every individual column were still present."""
+    _, body = _extract_view_with_options(migration_sql_skill_group, ARBITRAGE_SCORES_VIEW)
+    columns = _select_columns_list(body)
+    assert columns, f"expected a non-empty SELECT list, got: {columns}"
+
+    def _bare_name(token: str) -> str:
+        return token.split(".")[-1].strip().strip('"').lower()
+
+    assert _bare_name(columns[-1]) == "skill_group", (
+        f"expected the LAST column in `{ARBITRAGE_SCORES_VIEW}`'s SELECT list to be "
+        f"`skill_group` — got full column list: {columns}"
+    )
+
+
+def test_skill_group_migration_appended_at_end_of_role_skill_arbitrage_select_list(
+    migration_sql_skill_group,
+):
+    """Same append-only guard as above, for `role_skill_arbitrage`."""
+    _, body = _extract_view_with_options(migration_sql_skill_group, ROLE_SKILL_ARBITRAGE_VIEW)
+    columns = _select_columns_list(body)
+    assert columns, f"expected a non-empty SELECT list, got: {columns}"
+
+    def _bare_name(token: str) -> str:
+        return token.split(".")[-1].strip().strip('"').lower()
+
+    assert _bare_name(columns[-1]) == "skill_group", (
+        f"expected the LAST column in `{ROLE_SKILL_ARBITRAGE_VIEW}`'s SELECT list to be "
+        f"`skill_group` — got full column list: {columns}"
+    )
+
+
+def test_skill_group_migration_arbitrage_scores_skill_group_sourced_from_skills_core(
+    migration_sql_skill_group,
+):
+    """`skill_group` is a `skills_core`-origin column (populated by `join_core.py`'s
+    dominant-D2-row collapse) — must be selected qualified as `skills_core.skill_group`."""
+    _, body = _extract_view_with_options(migration_sql_skill_group, ARBITRAGE_SCORES_VIEW)
+    assert re.search(r"skills_core\.\"?skill_group\"?\b", body, re.IGNORECASE), (
+        f"expected `skill_group` to be selected qualified as `skills_core.skill_group` in the "
+        f"`{ARBITRAGE_SCORES_VIEW}` view body:\n{body}"
+    )
+
+
+def test_skill_group_migration_role_skill_arbitrage_skill_group_passthrough_not_from_role_profile(
+    migration_sql_skill_group,
+):
+    """`role_skill_arbitrage`'s `skill_group` must be a straight passthrough of
+    `arbitrage_scores.skill_group` (mirroring how `demand_score`/`scarcity_index`/
+    `salary_premium_pct` are already sourced), never sourced from `skill_role_profile`, which has
+    no such column."""
+    _, body = _extract_view_with_options(migration_sql_skill_group, ROLE_SKILL_ARBITRAGE_VIEW)
+    assert re.search(r"arbitrage_scores\.\"?skill_group\"?\b", body, re.IGNORECASE), (
+        f"expected `skill_group` to be selected qualified as `arbitrage_scores.skill_group` in "
+        f"the `{ROLE_SKILL_ARBITRAGE_VIEW}` view body:\n{body}"
+    )
+    assert not re.search(r"skill_role_profile\.\"?skill_group\"?\b", body, re.IGNORECASE), (
+        f"`skill_group` must not be sourced from `skill_role_profile` — it only exists via the "
+        f"`arbitrage_scores` join:\n{body}"
+    )

@@ -42,6 +42,19 @@ demand_pct, required_count`
   2026-07-22,data,Python,Language,686,7447,9.2,668
   2026-07-22,data,AWS,Cloud,307,7447,4.1,294
   ```
+- **`skill_group` full value set** (specs/026-skill-group-breakdown.md's Constraints — the raw D2
+  CSV is gitignored and absent from this checkout, so this was enumerated live via
+  `SELECT DISTINCT skill_group FROM skills_core ORDER BY skill_group` against the anon-key,
+  RLS-public `skills_core` table on 2026-07-27, not re-derived from source CSVs): **37 distinct
+  values** — `API, Analytics, Architecture, BI, Certification, Cloud, Compliance, Config,
+  Database, Design, DevOps, Framework, GitOps, IaC, Infra, Language, Library, MLOps, Methodology,
+  Monitoring, OS, Orchestration, Orchestrator, Pipeline, Platform, Processing, Protocol, Query
+  Engine, Runtime, Skill, Soft Skill, Streaming, Table Format, Technique, Tool, Transform,
+  Warehouse`. This exceeds spec 026's Tipping Point threshold (">15-20 distinct values") — the
+  follow-on Magnolia SPEC's layout decision should plan for a scrollable/searchable list, not a
+  flat chip row, and should also consider whether `category` → `skill_group` nesting is warranted
+  given the cardinality (spec 026's Tipping Point flags this as worth revisiting once the real set
+  is known — it now is).
 
 ## D3 — `data/raw/d3/`
 ### `skills-2026-overall.csv`

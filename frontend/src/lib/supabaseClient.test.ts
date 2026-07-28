@@ -48,9 +48,10 @@ describe('fetchRoleSkillProfile', () => {
 
     // Task 1 of specs/005-template-narrator.md: the column-list string gains
     // `salary_premium_pct, median_days_open`, appended at the end — same append-only order as the
-    // migration's SELECT list (tests/test_frontend_read_layer_migration.py).
+    // migration's SELECT list (tests/test_frontend_read_layer_migration.py). specs/026 appends
+    // `skill_group` after that, same append-only order/precedent.
     expect(mockState.select).toHaveBeenCalledWith(
-      'role_family, skill_name_raw, skill_key, pct_of_role, postings_with_skill, demand_score, scarcity_index, arbitrage_score, scarcity_data_completeness, d3_corroborated, d3_pct_of_all_postings, salary_premium_pct, median_days_open',
+      'role_family, skill_name_raw, skill_key, pct_of_role, postings_with_skill, demand_score, scarcity_index, arbitrage_score, scarcity_data_completeness, d3_corroborated, d3_pct_of_all_postings, salary_premium_pct, median_days_open, skill_group',
     )
   })
 
