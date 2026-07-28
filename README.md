@@ -218,6 +218,26 @@ User accounts / saved plans, cohort aggregation, syllabus/curriculum auditing, t
 and weak-coverage roles, skill-alias fuzzy matching (a V2 refinement that would lift D3
 coverage), and any forward-looking forecast axis.
 
+### Planned V2 scope expansion
+
+Four candidates under active SPEC work on `feature/v2-scope-expansion`, all deterministic
+(Bounded-AI discipline still applies — no LLM calls):
+
+- **Skill-alias fuzzy matching** — a static, curated alias table (e.g. `k8s` → Kubernetes,
+  `postgres` → PostgreSQL) extending step 4's existing boundary/overlap/negation matching, so
+  common abbreviations no longer fall through as silent false negatives. See
+  [specs/025-skill-alias-fuzzy-matching.md](specs/025-skill-alias-fuzzy-matching.md).
+- **Seniority in the target-role picker** — lets the role picker narrow by level, not just
+  `role_family`, and gives the AI Requirements Index's one robust cut (its seniority gradient —
+  see [data/dataset-evaluations.md](data/dataset-evaluations.md)) something to attach to as
+  context-only framing copy, never a score input.
+- **Role expansion via the LinkedIn postings dataset** (arshkon set) — parked companion to the
+  seniority idea; carries real timestamps the current D1/D2/D3 sources lack, opening the door to
+  a genuine time-series demand feature.
+- **Category-level granularity in the UI** — surfaces per-`skill_group` breakdowns (already
+  carried by D1/D2) on the matrix, so a user can see *which* category is driving their score, not
+  just the blended per-role number.
+
 ### Stack
 
 - **Data / DB**: Supabase (Postgres); deterministic scoring in SQL / Python.
