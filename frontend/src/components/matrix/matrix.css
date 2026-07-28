@@ -957,3 +957,30 @@
 .breakdown-entry-havegap {
   color: var(--text-muted);
 }
+
+/* ---------- Seniority framing note (spec 029) ----------
+ * Rendered directly inside App.tsx's global `.lg-results-head`, OUTSIDE any `.matrix-root` /
+ * `.narration-root` wrapper — so it reads off the app-global --color-*/--radius-md tokens (same
+ * family App.tsx's own inline styles already use for tags/cards), not the matrix-scoped --text-*
+ * custom properties declared at the top of this file, which only exist inside those root classes.
+ * No transition/animation here (SPEC Constraints: none needed for a plain sentence).
+ */
+.seniority-note {
+  margin: 0.6rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--color-text) 75%, transparent);
+  max-width: 60ch;
+}
+
+.seniority-note-cue {
+  display: inline-block;
+}
+
+/* Visible, non-color-only "context, not a score input" cue (WCAG 1.4.1, mirrors round 21's
+ * SkillGroupBreakdown fix): the "Context —" text prefix is the load-bearing channel, reinforced
+ * by the aria-hidden glyph above — never a border/italic/color treatment alone. */
+.seniority-note-label {
+  font-weight: 700;
+  color: var(--color-accent);
+}
