@@ -131,3 +131,64 @@ reasoned about.
 The extracted directory arrived named `'AI-Skills-in-Job-Requirements\n'` — with a literal trailing
 newline — which breaks `cd`, globs, and any ingest path built by string concatenation. Renamed
 2026-07-26. Worth checking for on any future extract.
+
+---
+
+## ai_job_market.csv / AI Job Market Dataset.csv / ai_job_salary_dataset_10k.csv
+
+- **Evaluated**: 2026-07-27
+- **Files**: `data/raw/ai_job_market.csv`, `data/raw/AI Job Market Dataset.csv`,
+  `data/raw/ai_job_salary_dataset_10k.csv` (gitignored, local-only; source/license unrecorded —
+  no dataset card or manifest was found alongside any of the three).
+- **Verdict: REJECTED, all three — not PARKED.** Unlike the AI Requirements Index above, there is
+  no real signal here to wait on; the rejection reason (synthetic generation) doesn't resolve with
+  a future pull, a picker change, or a corroborating source. Evaluated together because all three
+  fail the identical test in the identical way.
+
+### The test: does the categorical distribution look like a labor market or a random-number generator?
+
+Real job-posting data follows a power law — a handful of skills/roles dominate, a long tail barely
+appears (this is exactly what D1/D2/D3's own skill-frequency data looks like). Synthetic data
+built from `random.choice()` over a fixed list instead produces a **flat** distribution — every
+category roughly equally likely, converging on the uniform rate as row count grows. All three
+files show the flat signature, not the power-law one:
+
+| File | Rows | Evidence of uniform-random generation |
+|---|---|---|
+| `ai_job_market.csv` | 2,000 | 22 distinct skills, each appearing in **20.3–22.6%** of rows (a ≤2.3-point spread); 8 job titles split 230–271 each (expected 250 if uniform); company names are Faker-library output (`"Foster and Sons"`, `"Boyd, Myers and Ramirez"`) |
+| `AI Job Market Dataset.csv` | 10,345 | Only 5 binary skill flags, each true in **49.3–51.1%** of rows — a coin flip; 6 job titles split 1676–1773 each (expected 1724); `job_posting_year` runs through **2026**, i.e. postings dated into the future relative to any real crawl |
+| `ai_job_salary_dataset_10k.csv` | 10,000 | 10 distinct skills, each appearing in **29.0–31.0%** of rows; 8 job roles split 1218–1289 each (expected 1250) |
+
+No real labor-market crawl produces a skill-mention spread this tight across a double-digit
+distinct-value set — D1/D2's own real skill frequencies span orders of magnitude, not a ~2-point
+band. This is the fingerprint of independent-per-row random sampling from a fixed pool, not
+scraped postings.
+
+### Why this is a harder rejection than the AI Requirements Index
+
+That dataset had a real, if collection-biased, signal — the seniority gradient survived
+denominator-cancellation testing and was PARKED as a future CONTEXT-ONLY source. These three have
+**no real signal to extract, biased or otherwise** — there is nothing to be robust or fragile,
+because the values were never observations of a labor market to begin with. Any per-skill demand,
+scarcity, or salary figure derived from them would silently report the generator's random seed as
+if it were market data — an INVARIANT-lane failure (CLAUDE.md): the numbers stay plausible while
+meaning nothing, with no visible sign anything is wrong.
+
+### Relevance to the two open V2 candidates
+
+Neither remaining V2 candidate is helped:
+
+- **Seniority in the target-role picker** — `experience_level`/`years_experience` fields exist in
+  all three, but carry the same uniform-random problem (no reason to believe a "senior" row's
+  skill/salary values are drawn from anything different than an "entry" row's); a synthetic
+  seniority split adds nothing the (real, PARKED) AI Requirements Index's seniority gradient
+  doesn't already offer more defensibly.
+- **Role expansion via the LinkedIn/arshkon dataset** — these three have single-point
+  `posted_date`/`job_posting_month`/`job_posting_year` fields, not a real multi-snapshot time
+  series; they don't substitute for or corroborate the arshkon set's timestamp dimension.
+
+### Park conditions
+
+None. Re-open only if a *different*, non-synthetic release under one of these filenames surfaces
+(re-run the distribution-flatness test above first — that is the fast, cheap check that closed
+this evaluation and should gate any future candidate under a similar name).
