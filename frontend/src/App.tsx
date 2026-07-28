@@ -8,6 +8,7 @@ import { formatNum } from './lib/format'
 import { normalizeSkillName } from './lib/normalize'
 import { SkillMatrix } from './components/matrix/SkillMatrix'
 import { SkillLeverageTable } from './components/matrix/SkillLeverageTable'
+import { SkillGroupBreakdown } from './components/matrix/SkillGroupBreakdown'
 import { TopGapNarration } from './components/matrix/TopGapNarration'
 
 type Status = 'idle' | 'loading' | 'success' | 'error'
@@ -51,6 +52,7 @@ function App() {
   const [validationError, setValidationError] = useState('')
   const [haveSkillKeys, setHaveSkillKeys] = useState<Set<string> | undefined>(undefined)
   const [topGaps, setTopGaps] = useState<TopGaps | undefined>(undefined)
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
 
   // Theme is applied to the document root so the design system's `:root[data-theme]` overrides win
   // over the `prefers-color-scheme` default in both directions.
@@ -63,6 +65,7 @@ function App() {
     setSelectedRole(role)
     setHaveSkillKeys(undefined)
     setTopGaps(undefined)
+    setSelectedGroup(null)
 
     if (!role) {
       setStatus('idle')
@@ -121,6 +124,13 @@ function App() {
       else gapCount++
     }
   }
+  // A plain array `.filter()` over the already-fetched rows — SkillMatrix/SkillLeverageTable never
+  // learn about `selectedGroup` themselves, so their own hard-won a11y/touch-hover fixes (spec 018)
+  // are untouched by this task (spec 027's Intellectual Control).
+  const filteredRows = selectedGroup
+    ? rows.filter((r) => (r.skill_group ?? 'Uncategorized') === selectedGroup)
+    : rows
+
   const havePct = rows.length ? Math.round((haveCount / rows.length) * 100) : 0
   const goodDeg = rows.length ? (haveCount / rows.length) * 360 : 0
   const gapDeg = rows.length ? (gapCount / rows.length) * 360 : 0
@@ -323,8 +333,17 @@ function App() {
 
           {hasRows && (
             <>
-              <SkillMatrix rows={rows} haveSkillKeys={haveSkillKeys} />
-              <SkillLeverageTable rows={rows} haveSkillKeys={haveSkillKeys} roleName={selectedRole} />
+              <SkillGroupBreakdown
+                rows={rows}
+                haveSkillKeys={haveSkillKeys}
+                onSelectGroup={setSelectedGroup}
+              />
+              <SkillMatrix rows={filteredRows} haveSkillKeys={haveSkillKeys} />
+              <SkillLeverageTable
+                rows={filteredRows}
+                haveSkillKeys={haveSkillKeys}
+                roleName={selectedRole}
+              />
             </>
           )}
         </div>
