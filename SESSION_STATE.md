@@ -5,7 +5,43 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-26 (round 20: development report)
+## Current Session — 2026-07-27 (round 21: V2 scope-expansion branch)
+
+- Opened `feature/v2-scope-expansion` (local commits rebased/pushed cleanly against two upstream
+  README-only commits first). Scope: the four V2 candidates from README's new "Planned V2 scope
+  expansion" section — skill-alias fuzzy matching, seniority in the role picker, LinkedIn role
+  expansion, category-level UI granularity.
+- Shipped two full SPEC→red→build→audit→commit cycles:
+  - **Spec 025** (skill-alias fuzzy matching): static `ALIAS_TABLE` reusing spec 006's existing
+    boundary/overlap/negation regex machinery — no new matching engine, no LLM. Passed Cypress
+    audit clean on first pass. 5 canonical aliases shipped (k8s, postgres, js, ts, py); `ai`/`ml`
+    deliberately excluded — `ai` is itself a real distinct D3 skill, aliasing would collide.
+  - **Spec 026 + 027** (category-level UI granularity): mid-draft, Cedar's first pass targeted the
+    wrong field (`d2_primary_category`, the 6-value category vocabulary) — human redirected to
+    `skill_group` (a finer, unenumerated D2 taxonomy) before persisting. 026 = data layer (view
+    passthrough + `computeSkillGroupBreakdown()`, dynamic groupby, no hardcoded enum since the
+    real value set wasn't enumerable in-checkout). Live query during 026 found **37 distinct
+    skill_group values** (past the spec's own 15–20 tipping point) — recorded in
+    `data/schema-notes.md`. 027 = UI (`SkillGroupBreakdown` panel, filterable scrollable list
+    reusing `SkillLeverageTable`'s idiom, toggle-filters-the-existing-matrix via a plain
+    `.filter()` in `App.tsx`). 027 failed its first Cypress audit on a real defect — the selected
+    toggle relied on color alone; fixed with a visible ✓+"Selected" text badge (1 of 2 allowed
+    rejection-loop retries used). Second audit: PASS.
+- Verified-With (final state): `frontend/src/lib/resumeSkills.test.ts` +
+  `skillAliases.test.ts`, `tests/test_frontend_read_layer_migration.py`,
+  `frontend/src/lib/skillGroupBreakdown.test.ts`,
+  `frontend/src/components/matrix/SkillGroupBreakdown.test.tsx`,
+  `frontend/e2e/skill-group-breakdown.spec.ts @ mobile-touch-dark @ desktop-dark`. 664/664 vitest,
+  239/239 pytest (16 skipped, pre-existing `data/raw/` gitignore gap), 10/10 e2e.
+- Branch not yet merged to `main` — no PR opened this session (not requested).
+- Next: two V2 candidates remain unstarted on this branch — seniority in the target-role picker
+  (would also revive the AI Requirements Index dataset as context-only framing copy) and role
+  expansion via the LinkedIn/arshkon postings dataset. Both need fresh dataset-evaluation work
+  before a SPEC can be drafted, unlike 025/026/027 which built on data already in hand.
+
+---
+
+## Round 20 — 2026-07-26 (development report)
 
 - Wrote `DEVELOPMENT_REPORT.md` — full narrative history, initial commit → post-mortem, sourced
   from the commit log plus `SESSION_STATE.md`/`ARCHIVED_SESSIONS.md`. Linked from README under a
