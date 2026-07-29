@@ -106,7 +106,7 @@ export function SkillMatrix({
 
   return (
     <section
-      className="matrix-root card blueprint elev-md"
+      className="matrix-root"
       aria-labelledby={titleId}
       data-testid="skill-matrix"
       data-reduced-motion={reduced ? 'true' : 'false'}
@@ -216,10 +216,6 @@ export function SkillMatrix({
         </div>
         <span className="matrix-axis-x">Demand &nbsp;·&nbsp; more jobs want it &rarr;</span>
       </div>
-
-      <p className="matrix-alt-note">
-        Prefer the numbers? Every skill&rsquo;s figures are in the ranked table below.
-      </p>
     </section>
   )
 }

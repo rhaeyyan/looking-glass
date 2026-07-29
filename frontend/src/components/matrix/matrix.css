@@ -45,14 +45,24 @@
 }
 
 /* Spec 021: reuse the shared 15px card radius (never a bespoke value) so the matrix's inner
- * surfaces (the glass plot backdrop below) round consistently with the rest of the app. */
+ * surfaces (the glass plot backdrop below) round consistently with the rest of the app.
+ * Spec 032: `.matrix-root` no longer carries `card blueprint elev-md` — it is now a flush "Band 3"
+ * inside the shared Evidence-card wrapper (spec 033) rather than owning its own chrome. The
+ * `border-radius` rule stays (harmless, no border/background left to round — see the SPEC's
+ * explicit note not to delete it) but the padding formerly supplied by `.card` (1rem all sides)
+ * is replaced here with the README's Band 3 padding so the band keeps its own breathing room
+ * inside the shared card. */
 .matrix-root {
   border-radius: var(--radius-card);
+  padding: 16px 20px 4px;
 }
 
-/* Spec 022: the merged leverage table's own card wrapper picks up the same shared radius. */
+/* Spec 022: the merged leverage table's own card wrapper picks up the same shared radius.
+ * Spec 032: same chrome-trim as `.matrix-root` above — `.leverage-root` becomes "Band 4", with the
+ * README's Band 4 padding replacing the `.card` padding it used to inherit. */
 .leverage-root {
   border-radius: var(--radius-card);
+  padding: 10px 20px 20px;
 }
 
 /* Dark theme: applied both by system preference and by the in-app toggle stamping
@@ -117,10 +127,19 @@
 }
 
 .matrix-title,
-.ladder-title,
 .breakdown-title {
   margin: 0 0 0.25rem;
   font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Spec 032: `.ladder-title` is now an <h3> (demoted from <h2>) since it sits under the shared
+ * Evidence card's own <h2> (Band 1's heading, spec 033) — split out of the shared rule above into
+ * its own smaller size (README's demoted-heading size) so it reads as a subordinate heading. */
+.ladder-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -387,14 +406,6 @@
   color: var(--status-critical);
   background: var(--status-critical-surface);
   border-color: var(--status-critical);
-}
-
-/* Scatter → "prefer the numbers" pointer to the ranked table below. */
-.matrix-alt-note {
-  margin: 0.75rem 0 0;
-  font-size: 0.75rem;
-  font-style: italic;
-  color: var(--text-secondary);
 }
 
 /* ---------- Merged "every skill, ranked by leverage" table ----------

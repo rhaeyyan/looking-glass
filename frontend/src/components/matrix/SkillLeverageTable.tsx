@@ -37,10 +37,10 @@ export function SkillLeverageTable({
   const topScore = ranked.reduce((max, r) => Math.max(max, r.arbitrage_score ?? 0), 0)
 
   return (
-    <section className="card blueprint elev-md leverage-root" aria-labelledby={titleId}>
-      <h2 id={titleId} className="ladder-title">
+    <section className="leverage-root" aria-labelledby={titleId}>
+      <h3 id={titleId} className="ladder-title">
         {roleName} — every skill, ranked by leverage
-      </h2>
+      </h3>
       <p className="ladder-hint">
         Every skill this role needs, ranked by leverage score (most worth learning first). The bar
         shows each score next to the top move; skills we only have demand data for are listed last
