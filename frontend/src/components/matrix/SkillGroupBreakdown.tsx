@@ -1,67 +1,53 @@
-import { useId, useState } from 'react'
+import { useId } from 'react'
 import type { RoleSkillRow } from '../../lib/supabaseClient'
 import { computeSkillGroupBreakdown } from '../../lib/skillGroupBreakdown'
 import { formatNum } from '../../lib/format'
 import './matrix.css'
 
-// specs/027-skill-group-breakdown-ui.md: renders `computeSkillGroupBreakdown()`'s already-sorted
-// output as a scrollable, filterable ranked list — "which skill group is driving your score" —
-// and doubles each entry as a reversible toggle that narrows the rows App.tsx passes to
+// specs/031-skill-group-chip-row.md: renders `computeSkillGroupBreakdown()`'s already-sorted
+// output as a wrapping chip row — "which skill group is driving your score" — and each chip
+// doubles as a reversible toggle that narrows the rows App.tsx passes to
 // SkillMatrix/SkillLeverageTable. This component never re-derives ranking/grouping: the data
 // layer (spec 026, frontend/src/lib/skillGroupBreakdown.ts) is called exactly once per render and
 // its order is rendered verbatim.
 //
+// Fully controlled (spec 031): `selectedGroup`/`onSelectGroup` are now required props — App.tsx
+// alone owns the selection state, and this component holds zero internal selection state of its
+// own. The previous round's local `useState` (spec 027) was exactly the silent-desync landmine
+// CLAUDE.md calls out by name (a chip could show selected while the filter it drives disagreed);
+// removing the state here removes that class of bug structurally, not just by convention.
+//
 // A11y (WCAG 2.2 AA, dataviz skill applied): identity is carried by TEXT (the group name) and
-// POSITION (the already-sorted rank), never color alone; the selected entry is marked with
+// POSITION (the already-sorted rank), never color alone; the selected chip is marked with
 // aria-pressed (a semantic, non-color channel) FOR assistive tech, AND — mirroring SkillMatrix's
-// own visible ✓/✕ glyph + accessible-name-suffix idiom for the identical "no color-only encoding"
-// requirement — a visible ✓ glyph plus "Selected" text badge for sighted, color-vision-deficient
-// users who cannot rely on the border/background tint alone. The filter is a native
-// <input type="search"> with an associated label; every group entry is a native <button>,
-// so keyboard operability (Tab/Enter/Space) comes for free; the numbers backing this ranked list
-// are the same accessible-table-equivalent numbers SkillLeverageTable already exposes for the
-// scatter, so no separate table alternative is needed here. Any highlight transition on the
-// selected entry is CSS-only and lives behind `prefers-reduced-motion: no-preference` in
-// matrix.css (mirrors SkillMatrix's existing convention) — never an inline style, so the reduced-
-// motion test (which asserts no inline transition/animation) always passes regardless of the
-// user's OS setting.
-
-function haveGapLabel(
-  haveSkillKeys: Set<string> | undefined,
-  have: number | null,
-  gap: number | null,
-): string {
-  if (haveSkillKeys === undefined || have === null || gap === null) return 'Not analyzed yet'
-  return `${have} already have · ${gap} worth learning`
-}
+// own visible ✓/✕ glyph idiom for the identical "no color-only encoding" requirement — a visible,
+// aria-hidden ✓ glyph for sighted, color-vision-deficient users who cannot rely on the
+// border/background tint alone. This is this SPEC's authorized, documented deviation from the
+// literal chip mockup, which shows a color/border-only selected state. Every chip is a native
+// <button>, so keyboard operability (Tab/Enter/Space) comes for free. The numbers backing this
+// ranked chip row are the same accessible-table-equivalent numbers SkillLeverageTable already
+// exposes for the scatter, so no separate table alternative is needed here. Any highlight
+// transition on the selected chip is CSS-only and lives behind `prefers-reduced-motion:
+// no-preference` in matrix.css — never an inline style, so the reduced-motion test (which asserts
+// no inline transition/animation) always passes regardless of the user's OS setting.
 
 export function SkillGroupBreakdown({
   rows,
   haveSkillKeys,
+  selectedGroup,
   onSelectGroup,
 }: {
   rows: RoleSkillRow[]
   haveSkillKeys?: Set<string>
-  onSelectGroup?: (group: string | null) => void
+  selectedGroup: string | null
+  onSelectGroup: (group: string | null) => void
 }) {
   const titleId = useId()
-  const filterId = useId()
-  const [filterText, setFilterText] = useState('')
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
 
   if (rows.length === 0) return null
 
   const breakdown = computeSkillGroupBreakdown(rows, haveSkillKeys)
-  const query = filterText.trim().toLowerCase()
-  const filtered = query
-    ? breakdown.filter((g) => g.skill_group.toLowerCase().includes(query))
-    : breakdown
-
-  function handleToggle(group: string) {
-    const next = selectedGroup === group ? null : group
-    setSelectedGroup(next)
-    onSelectGroup?.(next)
-  }
+  const allSelected = selectedGroup === null
 
   return (
     <section
@@ -77,61 +63,48 @@ export function SkillGroupBreakdown({
         table below to just that group; select it again to clear the filter.
       </p>
 
-      <div className="breakdown-filter">
-        <label htmlFor={filterId} className="breakdown-filter-label">
-          Filter skill groups
-        </label>
-        <input
-          id={filterId}
-          type="search"
-          className="input breakdown-filter-input"
-          value={filterText}
-          placeholder="Filter skill groups…"
-          onChange={(event) => setFilterText(event.target.value)}
-        />
-      </div>
+      <div className="breakdown-chips" role="group" aria-label="Skill groups">
+        <button
+          type="button"
+          className="breakdown-chip"
+          aria-pressed={allSelected}
+          data-selected={allSelected || undefined}
+          onClick={() => onSelectGroup(null)}
+        >
+          {allSelected && (
+            <span aria-hidden="true" className="breakdown-chip-glyph">
+              ✓
+            </span>
+          )}
+          <span className="breakdown-chip-label">All skills</span>
+        </button>
 
-      {filtered.length === 0 ? (
-        <p className="breakdown-empty" role="status">
-          No skill groups match &ldquo;{filterText}&rdquo;.
-        </p>
-      ) : (
-        <ul className="breakdown-list" data-testid="skill-group-breakdown-list">
-          {filtered.map((group) => {
-            const selected = selectedGroup === group.skill_group
-            return (
-              <li key={group.skill_group} className="breakdown-item">
-                <button
-                  type="button"
-                  className="breakdown-entry"
-                  aria-pressed={selected}
-                  data-selected={selected || undefined}
-                  onClick={() => handleToggle(group.skill_group)}
-                >
-                  <span className="breakdown-entry-name">
-                    {group.skill_group}
-                    {selected && (
-                      <span className="breakdown-entry-selected-badge">
-                        <span aria-hidden="true">✓</span> Selected
-                      </span>
-                    )}
-                  </span>
-                  <span className="breakdown-entry-meta">
-                    <span className="breakdown-entry-score">
-                      {group.avg_arbitrage_score === null
-                        ? 'Not scored'
-                        : `avg leverage ${formatNum(group.avg_arbitrage_score)}`}
-                    </span>
-                    <span className="breakdown-entry-havegap">
-                      {haveGapLabel(haveSkillKeys, group.have_skills, group.gap_skills)}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      )}
+        {breakdown.map((group) => {
+          const selected = group.skill_group === selectedGroup
+          return (
+            <button
+              key={group.skill_group}
+              type="button"
+              className="breakdown-chip"
+              aria-pressed={selected}
+              data-selected={selected || undefined}
+              onClick={() => onSelectGroup(selected ? null : group.skill_group)}
+            >
+              {selected && (
+                <span aria-hidden="true" className="breakdown-chip-glyph">
+                  ✓
+                </span>
+              )}
+              <span className="breakdown-chip-label">{group.skill_group}</span>
+              <span className="breakdown-chip-score">
+                {group.avg_arbitrage_score === null
+                  ? 'Not scored'
+                  : `avg leverage ${formatNum(group.avg_arbitrage_score)}`}
+              </span>
+            </button>
+          )
+        })}
+      </div>
     </section>
   )
 }

@@ -364,6 +364,7 @@ function App() {
               <SkillGroupBreakdown
                 rows={rows}
                 haveSkillKeys={haveSkillKeys}
+                selectedGroup={selectedGroup}
                 onSelectGroup={setSelectedGroup}
               />
               <SkillMatrix rows={filteredRows} haveSkillKeys={haveSkillKeys} />
