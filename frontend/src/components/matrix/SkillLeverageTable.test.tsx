@@ -1094,3 +1094,38 @@ describe('<SkillLeverageTable /> regression guard — mobile ≤640px must not l
     expect(availableContentWidthPx).toBeGreaterThanOrEqual(estimatedLongestWordWidthPx)
   })
 })
+
+// ---------------------------------------------------------------------------------------------
+// Spec 032 — SkillLeverageTable drops its own card chrome (`card blueprint elev-md`) so it
+// becomes a flush "band" inside a shared Evidence-card wrapper assembled later in spec 033, and
+// demotes its own heading from <h2> to <h3> (verbatim text unchanged) since it now sits under the
+// Evidence card's own <h2> (Band 1's heading). Rank numbering, leverage-bar normalization, and
+// Status-column gating are all UNCHANGED by this task — covered by the describe blocks above,
+// which must keep passing unmodified.
+// ---------------------------------------------------------------------------------------------
+describe('<SkillLeverageTable /> spec 032 — evidence-band chrome trim', () => {
+  it('does not carry its own card chrome classes on the root section (becomes a flush band inside the shared Evidence card)', () => {
+    const { container } = render(
+      <SkillLeverageTable rows={roleSkillProfileFixture} roleName="Backend" />,
+    )
+
+    const root = container.querySelector('.leverage-root')
+    expect(root).not.toBeNull()
+    const classes = root!.className.split(/\s+/)
+    expect(classes).not.toContain('card')
+    expect(classes).not.toContain('blueprint')
+    expect(classes).not.toContain('elev-md')
+  })
+
+  it('demotes the ranked-table heading to <h3> (level 3, not 2) with the exact same text — it now sits under the Evidence card\'s own <h2>', () => {
+    render(<SkillLeverageTable rows={roleSkillProfileFixture} roleName="Backend" />)
+
+    const headingText = 'Backend — every skill, ranked by leverage'
+    expect(
+      screen.getByRole('heading', { level: 3, name: headingText }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { level: 2, name: headingText }),
+    ).not.toBeInTheDocument()
+  })
+})

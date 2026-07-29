@@ -120,15 +120,20 @@ describe('<SkillMatrix /> demand×scarcity scatter', () => {
     }
   })
 
-  it('points to the ranked table as its numeric alternative (the scatter no longer embeds a table)', async () => {
+  it('does not embed its own table (the full-numbers alternative lives in the sibling <SkillLeverageTable>)', async () => {
     const SkillMatrix = await loadSkillMatrix()
     render(<SkillMatrix rows={roleSkillProfileFixture} />)
 
     // The full-numbers text alternative now lives in the shared <SkillLeverageTable> sibling
     // (tested in SkillLeverageTable.test.tsx) rather than being duplicated inside the scatter.
-    // The scatter must still direct users to it.
+    //
+    // NOTE (spec 032): this test used to also assert the presence of a "Prefer the numbers?
+    // ... figures are in the ranked table below." pointer sentence here. Spec 032 deliberately
+    // DROPS that sentence — once SkillMatrix and SkillLeverageTable become flush bands inside one
+    // shared Evidence card (spec 033), the ranked table is visibly right there and the pointer
+    // sentence is dead copy. That removal is asserted separately, below, in the spec 032 describe
+    // block ("no longer renders the 'Prefer the numbers?' pointer sentence").
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
-    expect(screen.getByText(/figures are in the ranked table below/i)).toBeInTheDocument()
   })
 
   it('respects prefers-reduced-motion: no animation applied when reduce is set', async () => {
@@ -668,5 +673,33 @@ describe('matrix.css spec 021 — token-based glass/metal plot + point treatment
           : bgLiteral.value
       expect(contrastRatio(fgHex, finalBg)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT)
     }
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Spec 032 — SkillMatrix drops its own card chrome (`card blueprint elev-md`) so it becomes a
+// flush "band" inside a shared Evidence-card wrapper assembled later in spec 033, and drops the
+// now-dead "Prefer the numbers? Every skill's figures are in the ranked table below." closing
+// sentence (dead once the table is visibly in the same card). Bubble scaling, banding, legend,
+// axis labels, and click-to-reveal are all UNCHANGED by this task — covered by the describe
+// blocks above, which must keep passing unmodified.
+// ---------------------------------------------------------------------------------------------
+describe('<SkillMatrix /> spec 032 — evidence-band chrome trim', () => {
+  it('does not carry its own card chrome classes on the root section (becomes a flush band inside the shared Evidence card)', async () => {
+    const SkillMatrix = await loadSkillMatrix()
+    render(<SkillMatrix rows={roleSkillProfileFixture} />)
+
+    const root = screen.getByTestId('skill-matrix')
+    const classes = root.className.split(/\s+/)
+    expect(classes).not.toContain('card')
+    expect(classes).not.toContain('blueprint')
+    expect(classes).not.toContain('elev-md')
+  })
+
+  it('no longer renders the "Prefer the numbers?" pointer sentence anywhere in the rendered output', async () => {
+    const SkillMatrix = await loadSkillMatrix()
+    render(<SkillMatrix rows={roleSkillProfileFixture} />)
+
+    expect(screen.queryByText(/Prefer the numbers/i)).not.toBeInTheDocument()
   })
 })
