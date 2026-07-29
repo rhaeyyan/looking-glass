@@ -1,32 +1,43 @@
-// specs/027-skill-group-breakdown-ui.md — RED phase tests for the new <SkillGroupBreakdown />
-// panel. The component (`./SkillGroupBreakdown`) does not exist yet — that is the point: every
-// test below must fail because the module cannot be loaded / the contract does not exist, not
-// because of a typo in this file. Uses the same RED-phase-safe dynamic-import pattern as
-// `SkillMatrix.legendAndReveal.test.tsx` (variable specifier + @vite-ignore) so a missing or
-// incomplete implementation fails per-test with a real assertion instead of aborting file
-// collection outright.
+// specs/031-skill-group-chip-row.md — RED-phase tests for the chip-row rewrite of
+// <SkillGroupBreakdown />. The component currently on disk (./SkillGroupBreakdown) still renders
+// the OLD contract (a vertical <ul> list + <input type="search"> filter + a local `selectedGroup`
+// useState + a "✓ Selected" text badge) — spec 027's shape. This file asserts the NEW contract from
+// spec 031 instead, so every test below is expected to fail against today's implementation: not
+// because of a typo here, but because the chip row, the required `selectedGroup`/`onSelectGroup`
+// props, and the fully-controlled selection model do not exist yet. Uses the same RED-phase-safe
+// dynamic-import pattern as SkillMatrix.legendAndReveal.test.tsx / the prior round of this exact
+// file (variable specifier + @vite-ignore) so an incomplete implementation fails per-test with a
+// real assertion instead of aborting file collection outright.
 //
-// Component contract this task locks in (Magnolia MUST honor):
-//   - Props: `{ rows: RoleSkillRow[]; haveSkillKeys?: Set<string>; onSelectGroup?: (group: string
-//     | null) => void }`. Internally calls `computeSkillGroupBreakdown(rows, haveSkillKeys)`
-//     exactly once — never re-sorts/re-derives the group order.
-//   - Renders nothing (`container.firstChild === null` or equivalent) when `rows` is empty —
-//     matches the same `hasRows` gating App.tsx already applies before SkillMatrix/SkillLeverageTable.
-//   - A controlled `<input type="search">` filters the list by case-insensitive substring match on
-//     `skill_group`.
-//   - Zero matches -> a visible "No skill groups match" message (not a silently empty list).
-//   - The literal "Uncategorized" group renders like any other group in the unfiltered list.
-//   - `haveSkillKeys` undefined -> group entries show "not analyzed yet" wording (or omit the
-//     have/gap line), never coerce null have/gap counts to "0".
-//   - Each group entry is a native, tab-reachable toggle (button) operable via Enter/Space; when
-//     clicked with `onSelectGroup` wired up, calls it with the group name, and re-clicking the
-//     same (now-selected) entry calls it again with `null` (toggle-clears, not one-way).
-//   - No focus trap; the whole mounted tree (list + filter engaged + a group selected) is axe-clean.
+// Component contract this task locks in (Redwood/Magnolia MUST honor):
+//   - Props: `{ rows: RoleSkillRow[]; haveSkillKeys?: Set<string>; selectedGroup: string | null;
+//     onSelectGroup: (group: string | null) => void }`. `selectedGroup`/`onSelectGroup` are now
+//     REQUIRED — selection state lives in App.tsx alone, never inside this component.
+//   - Renders nothing (`container.firstChild === null`) when `rows` is empty — unchanged from spec
+//     027.
+//   - A chip row: `All skills` first, then one chip per `computeSkillGroupBreakdown(rows,
+//     haveSkillKeys)` entry, in that function's own already-sorted order (untouched/re-verified
+//     here — this suite only asserts render order matches whatever the library already returns).
+//   - Every chip is a real `<button>`, `aria-pressed` driven purely by the `selectedGroup` PROP —
+//     never internal state. The single-source-of-truth test below is the landmine the SPEC names by
+//     name: it fails on any implementation that still holds its own `useState`.
+//   - `All skills` always calls `onSelectGroup(null)` on click — a reset, not a toggle. A group chip
+//     toggles: selected -> click -> `onSelectGroup(null)`; unselected -> click -> `onSelectGroup(<its
+//     own group>)`.
+//   - Chip text: group name + `avg leverage N.NN` (existing `formatNum`) or `Not scored` when
+//     `avg_arbitrage_score === null`.
+//   - A non-color selected-state cue (e.g. an `aria-hidden="true"` glyph, or any visible text/DOM
+//     change) beyond `aria-pressed` and any bg/border tint (WCAG 1.4.1 — no color-only encoding).
+//   - The old `<input type="search">` filter and its `Filter skill groups` label are GONE.
+//   - Reduced-motion (no inline transition/animation style) and axe-core conventions carried over
+//     unchanged from the prior round of this file.
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe } from 'jest-axe'
 import type { RoleSkillRow } from '../../lib/supabaseClient'
+import { computeSkillGroupBreakdown } from '../../lib/skillGroupBreakdown'
+import { formatNum } from '../../lib/format'
 
 const SKILL_GROUP_BREAKDOWN_MODULE = './SkillGroupBreakdown'
 async function loadSkillGroupBreakdown() {
@@ -66,208 +77,267 @@ const LANGUAGE_ROWS: RoleSkillRow[] = [
 const UNCATEGORIZED_ROWS: RoleSkillRow[] = [
   row({ skill_name_raw: 'Mystery Skill', skill_key: null, skill_group: null, arbitrage_score: 3 }),
 ]
-const MIXED_ROWS: RoleSkillRow[] = [...CLOUD_ROWS, ...LANGUAGE_ROWS, ...UNCATEGORIZED_ROWS]
+// The one group with no scored member row at all -> avg_arbitrage_score === null -> "Not scored",
+// and (per the library's own, untouched sort) sorts after every scored group.
+const NOT_SCORED_ROWS: RoleSkillRow[] = [
+  row({ skill_name_raw: 'Kubernetes', skill_key: 'kubernetes', skill_group: 'Ops', arbitrage_score: null }),
+]
+const MIXED_ROWS: RoleSkillRow[] = [...CLOUD_ROWS, ...LANGUAGE_ROWS, ...UNCATEGORIZED_ROWS, ...NOT_SCORED_ROWS]
 
 describe('<SkillGroupBreakdown /> gating', () => {
   it('renders nothing when rows is empty (same hasRows gating as SkillMatrix/SkillLeverageTable)', async () => {
     const SkillGroupBreakdown = await loadSkillGroupBreakdown()
-    const { container } = render(<SkillGroupBreakdown rows={[]} />)
+    const { container } = render(
+      <SkillGroupBreakdown rows={[]} selectedGroup={null} onSelectGroup={() => {}} />,
+    )
 
     expect(container.firstChild).toBeNull()
   })
 })
 
-describe('<SkillGroupBreakdown /> list contents', () => {
-  it('renders the literal "Uncategorized" group like any other group in the unfiltered list', async () => {
+describe('<SkillGroupBreakdown /> chip row rendering', () => {
+  it('renders "All skills" first, then one chip per computeSkillGroupBreakdown entry in its existing sorted order', async () => {
     const SkillGroupBreakdown = await loadSkillGroupBreakdown()
-    render(<SkillGroupBreakdown rows={MIXED_ROWS} />)
+    render(<SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup={null} onSelectGroup={() => {}} />)
 
-    expect(screen.getByText('Uncategorized')).toBeInTheDocument()
-    expect(screen.getByText('Cloud')).toBeInTheDocument()
-    expect(screen.getByText('Language')).toBeInTheDocument()
+    // The already-tested library function's own order is the oracle for render order — this suite
+    // never re-derives or re-verifies the sort itself.
+    const expected = computeSkillGroupBreakdown(MIXED_ROWS)
+    const buttons = screen.getAllByRole('button')
+    const labels = buttons.map((b) => b.textContent ?? '')
+
+    expect(labels[0]).toMatch(/All skills/)
+    expect(buttons.length).toBe(expected.length + 1)
+    expected.forEach((group, i) => {
+      expect(labels[i + 1]).toContain(group.skill_group)
+    })
   })
 
-  it('renders group entries in the exact order returned by computeSkillGroupBreakdown (no re-sort)', async () => {
+  it('each group chip shows "avg leverage N.NN" or "Not scored" exactly per avg_arbitrage_score', async () => {
     const SkillGroupBreakdown = await loadSkillGroupBreakdown()
-    render(<SkillGroupBreakdown rows={MIXED_ROWS} />)
+    render(<SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup={null} onSelectGroup={() => {}} />)
 
-    // Cloud (avg 7) > Language (avg 7)... use distinct scores to make the expected order
-    // unambiguous: Language (7) > Cloud (avg of 9,5 = 7)... avoid ties, assert against known order.
-    const buttons = screen.getAllByRole('button', { name: /^(Cloud|Language|Uncategorized)/ })
-    const labels = buttons.map((b) => b.textContent)
-    // Whatever the exact order, it must be internally consistent with descending avg_arbitrage_score
-    // computed by the already-tested data layer: Cloud avg=7, Language avg=7 (tie -> alpha: Cloud
-    // then Language), Uncategorized avg=3 last.
-    expect(labels.join('|')).toMatch(/Cloud.*Language.*Uncategorized/s)
-  })
-})
-
-describe('<SkillGroupBreakdown /> filter text', () => {
-  it('filters the list by case-insensitive substring match on skill_group', async () => {
-    const SkillGroupBreakdown = await loadSkillGroupBreakdown()
-    const user = userEvent.setup()
-    render(<SkillGroupBreakdown rows={MIXED_ROWS} />)
-
-    const filterInput = screen.getByRole('searchbox')
-    await user.type(filterInput, 'cloud')
-
-    expect(screen.getByText('Cloud')).toBeInTheDocument()
-    expect(screen.queryByText('Language')).not.toBeInTheDocument()
-    expect(screen.queryByText('Uncategorized')).not.toBeInTheDocument()
+    const expected = computeSkillGroupBreakdown(MIXED_ROWS)
+    for (const group of expected) {
+      const chip = screen.getByRole('button', { name: new RegExp(`^${group.skill_group}`) })
+      if (group.avg_arbitrage_score === null) {
+        expect(chip.textContent).toMatch(/Not scored/)
+      } else {
+        expect(chip.textContent).toContain(`avg leverage ${formatNum(group.avg_arbitrage_score)}`)
+      }
+    }
   })
 
-  it('shows a visible "No skill groups match" message when the filter matches zero groups (never a silent empty list)', async () => {
+  it('the "Not scored" group (avg_arbitrage_score === null) sorts last, per the library\'s own (untouched) sort', async () => {
     const SkillGroupBreakdown = await loadSkillGroupBreakdown()
-    const user = userEvent.setup()
-    render(<SkillGroupBreakdown rows={MIXED_ROWS} />)
+    render(<SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup={null} onSelectGroup={() => {}} />)
 
-    const filterInput = screen.getByRole('searchbox')
-    await user.type(filterInput, 'zzzznomatch')
+    const expected = computeSkillGroupBreakdown(MIXED_ROWS)
+    const lastExpected = expected[expected.length - 1]
+    // Fixture sanity check, not a re-test of the sort algorithm itself.
+    expect(lastExpected.avg_arbitrage_score).toBeNull()
 
-    expect(screen.getByText(/no skill groups match/i)).toBeInTheDocument()
-  })
-})
-
-describe('<SkillGroupBreakdown /> have/gap "not analyzed yet" handling', () => {
-  it('haveSkillKeys undefined -> renders "not analyzed yet" wording, never coerces null have/gap to 0', async () => {
-    const SkillGroupBreakdown = await loadSkillGroupBreakdown()
-    render(<SkillGroupBreakdown rows={CLOUD_ROWS} />)
-
-    const cloudEntry = screen.getByRole('button', { name: /Cloud/ })
-    expect(within(cloudEntry).queryByText(/^0$/)).not.toBeInTheDocument()
-    expect(cloudEntry.textContent).toMatch(/not analyzed yet/i)
+    const buttons = screen.getAllByRole('button')
+    const lastChip = buttons[buttons.length - 1]
+    expect(lastChip.textContent).toContain(lastExpected.skill_group)
+    expect(lastChip.textContent).toMatch(/Not scored/)
   })
 
-  it('haveSkillKeys provided -> renders numeric have/gap counts (0 is distinguishable from "not analyzed yet")', async () => {
+  it('the old search input and its "Filter skill groups" label are gone', async () => {
     const SkillGroupBreakdown = await loadSkillGroupBreakdown()
-    render(<SkillGroupBreakdown rows={CLOUD_ROWS} haveSkillKeys={new Set(['aws'])} />)
+    render(<SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup={null} onSelectGroup={() => {}} />)
 
-    const cloudEntry = screen.getByRole('button', { name: /Cloud/ })
-    expect(cloudEntry.textContent).not.toMatch(/not analyzed yet/i)
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+    expect(screen.queryByText('Filter skill groups')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Filter skill groups')).not.toBeInTheDocument()
   })
 })
 
-describe('<SkillGroupBreakdown /> group toggle selection (reversible, single-select)', () => {
-  it('clicking a group entry calls onSelectGroup with that group name', async () => {
+describe('<SkillGroupBreakdown /> single source of truth for selection (the landmine)', () => {
+  it('SPEC edge case: aria-pressed is driven purely by the selectedGroup prop, never internal state', async () => {
     const SkillGroupBreakdown = await loadSkillGroupBreakdown()
     const user = userEvent.setup()
     const onSelectGroup = vi.fn()
-    render(<SkillGroupBreakdown rows={MIXED_ROWS} onSelectGroup={onSelectGroup} />)
+    const { rerender } = render(
+      <SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup={null} onSelectGroup={onSelectGroup} />,
+    )
 
-    await user.click(screen.getByRole('button', { name: /Cloud/ }))
+    const cloudChip = screen.getByRole('button', { name: /^Cloud/ })
+    expect(cloudChip).toHaveAttribute('aria-pressed', 'false')
 
+    await user.click(cloudChip)
+
+    // Half 1: the callback fires with the right value...
     expect(onSelectGroup).toHaveBeenCalledWith('Cloud')
-  })
+    // ...but the chip's OWN rendered aria-pressed must NOT have flipped: no new `selectedGroup`
+    // prop has arrived yet (this test double is standing in for App.tsx, which hasn't re-rendered
+    // it). If this assertion fails — aria-pressed flips on click alone — the component still holds
+    // internal selection state and is not actually controlled.
+    expect(
+      screen.getByRole('button', { name: /^Cloud/ }),
+      'aria-pressed flipped after a click with no new selectedGroup prop supplied — the component ' +
+        'still holds internal selection state instead of being fully controlled by the prop.',
+    ).toHaveAttribute('aria-pressed', 'false')
 
-  it('clicking the same (already-selected) group entry again calls onSelectGroup with null (clears, not one-way)', async () => {
-    const SkillGroupBreakdown = await loadSkillGroupBreakdown()
-    const user = userEvent.setup()
-    const onSelectGroup = vi.fn()
-    render(<SkillGroupBreakdown rows={MIXED_ROWS} onSelectGroup={onSelectGroup} />)
-
-    const cloudEntry = screen.getByRole('button', { name: /Cloud/ })
-    await user.click(cloudEntry)
-    await user.click(cloudEntry)
-
-    expect(onSelectGroup).toHaveBeenNthCalledWith(1, 'Cloud')
-    expect(onSelectGroup).toHaveBeenNthCalledWith(2, null)
-  })
-
-  it('reflects the selected group visually/semantically (aria-pressed) on the active entry only', async () => {
-    const SkillGroupBreakdown = await loadSkillGroupBreakdown()
-    const user = userEvent.setup()
-    render(<SkillGroupBreakdown rows={MIXED_ROWS} onSelectGroup={() => {}} />)
-
-    const cloudEntry = screen.getByRole('button', { name: /Cloud/ })
-    const languageEntry = screen.getByRole('button', { name: /Language/ })
-
-    expect(cloudEntry).toHaveAttribute('aria-pressed', 'false')
-    await user.click(cloudEntry)
-    expect(cloudEntry).toHaveAttribute('aria-pressed', 'true')
-    expect(languageEntry).toHaveAttribute('aria-pressed', 'false')
-  })
-
-  it('marks the selected entry with a visible non-color cue, not a color change alone (SPEC Constraints: no color-only encoding, mirrors SkillMatrix\'s own ✓/✕ glyph + aria-label-suffix idiom for the identical requirement)', async () => {
-    // aria-pressed alone does not satisfy this: it is an ARIA *state*, announced to assistive
-    // tech, but conveys nothing to a sighted user who cannot distinguish the border/background
-    // color shift (e.g. color-vision-deficient users) — exactly the WCAG 1.4.1 "use of color"
-    // failure mode CLAUDE.md's Accessibility section calls out for this codebase's data-viz
-    // surfaces, and the SPEC's Constraints field explicitly extends that checklist to this panel
-    // "in full". SkillMatrix already solved this for its own selection-adjacent state with a
-    // visible ✓/✕ glyph and an aria-label suffix (SkillMatrix.test.tsx: "renders a non-color ✓/✕
-    // glyph on every scored scatter point", "suffixes the accessible name with explicit have/gap
-    // wording (not color-only)") — this panel needs the equivalent: some visible text/glyph/label
-    // change on selection, not color (border/background) as the only differentiator.
-    const SkillGroupBreakdown = await loadSkillGroupBreakdown()
-    const user = userEvent.setup()
-    render(<SkillGroupBreakdown rows={MIXED_ROWS} onSelectGroup={() => {}} />)
-
-    const cloudEntry = screen.getByRole('button', { name: /Cloud/ })
-    const unselectedText = cloudEntry.textContent
-    const unselectedName = cloudEntry.getAttribute('aria-label')
-
-    await user.click(cloudEntry)
-
-    const selectedText = cloudEntry.textContent
-    const selectedName = cloudEntry.getAttribute('aria-label')
-    const hasVisibleTextCue = selectedText !== unselectedText
-    const hasAccessibleNameCue = selectedName !== unselectedName
+    // Half 2: now simulate the parent (App.tsx) re-rendering with the new prop, WITHOUT any further
+    // click at all — this only reflects "true" if selection is read purely from the prop.
+    rerender(
+      <SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup="Cloud" onSelectGroup={onSelectGroup} />,
+    )
 
     expect(
-      hasVisibleTextCue || hasAccessibleNameCue,
-      'Selecting a group must add a visible text/glyph cue (or an accessible-name suffix) — ' +
-        'aria-pressed plus a color-only border/background shift is not sufficient non-color ' +
-        'encoding for a sighted, color-vision-deficient user.',
-    ).toBe(true)
+      screen.getByRole('button', { name: /^Cloud/ }),
+      'aria-pressed did not become "true" after re-rendering with selectedGroup="Cloud" and no ' +
+        'click — the component is not reading selection from the prop.',
+    ).toHaveAttribute('aria-pressed', 'true')
   })
+})
 
-  it('a selected group whose member rows include arbitrage_score: null (demand-only) rows is still selectable', async () => {
+describe('<SkillGroupBreakdown /> click behavior', () => {
+  it('"All skills" always calls onSelectGroup(null) — a reset, not a toggle', async () => {
     const SkillGroupBreakdown = await loadSkillGroupBreakdown()
     const user = userEvent.setup()
     const onSelectGroup = vi.fn()
-    const rowsWithDemandOnly: RoleSkillRow[] = [
-      row({ skill_name_raw: 'AWS', skill_key: 'aws', skill_group: 'Cloud', arbitrage_score: 9 }),
-      row({ skill_name_raw: 'Serverless', skill_key: null, skill_group: 'Cloud', arbitrage_score: null }),
-    ]
-    render(<SkillGroupBreakdown rows={rowsWithDemandOnly} onSelectGroup={onSelectGroup} />)
+    render(
+      <SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup="Cloud" onSelectGroup={onSelectGroup} />,
+    )
 
-    await user.click(screen.getByRole('button', { name: /Cloud/ }))
+    await user.click(screen.getByRole('button', { name: /^All skills/ }))
 
-    expect(onSelectGroup).toHaveBeenCalledWith('Cloud')
+    expect(onSelectGroup).toHaveBeenCalledWith(null)
+  })
+
+  it('"All skills" calls onSelectGroup(null) even when nothing is currently selected (idempotent reset, never toggles away from null)', async () => {
+    const SkillGroupBreakdown = await loadSkillGroupBreakdown()
+    const user = userEvent.setup()
+    const onSelectGroup = vi.fn()
+    render(
+      <SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup={null} onSelectGroup={onSelectGroup} />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /^All skills/ }))
+
+    expect(onSelectGroup).toHaveBeenCalledWith(null)
+  })
+
+  it('clicking the already-selected group chip calls onSelectGroup(null) (toggle-clears)', async () => {
+    const SkillGroupBreakdown = await loadSkillGroupBreakdown()
+    const user = userEvent.setup()
+    const onSelectGroup = vi.fn()
+    render(
+      <SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup="Cloud" onSelectGroup={onSelectGroup} />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /^Cloud/ }))
+
+    expect(onSelectGroup).toHaveBeenCalledWith(null)
+  })
+
+  it('clicking a different, not-yet-selected group chip calls onSelectGroup with that group', async () => {
+    const SkillGroupBreakdown = await loadSkillGroupBreakdown()
+    const user = userEvent.setup()
+    const onSelectGroup = vi.fn()
+    render(
+      <SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup="Cloud" onSelectGroup={onSelectGroup} />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /^Language/ }))
+
+    expect(onSelectGroup).toHaveBeenCalledWith('Language')
+  })
+})
+
+describe('<SkillGroupBreakdown /> aria-pressed reflects the selectedGroup prop across chips', () => {
+  it('"All skills" is aria-pressed="true" only when selectedGroup is null', async () => {
+    const SkillGroupBreakdown = await loadSkillGroupBreakdown()
+    const { rerender } = render(
+      <SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup={null} onSelectGroup={() => {}} />,
+    )
+
+    expect(screen.getByRole('button', { name: /^All skills/ })).toHaveAttribute('aria-pressed', 'true')
+
+    rerender(<SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup="Cloud" onSelectGroup={() => {}} />)
+
+    expect(screen.getByRole('button', { name: /^All skills/ })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('exactly one group chip is aria-pressed="true" at a time, matching selectedGroup', async () => {
+    const SkillGroupBreakdown = await loadSkillGroupBreakdown()
+    render(<SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup="Language" onSelectGroup={() => {}} />)
+
+    expect(screen.getByRole('button', { name: /^Cloud/ })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: /^Language/ })).toHaveAttribute('aria-pressed', 'true')
+  })
+})
+
+describe('<SkillGroupBreakdown /> non-color selected-state indicator (WCAG 1.4.1)', () => {
+  it('marks the selected chip with a visible non-color cue, not aria-pressed/color alone', async () => {
+    // aria-pressed alone is an ARIA *state*, announced to assistive tech, but conveys nothing to a
+    // sighted user who cannot distinguish a border/background tint shift (e.g. color-vision-deficient
+    // users) — exactly the WCAG 1.4.1 "use of color" failure mode CLAUDE.md's Accessibility section
+    // calls out, and the SPEC's Constraints explicitly re-authorizes a deviation from the literal
+    // mockup for this one reason. This asserts SOME real DOM/text change accompanies selection: a
+    // dedicated `aria-hidden="true"` glyph element is the SPEC's suggested mechanism ("or similar"),
+    // so this checks generically for either a text-content change or a new aria-hidden marker,
+    // exactly like the precedent this file's header comment points to (SkillMatrix's ✓/✕ glyph).
+    const SkillGroupBreakdown = await loadSkillGroupBreakdown()
+    const { rerender } = render(
+      <SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup={null} onSelectGroup={() => {}} />,
+    )
+
+    const unselectedChip = screen.getByRole('button', { name: /^Cloud/ })
+    const unselectedText = unselectedChip.textContent
+    const unselectedHiddenGlyphCount = unselectedChip.querySelectorAll('[aria-hidden="true"]').length
+
+    rerender(<SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup="Cloud" onSelectGroup={() => {}} />)
+
+    const selectedChip = screen.getByRole('button', { name: /^Cloud/ })
+    const selectedText = selectedChip.textContent
+    const selectedHiddenGlyphCount = selectedChip.querySelectorAll('[aria-hidden="true"]').length
+
+    const hasVisibleTextCue = selectedText !== unselectedText
+    const hasAriaHiddenGlyphCue = selectedHiddenGlyphCount > unselectedHiddenGlyphCount
+
+    expect(
+      hasVisibleTextCue || hasAriaHiddenGlyphCue,
+      'Selecting a chip must add a visible text/glyph cue (e.g. an aria-hidden="true" marker) — ' +
+        'aria-pressed plus a color-only border/background shift is not sufficient non-color ' +
+        'encoding for a sighted, color-vision-deficient user (WCAG 1.4.1).',
+    ).toBe(true)
   })
 })
 
 describe('<SkillGroupBreakdown /> keyboard operability', () => {
-  it('the filter input and every group toggle are tab-reachable', async () => {
+  it('every chip, including "All skills", is tab-reachable', async () => {
     const SkillGroupBreakdown = await loadSkillGroupBreakdown()
     const user = userEvent.setup()
-    render(<SkillGroupBreakdown rows={MIXED_ROWS} onSelectGroup={() => {}} />)
+    render(<SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup={null} onSelectGroup={() => {}} />)
 
-    const filterInput = screen.getByRole('searchbox')
-    const groupButtons = screen.getAllByRole('button', { name: /^(Cloud|Language|Uncategorized)/ })
+    const allChips = screen.getAllByRole('button')
 
     const tabbable = new Set<Element>()
-    for (let i = 0; i < groupButtons.length + 3; i++) {
+    for (let i = 0; i < allChips.length + 2; i++) {
       await user.tab()
       if (document.activeElement && document.activeElement !== document.body) {
         tabbable.add(document.activeElement)
       }
     }
 
-    expect(tabbable.has(filterInput)).toBe(true)
-    for (const button of groupButtons) {
-      expect(tabbable.has(button)).toBe(true)
+    for (const chip of allChips) {
+      expect(tabbable.has(chip)).toBe(true)
     }
   })
 
-  it('a group toggle is operable via the keyboard (Enter activates it, same as a click)', async () => {
+  it('a group chip is operable via the keyboard (Enter activates it, same as a click)', async () => {
     const SkillGroupBreakdown = await loadSkillGroupBreakdown()
     const user = userEvent.setup()
     const onSelectGroup = vi.fn()
-    render(<SkillGroupBreakdown rows={MIXED_ROWS} onSelectGroup={onSelectGroup} />)
+    render(
+      <SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup={null} onSelectGroup={onSelectGroup} />,
+    )
 
-    const cloudEntry = screen.getByRole('button', { name: /Cloud/ })
-    cloudEntry.focus()
+    const cloudChip = screen.getByRole('button', { name: /^Cloud/ })
+    cloudChip.focus()
     await user.keyboard('{Enter}')
 
     expect(onSelectGroup).toHaveBeenCalledWith('Cloud')
@@ -278,21 +348,14 @@ describe('<SkillGroupBreakdown /> keyboard operability', () => {
     const user = userEvent.setup()
     render(
       <div>
-        <SkillGroupBreakdown rows={MIXED_ROWS} onSelectGroup={() => {}} />
+        <SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup={null} onSelectGroup={() => {}} />
         <button>after-panel-sentinel</button>
       </div>,
     )
 
-    // Same Set-based membership idiom as
-    // SkillMatrix.legendAndReveal.test.tsx's "does not add any new focusable elements" test:
-    // record every element that ever receives focus while tabbing forward, rather than asserting
-    // an exact tab-count/landing-position. A fixed "N tabs -> land here" formula is fragile
-    // because it silently depends on how many focusable stops precede the sentinel (here: the
-    // filter input + one button per skill group) *and* on focus-wraparound behavior once the end
-    // of the document's tab order is reached (confirmed by tracing: tabbing far enough cycles
-    // back through the panel's own controls rather than stopping outside them). What actually
-    // proves "no trap" is that the sentinel is reachable at all while cycling forward — not which
-    // absolute tab index reaches it.
+    // Same Set-based membership idiom as SkillMatrix.legendAndReveal.test.tsx's "does not add any
+    // new focusable elements" test: record every element that ever receives focus while tabbing
+    // forward, rather than asserting an exact tab-count/landing-position.
     const focused = new Set<Element>()
     const sentinel = screen.getByRole('button', { name: 'after-panel-sentinel' })
     for (let i = 0; i < 8 && !focused.has(sentinel); i++) {
@@ -305,32 +368,34 @@ describe('<SkillGroupBreakdown /> keyboard operability', () => {
 })
 
 describe('<SkillGroupBreakdown /> reduced motion', () => {
-  it('applies no inline transition/animation style to the selected entry (CSS-only mechanism, respects prefers-reduced-motion)', async () => {
+  it('applies no inline transition/animation style to the selected chip (CSS-only mechanism, respects prefers-reduced-motion)', async () => {
     const SkillGroupBreakdown = await loadSkillGroupBreakdown()
-    const user = userEvent.setup()
-    render(<SkillGroupBreakdown rows={MIXED_ROWS} onSelectGroup={() => {}} />)
+    const { rerender } = render(
+      <SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup={null} onSelectGroup={() => {}} />,
+    )
 
-    const cloudEntry = screen.getByRole('button', { name: /Cloud/ }) as HTMLElement
-    await user.click(cloudEntry)
+    rerender(<SkillGroupBreakdown rows={MIXED_ROWS} selectedGroup="Cloud" onSelectGroup={() => {}} />)
+    const cloudChip = screen.getByRole('button', { name: /^Cloud/ }) as HTMLElement
 
-    expect(cloudEntry.style.transition).toBe('')
-    expect(cloudEntry.style.animation).toBe('')
+    expect(cloudChip.style.transition).toBe('')
+    expect(cloudChip.style.animation).toBe('')
   })
 })
 
 describe('<SkillGroupBreakdown /> accessibility', () => {
-  it('stays axe-clean with the list, filter, and a selection all engaged', async () => {
+  it('stays axe-clean with the chip row rendered and a selection engaged', async () => {
     const SkillGroupBreakdown = await loadSkillGroupBreakdown()
     const user = userEvent.setup()
     const { container } = render(
-      <SkillGroupBreakdown rows={MIXED_ROWS} haveSkillKeys={new Set(['aws'])} onSelectGroup={() => {}} />,
+      <SkillGroupBreakdown
+        rows={MIXED_ROWS}
+        haveSkillKeys={new Set(['aws'])}
+        selectedGroup={null}
+        onSelectGroup={() => {}}
+      />,
     )
 
-    await user.type(screen.getByRole('searchbox'), 'a')
-    const remaining = screen.queryAllByRole('button', { name: /^(Cloud|Language|Uncategorized)/ })
-    if (remaining.length > 0) {
-      await user.click(remaining[0])
-    }
+    await user.click(screen.getByRole('button', { name: /^Cloud/ }))
 
     expect(await axe(container)).toHaveNoViolations()
   })

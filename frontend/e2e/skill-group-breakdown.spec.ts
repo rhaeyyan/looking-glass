@@ -2,21 +2,33 @@ import { expect, test } from '@playwright/test'
 import { gotoRenderedLeverageTable, reportsHover } from './support/app'
 
 /**
- * specs/027-skill-group-breakdown-ui.md — RED-phase oracle for the new SkillGroupBreakdown panel.
+ * specs/027-skill-group-breakdown-ui.md — original oracle for the SkillGroupBreakdown panel
+ * (list + filter + local toggle). specs/031-skill-group-chip-row.md replaces that panel's DOM with
+ * a chip row and makes selection fully controlled by App.tsx; this file is updated to match.
  *
- * `App.tsx` does not yet render this panel, so every test below is expected to fail at the "find
- * the breakdown panel" step (a locator timeout on an element that does not exist) — that is a real
- * red produced by a genuinely missing feature, not a config/setup bug. `gotoRenderedLeverageTable`
- * is reused unmodified from the existing leverage-table oracle so the drive-to-a-rendered-state
- * step is not duplicated here.
+ * `App.tsx` already renders the panel (spec 027 shipped it) — the shape of what's inside it is
+ * what's changing. As of this round, `SkillGroupBreakdown.tsx` itself has NOT been rewritten yet
+ * (that is Redwood/Magnolia's job next), so:
+ *   - the "panel renders" / "narrows rows" / "keyboard operable" tests below still exercise real,
+ *     already-shipped behaviour and may continue to pass against today's list-based markup — the
+ *     button-role locators they use (`getByRole('button', { name: /Uncategorized/ })`) already
+ *     happen to match both the old list-item button and the new chip button, since both are real
+ *     `<button>`s with the group name in their accessible text;
+ *   - the new touch-target-size assertion below is expected to be RED today: the SPEC's
+ *     `@media (pointer: coarse) { padding: 10px 14px }` bump does not exist anywhere in
+ *     `matrix.css` yet, so today's `.breakdown-entry` padding (`0.55rem 0.8rem`, i.e. ~8.8px
+ *     vertical) does not reliably clear a 44px tap target.
  *
- * Verification Oracle (per the SPEC): this file @ mobile-touch-dark + @ desktop-dark. The
- * mobile-touch profile matters because the SPEC requires the group list to be scrollable/bounded
- * for a real 37-value set and touch-target size for the toggle buttons; the desktop profile
- * verifies pointer + keyboard operability of the same controls.
+ * Verification Oracle (per spec 031): this file @ desktop-light (chip interaction narrows
+ * SkillMatrix/SkillLeverageTable row counts) and @ mobile-touch-dark (new: every chip's rendered
+ * bounding-box height is >= 44px under this profile's `pointer: coarse`, per README's mobile
+ * section). `gotoRenderedLeverageTable` is reused unmodified from the existing leverage-table
+ * oracle so the drive-to-a-rendered-state step is not duplicated here.
  */
 
 const BREAKDOWN_TESTID = 'skill-group-breakdown'
+const TOUCH_TARGET_PROJECT = 'mobile-touch-dark'
+const MIN_TOUCH_TARGET_PX = 44
 
 test('the oracle reports the pointer capability its project name claims', async ({ page }, info) => {
   await page.goto('/')
@@ -34,10 +46,8 @@ test.describe('SkillGroupBreakdown panel — cross-component filter interaction'
   test('the panel renders between the scorecard and the matrix/table once results load', async ({ page }) => {
     await gotoRenderedLeverageTable(page)
 
-    // This is expected to fail today: App.tsx does not render a SkillGroupBreakdown panel yet, so
-    // this locator never becomes visible. That is the intended red — a missing feature, not a
-    // broken selector or a stale stub (gotoRenderedLeverageTable already proves the rest of the
-    // primary flow works, since it is shared with the passing leverage-table oracle).
+    // spec 027 already shipped this panel; spec 031 only changes what's inside it (list -> chip
+    // row), so this locator is expected to keep passing across both rounds.
     await expect(page.getByTestId(BREAKDOWN_TESTID)).toBeVisible({ timeout: 5_000 })
   })
 
@@ -81,18 +91,38 @@ test.describe('SkillGroupBreakdown panel — cross-component filter interaction'
     await expect(uncategorizedEntry).toHaveAttribute('aria-pressed', 'true')
   })
 
-  test('a scrollable list wrapper bounds the panel height (never an unbounded page-length dump)', async ({
-    page,
-  }) => {
+  // The old "a scrollable list wrapper bounds the panel height" test lived here (spec 027). Spec
+  // 031 deliberately removes the scrollable `data-testid="skill-group-breakdown-list"` container
+  // it asserted on — a wrapping chip row replaces the bounded-height list, so there is nothing
+  // left to scroll-bound. This is an intentional, SPEC-documented removal, not a silent drop (see
+  // specs/031-skill-group-chip-row.md's Verification Oracle section).
+})
+
+test.describe('SkillGroupBreakdown panel — touch target size (spec 031)', () => {
+  test('every chip clears the 44px minimum touch-target height on a coarse pointer', async ({ page }, info) => {
+    test.skip(
+      info.project.name !== TOUCH_TARGET_PROJECT,
+      `this assertion is scoped to the ${TOUCH_TARGET_PROJECT} profile per the SPEC's Verification Oracle`,
+    )
+
     await gotoRenderedLeverageTable(page)
 
     const panel = page.getByTestId(BREAKDOWN_TESTID)
     await expect(panel).toBeVisible({ timeout: 5_000 })
 
-    const overflowY = await panel.evaluate((el) => {
-      const scrollable = el.querySelector('[data-testid="skill-group-breakdown-list"]') ?? el
-      return getComputedStyle(scrollable).overflowY
-    })
-    expect(['auto', 'scroll']).toContain(overflowY)
+    const chips = panel.getByRole('button')
+    const chipCount = await chips.count()
+    expect(chipCount, 'expected at least one chip ("All skills" plus one per skill group)').toBeGreaterThan(0)
+
+    for (let i = 0; i < chipCount; i++) {
+      const box = await chips.nth(i).boundingBox()
+      expect(box, `chip ${i} has no bounding box (not rendered/visible)`).not.toBeNull()
+      expect(
+        box!.height,
+        `chip ${i} ("${await chips.nth(i).innerText()}") is ${box!.height}px tall — below the ` +
+          `${MIN_TOUCH_TARGET_PX}px minimum touch target (README mobile section; matrix.css must ` +
+          'bump chip padding under @media (pointer: coarse)).',
+      ).toBeGreaterThanOrEqual(MIN_TOUCH_TARGET_PX)
+    }
   })
 })
