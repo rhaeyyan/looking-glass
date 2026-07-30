@@ -949,10 +949,19 @@
 
 /* ---------- Seniority framing note (spec 029) ----------
  * Rendered directly inside App.tsx's global `.lg-results-head`, OUTSIDE any `.matrix-root` /
- * `.narration-root` wrapper — so it reads off the app-global --color-*/--radius-md tokens (same
- * family App.tsx's own inline styles already use for tags/cards), not the matrix-scoped --text-*
- * custom properties declared at the top of this file, which only exist inside those root classes.
- * No transition/animation here (SPEC Constraints: none needed for a plain sentence).
+ * `.narration-root` wrapper — so it reads off the app-global --color-* and --radius-md tokens
+ * (same family App.tsx's own inline styles already use for tags/cards), not the matrix-scoped
+ * --text-* custom properties declared at the top of this file, which only exist inside those root
+ * classes. No transition/animation here (SPEC Constraints: none needed for a plain sentence).
+ *
+ * spec 036 fix: the previous wording here wrote the two token references back-to-back as
+ * `--color-*/--radius-md`, whose literal `*/` prematurely closed THIS comment — every rule after
+ * it (seniority-note, filter-status-bar, topmoves-list's own listed styles below, and this file's
+ * entire compare-mode section at the bottom) silently failed to parse in the dev server's
+ * unminified inline `<style>` tag (production `vite build` strips comments before this could ever
+ * bite there, which is why nothing had caught it). Confirmed via
+ * `document.styleSheets[…].cssRules` in a real Playwright/Chromium context — this was never
+ * visible to jsdom-based vitest, which never parses/applies CSS at all.
  */
 .seniority-note {
   margin: 0.6rem 0 0;
@@ -1066,4 +1075,69 @@
       border-color 160ms ease,
       color 160ms ease;
   }
+}
+
+/* ---------- Spec 036: Compare roles (toggle, "+ third role" control, multi-slot grid) ----------
+ * These rules apply globally (this file is statically imported through App.tsx's component
+ * chain, so it is loaded regardless of whether any panel — or compare mode — is currently
+ * rendered). `.lg-compare-toggle`/`.lg-add-third-role` intentionally set no `color`/`accent-color`
+ * of their own: this file's glass-v2-tokens guard (spec 018) forbids matrix.css from referencing
+ * looking-glass.css's text/accent token layer by name, and these controls live in App.tsx's Step 1
+ * sidebar card — outside `.matrix-root`/`.filter-status-root`/etc., so none of THIS file's own
+ * locally-scoped tokens reach them either. Both inherit the ambient body text color and the
+ * browser's native checkbox tint, which already reads as part of one system since nothing here
+ * overrides it with a clashing color. */
+
+.lg-compare-toggle-field {
+  margin-bottom: 4px;
+}
+
+.lg-compare-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lg-compare-toggle input[type='checkbox'] {
+  width: 1.05rem;
+  height: 1.05rem;
+  cursor: pointer;
+}
+
+.lg-add-third-role {
+  margin: 4px 0 12px;
+}
+
+/* Each active slot's panel-level container. `auto-fit`/`minmax` mirrors the existing
+ * `.topmoves-list` grid idiom already established in this file — reused, not re-invented — and
+ * collapses to one column at the same 520px breakpoint `.topmoves-list` already uses (the
+ * SPEC's "existing mobile breakpoint"), well above the touch-oracle's ~412px viewport, so stacked
+ * slots on a phone are indistinguishable in cause from a narrow desktop window. */
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 20px;
+  align-items: start;
+  min-width: 0;
+}
+
+@media (max-width: 520px) {
+  .compare-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* The per-slot landmark (`<section aria-label="… comparison column">`). No border/background of
+ * its own — it exists purely to give a screen-reader user a landmark to tell panels apart where
+ * per-component headings repeat verbatim across panels; the visible panel chrome is still each
+ * child card's own `.card.blueprint`. */
+.compare-column {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
 }

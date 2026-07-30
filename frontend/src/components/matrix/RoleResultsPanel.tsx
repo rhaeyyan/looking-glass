@@ -33,6 +33,12 @@ export interface RoleResultsPanelProps {
   topGaps: RolePanelTopGaps | undefined
   selectedGroup: string | null
   setSelectedGroup: (group: string | null) => void
+  // spec 036: required (not optional) — the single-panel call site in App.tsx passes `false`
+  // explicitly, so there is never an ambiguous "was this just forgotten" state. When `true`, the
+  // no-gaps status paragraph's `aria-label` is qualified with `role`, and `role` is threaded down
+  // to `FilterStatusBar` as `roleName` — both gated so the already-audited compareMode === false
+  // path stays byte-identical to specs 035/037's shipped shape.
+  compareMode: boolean
 }
 
 /**
@@ -52,6 +58,7 @@ export function RoleResultsPanel({
   topGaps,
   selectedGroup,
   setSelectedGroup,
+  compareMode,
 }: RoleResultsPanelProps) {
   const analyzed = haveSkillKeys !== undefined
 
@@ -142,7 +149,7 @@ export function RoleResultsPanel({
               {showNoGaps && (
                 <p
                   role="status"
-                  aria-label="Skill gap result"
+                  aria-label={compareMode ? `Skill gap result — ${role}` : 'Skill gap result'}
                   style={{ fontSize: '14px', opacity: 0.8, margin: 0 }}
                 >
                   {NO_GAPS_MESSAGE}
@@ -165,6 +172,7 @@ export function RoleResultsPanel({
           filteredCount={filteredRows.length}
           totalCount={rows.length}
           onClear={() => setSelectedGroup(null)}
+          roleName={compareMode ? role : undefined}
         />
         <SkillMatrix rows={filteredRows} haveSkillKeys={haveSkillKeys} />
         <SkillLeverageTable rows={filteredRows} haveSkillKeys={haveSkillKeys} roleName={role} />

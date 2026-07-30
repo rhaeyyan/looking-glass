@@ -21,11 +21,16 @@ export function FilterStatusBar({
   filteredCount,
   totalCount,
   onClear,
+  roleName,
 }: {
   selectedGroup: string | null
   filteredCount: number
   totalCount: number
   onClear: () => void
+  // spec 036: optional, mirrors SkillLeverageTable's existing `roleName` prop naming. Provided
+  // (non-empty) only by RoleResultsPanel when compareMode is true — every other/earlier call site
+  // omits it, so the base "Skill filter status" label is unchanged there.
+  roleName?: string
 }) {
   const isFiltered = selectedGroup !== null
 
@@ -34,7 +39,7 @@ export function FilterStatusBar({
       className="filter-status-root filter-status-bar"
       role="status"
       aria-live="polite"
-      aria-label="Skill filter status"
+      aria-label={roleName ? `Skill filter status — ${roleName}` : 'Skill filter status'}
       data-filtered={isFiltered || undefined}
     >
       {isFiltered ? (

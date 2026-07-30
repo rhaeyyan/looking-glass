@@ -70,9 +70,35 @@
   **not to chase it now**: unreproduced, so per this project's own routing rules it's UNKNOWN, not
   fix-ready — a future SPIKE should produce a reproduction (a test that deliberately races the two
   events) before anyone specs a fix. Left out of spec 035's audit scope; not a regression.
-- **Next**: dispatch Cypress to audit spec 035 (out of scope: the pre-existing hydration race
-  above). If it passes, commit/push, then spec 036 can start — remembering it needs its own revision
-  pass for per-panel-qualified accessible names before its own audit.
+- Spec 035 audit **PASS** (hand-traced the isolation guard rather than trusting the test; confirmed
+  the pre-existing hydration race really is pre-existing by tracing it into the old code too).
+  Committed/pushed (`ecb46e0`).
+- Cedar's spec-036 revision pass (as flagged) found a real bug in its own original draft, not just
+  the anticipated a11y gap: `useRolePanel(roleSlot[i])`'s argument only seeds state once
+  (`useState(initialValue)`) — as originally drafted, slots 1/2 would never have actually refetched
+  on role change. Fixed by routing every slot's role change through that slot's own `loadRole()`,
+  mirroring `handleRoleChange`'s pattern. Also expanded the accessible-name fix beyond the two
+  originally-flagged labels — found 2 more colliding `role="status"`/`"alert"` elements in `App.tsx`
+  itself, plus added a `<section aria-label>` landmark wrapper to address a broader
+  heading-duplication issue spec 037's narrow fix didn't cover. Human approved as-is.
+- Cypress red → Magnolia green for spec 036 (Compare-mode toggle, up to 3 role-slot panels, one
+  shared resume). Magnolia found and fixed one real, unrelated bug en route: a stray `*/` inside a
+  `matrix.css` comment was silently truncating CSSOM parsing for everything after it in the file —
+  invisible to vitest/jsdom (never parses CSS), only caught by checking real Chromium rendering.
+  3/24 e2e failures traced to a strict-mode locator ambiguity in Cypress's own test (a skill name
+  legitimately renders in 5 elements per panel); sent back to Cypress, who scoped the locator to
+  `SkillLeverageTable`'s unique `role="rowheader"` — fixed without touching implementation.
+- Combined audit **PASS**: 749/749 vitest, 119 passed/9 expected-skipped e2e (re-confirmed fresh in
+  this checkout after a stop-hook prompt), zero regression across specs 033-037's e2e suites, zero
+  Bounded-AI/security concern. One non-blocking finding, explicitly out of scope: an ad hoc
+  `axe-core` spot-check found a pre-existing `scrollable-region-focusable` violation on
+  `SkillLeverageTable`'s scroll wrapper (present in both compare and single-panel mode, not a
+  regression, outside this task's file scope) — worth a future ticket.
+- **Next**: commit/push spec 036. Recommendation candidates #1 (manual "confirm your skills"
+  checkbox, OBSERVABLE) and #2 (effort/time-to-competency tag, INVARIANT) and #3 (deepen
+  weak-coverage-role data, UNKNOWN/SPIKE) from the original career-changer review are still
+  unstarted. The `scrollable-region-focusable` finding above is a candidate for a small follow-up
+  ticket whenever picked up.
 
 ---
 
