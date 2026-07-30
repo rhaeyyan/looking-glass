@@ -94,11 +94,20 @@
   `axe-core` spot-check found a pre-existing `scrollable-region-focusable` violation on
   `SkillLeverageTable`'s scroll wrapper (present in both compare and single-panel mode, not a
   regression, outside this task's file scope) — worth a future ticket.
-- **Next**: commit/push spec 036. Recommendation candidates #1 (manual "confirm your skills"
-  checkbox, OBSERVABLE) and #2 (effort/time-to-competency tag, INVARIANT) and #3 (deepen
-  weak-coverage-role data, UNKNOWN/SPIKE) from the original career-changer review are still
-  unstarted. The `scrollable-region-focusable` finding above is a candidate for a small follow-up
-  ticket whenever picked up.
+- Spec 036 committed/pushed (`5c76d6b`). Dispatched Cedar on recommendation #2 (effort/
+  time-to-competency tag). Cedar checked every accepted and previously-rejected dataset for a
+  learning-duration/difficulty signal and found none — D1/D2/D3 measure hiring-market demand and
+  scarcity only, and D1's `median_days_open` (the closest near-miss) measures hiring friction, not
+  learning difficulty, and can't be used as a proxy without conflating the two. Refused to
+  fallback to a hand-curated table (e.g. "Kubernetes = 3 months"), reasoning that a human-authored
+  guess violates the same "every number traceable to real data" identity as an LLM-guessed one
+  would. **Verdict: REJECTED, no SPEC, no code** — same resolution pattern as the dropped Coursera
+  and arshkon evaluations. Appended to `data/dataset-evaluations.md`.
+- **Next**: commit the dataset-evaluations.md addition (docs-only). Recommendation candidates #1
+  (manual "confirm your skills" checkbox, OBSERVABLE) and #3 (deepen weak-coverage-role data,
+  UNKNOWN/SPIKE) from the original career-changer review are still unstarted. The
+  `scrollable-region-focusable` finding on `SkillLeverageTable` (found during spec 036's audit) is
+  a candidate for a small follow-up ticket whenever picked up.
 
 ---
 

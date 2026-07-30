@@ -359,3 +359,74 @@ today, not just a technicality**:
 
 Not reviving the original "role expansion" framing from README's V2 candidate list — that's
 closed by the tech/non-tech title-skew finding above, independent of pull freshness.
+
+---
+
+## Effort / time-to-competency tag per skill gap — feature evaluation, no dataset
+
+- **Evaluated**: 2026-07-30
+- **Requested by**: human reviewer (senior-level career-changer persona) — "add a rough 2-weeks
+  vs. 6-months effort tag next to each ranked gap, so leverage isn't the only signal." Routed by
+  Pine as INVARIANT (a wrong effort estimate sits on screen looking plausible and misleads a real
+  decision, same silent-failure shape as a wrong `arbitrage_score`).
+- **Files checked**: `data/schema-notes.md` (D1/D2/D3 full column lists), this doc's existing
+  entries for the AI Requirements Index / synthetic ai_job_market files / arshkon LinkedIn set,
+  and `ARCHIVED_SESSIONS.md`'s round-3 record of the dropped Coursera (D4) evaluation.
+- **Verdict: REJECTED — not viable within V1/V2's zero-guess data discipline. No code written,
+  nothing to revert.**
+
+### Why this is a different measurement than anything currently in the app
+
+D1, D2, and D3 all measure **hiring-market demand and scarcity** — how many postings mention a
+skill, how long employers struggle to fill it, salary premium, repost rate. "Time for a human to
+learn skill X" is a **pedagogical/curriculum** measurement; nothing in any accepted dataset's
+column list encodes it, not even approximately.
+
+**The near-miss that must not be conflated**: D1's `median_days_open` measures how long a *role
+requiring this skill* sits open before being filled — hiring friction, driven by employer search
+cost and candidate scarcity. It says nothing about how long a *learner* takes to acquire the
+skill. A skill can show a high `median_days_open` because it's genuinely hard to learn, or
+because it's new enough that supply hasn't caught up yet, or because employers are picky for
+unrelated reasons — the field can't distinguish these, and no formula derived from it can either.
+Using it as an effort proxy would silently repackage a hiring-difficulty number as a
+learning-difficulty number under a label the user would reasonably trust.
+
+### Checked against the two previously-rejected candidates for a leftover signal
+
+- **Coursera (D4)**: its 2026-07-24 evaluation (see `ARCHIVED_SESSIONS.md` round 3) recorded no
+  duration/difficulty column in its reasoning at all — the rejection was vocabulary-match ceiling
+  (33/141 exact, 83/141 = 58.9% with a hand-curated alias table) and course/`Subject`-grain
+  mismatch, not a duration field left on the table. There is no unused signal here to revive for
+  this feature even if D4 were reopened for its original purpose.
+- **arshkon LinkedIn postings set**: `postings.csv` carries `formatted_experience_level` (the
+  seniority an *employer* requires for the role) and free-text `description`, but no course
+  length, certification duration, or any per-skill learning-time field. Its skill join
+  (`job_skills.csv` → 36-value `skill_abr`) is already rejected as a job-function taxonomy, not a
+  skill vocabulary — see this doc's existing entry above.
+
+### Why a hand-curated table is rejected, not offered as a fallback
+
+Per CLAUDE.md's Bounded-AI discipline ("never let an LLM calculate the arbitrage score, a gap, a
+join, or any ranking") and the README's "every number... comes straight from real, public
+hiring-market research, not an AI model's opinion, not a guess," a manually authored
+"Kubernetes = 3 months" lookup table would violate the same identity even with zero LLM calls
+involved — it is an invented number sitting beside numbers that are traceable to source CSVs, and
+it fails exactly like a bad score would: silently, looking equally plausible whether right or
+wrong. This is rejected on the same grounds as an LLM-guessed score, not merely deprioritized.
+
+### What would make this viable in a future version
+
+A real, licensed, **per-skill-grain** (not per-course, not per-`Subject`) learning-duration
+dataset — e.g., aggregated time-to-certification/time-to-competency figures across multiple
+providers, not one vendor's arbitrary self-reported course length — that also clears a defensible
+vocabulary-match rate against the 141-skill core. Naming drift is the likely failure point again
+(Coursera's expanded-form names vs. this project's acronym-heavy vocabulary), especially for
+modern GenAI/cloud-native skills. No such dataset is currently in `data/raw/` or has been located.
+Genuinely uncertain whether one exists publicly at the rigor this project requires — worth
+recording as a real open question rather than searching indefinitely on each re-ask.
+
+### Park conditions
+
+None currently known. Re-open only if a **named, specific** dataset candidate surfaces meeting
+the per-skill grain + real-observation (not single-vendor-authored) bar above — evaluate it with
+the same live vocabulary-join test Coursera got before writing any SPEC.
