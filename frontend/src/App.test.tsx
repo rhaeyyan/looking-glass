@@ -461,7 +461,13 @@ describe('<App /> top-gap narration (spec 005)', () => {
     await screen.findByRole('table')
 
     expect(screen.queryByRole('region', { name: /Rust/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('status', { name: '' })).not.toBeInTheDocument()
+    // spec 037: narration's own status region (named "Skill gap result") must be absent, while
+    // FilterStatusBar's own status region (named "Skill filter status") mounts unconditionally
+    // and is present and independently addressable — this documents the new reality (two
+    // simultaneously-mountable, distinctly-named status regions) rather than the coincidental
+    // pass an unnamed `{name: ''}` query would produce.
+    expect(screen.queryByRole('status', { name: 'Skill gap result' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status', { name: 'Skill filter status' })).toBeInTheDocument()
     expect(screen.queryByText(NO_GAPS_MESSAGE)).not.toBeInTheDocument()
   })
 
@@ -512,15 +518,20 @@ describe('<App /> top-gap narration (spec 005)', () => {
 
     // Query by role="status" directly (not just matching text) — the "distinct, positive
     // role=status message" requirement is about the ARIA role, not merely the text existing
-    // somewhere in the DOM.
-    const status = await screen.findByRole('status', { name: '' })
+    // somewhere in the DOM. spec 037: named "Skill gap result" so it is distinguishable from
+    // FilterStatusBar's own, separately-named status region mounted alongside it.
+    const status = await screen.findByRole('status', { name: 'Skill gap result' })
     expect(status).toHaveTextContent(NO_GAPS_MESSAGE)
     expect(screen.queryByRole('region', { name: /Rust/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: /PostgreSQL/i })).not.toBeInTheDocument()
 
-    // Exactly one role="status" region exists (the "no gaps" message) — no stray extraction
-    // loading status lingers, since spec 006's extractResumeSkills has no pending state at all.
-    expect(screen.getAllByRole('status')).toHaveLength(1)
+    // spec 037: FilterStatusBar's own status region coexists, independently addressable by name.
+    expect(screen.getByRole('status', { name: 'Skill filter status' })).toBeInTheDocument()
+
+    // Exactly two role="status" regions exist (the "no gaps" message + FilterStatusBar) — no
+    // stray extraction loading status lingers, since spec 006's extractResumeSkills has no
+    // pending state at all, and no third status region has crept in.
+    expect(screen.getAllByRole('status')).toHaveLength(2)
   })
 
   it('replaces (never stacks) the narration when re-submitting a new resume under the same role', async () => {
@@ -683,10 +694,10 @@ describe('<App /> results-column empty + loading states (spec 009)', () => {
     expect(screen.getAllByRole('status')).toHaveLength(1)
 
     const results = container.querySelector('.lg-results') as HTMLElement
-    // At least 3 distinct shaped placeholders (scorecard/scatter/table stand-ins per the SPEC),
-    // none of them exposed to the accessibility tree as real content.
+    // Exactly 2 distinct shaped placeholders (132px + 560px stand-ins per spec 033), none of them
+    // exposed to the accessibility tree as real content.
     const skeletonBlocks = results.querySelectorAll('.lg-skeleton-block')
-    expect(skeletonBlocks.length).toBeGreaterThanOrEqual(3)
+    expect(skeletonBlocks.length).toBe(2)
 
     // Reuses the card/blueprint visual language rather than a new visual idiom.
     expect(results.querySelectorAll('.card.blueprint').length).toBeGreaterThanOrEqual(1)
@@ -706,7 +717,8 @@ describe('<App /> results-column empty + loading states (spec 009)', () => {
     await screen.findByRole('status')
 
     const resultsWhileLoading = container.querySelector('.lg-results') as HTMLElement
-    expect(resultsWhileLoading.querySelectorAll('.lg-skeleton-block').length).toBeGreaterThanOrEqual(3)
+    // Exactly 2 shaped placeholders (132px + 560px stand-ins per spec 033).
+    expect(resultsWhileLoading.querySelectorAll('.lg-skeleton-block').length).toBe(2)
 
     settle([makeRow({ skill_name_raw: 'PostgreSQL' })])
     await screen.findByRole('table')

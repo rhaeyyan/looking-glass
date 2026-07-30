@@ -11,6 +11,7 @@ import { savePersistedState, loadPersistedState, clearPersistedState } from './l
 import { SkillMatrix } from './components/matrix/SkillMatrix'
 import { SkillLeverageTable } from './components/matrix/SkillLeverageTable'
 import { SkillGroupBreakdown } from './components/matrix/SkillGroupBreakdown'
+import { FilterStatusBar } from './components/matrix/FilterStatusBar'
 import { TopGapNarration } from './components/matrix/TopGapNarration'
 import { SeniorityFraming } from './components/matrix/SeniorityFraming'
 
@@ -382,78 +383,85 @@ function App() {
 
           {status === 'loading' && (
             <div className="lg-skeleton" aria-hidden="true">
-              <div className="card blueprint elev-sm lg-skeleton-block lg-skeleton-scorecard" aria-hidden="true" />
-              <div className="card blueprint elev-sm lg-skeleton-block lg-skeleton-scatter" aria-hidden="true" />
-              <div className="card blueprint elev-sm lg-skeleton-block lg-skeleton-table" aria-hidden="true" />
+              <div className="card blueprint elev-sm lg-skeleton-block lg-skeleton-standing" aria-hidden="true" />
+              <div className="card blueprint elev-sm lg-skeleton-block lg-skeleton-evidence" aria-hidden="true" />
             </div>
           )}
 
           {hasRows && (
-            <header className="lg-results-head">
-              <span className="card-kicker">Target role</span>
-              <div className="lg-summary-tags">
-                <span
-                  className="tag tag-accent"
-                  style={{ fontFamily: 'var(--font-heading)', fontSize: '13px', padding: '5px 13px' }}
-                >
-                  {selectedRole}
-                </span>
-                <span className="tag tag-neutral">
-                  {scoredCount} of {rows.length} scored
-                </span>
-                {topMove && (
-                  <span className="tag tag-outline">
-                    Start here: {topMove.skill_name_raw}
-                    {topMove.arbitrage_score !== null && ` · leverage ${formatNum(topMove.arbitrage_score)}`}
+            <section className="card blueprint elev-md standing-root">
+              <header className="lg-results-head">
+                <span className="card-kicker">Target role</span>
+                <h2 className="lg-role-heading">{selectedRole}</h2>
+                <div className="lg-summary-tags">
+                  <span className="tag tag-neutral">
+                    {scoredCount} of {rows.length} scored
                   </span>
-                )}
-              </div>
-              <SeniorityFraming note={seniorityNote} />
-            </header>
-          )}
+                  {topMove && (
+                    <span className="tag tag-outline">
+                      Start here: {topMove.skill_name_raw}
+                      {topMove.arbitrage_score !== null &&
+                        ` · leverage ${formatNum(topMove.arbitrage_score)}`}
+                    </span>
+                  )}
+                </div>
+                <SeniorityFraming note={seniorityNote} />
+              </header>
 
-          {analyzed && (
-            <section className="card blueprint elev-sm lg-scorecard lg-fade">
-              <div className="lg-donut-wrap">
-                <div className="lg-donut" style={{ background: donutGradient }} aria-hidden="true">
-                  <div className="lg-donut-hole">
-                    <div className="lg-donut-pct">{havePct}%</div>
-                    <div className="lg-donut-label">ready</div>
+              {analyzed && (
+                <div className="lg-scorecard lg-fade">
+                  <div className="lg-donut-wrap">
+                    <div className="lg-donut" style={{ background: donutGradient }} aria-hidden="true">
+                      <div className="lg-donut-hole">
+                        <div className="lg-donut-pct">{havePct}%</div>
+                        <div className="lg-donut-label">ready</div>
+                      </div>
+                    </div>
+                    <div className="lg-donut-legend">
+                      <div>
+                        <span className="lg-swatch" style={{ background: 'var(--have)' }} />
+                        Already have {haveCount}
+                      </div>
+                      <div>
+                        <span className="lg-swatch" style={{ background: 'var(--learn)' }} />
+                        Worth learning {gapCount}
+                      </div>
+                      <div>
+                        <span className="lg-swatch" style={{ background: 'var(--color-neutral-400)' }} />
+                        Not scored yet {unscoredCount}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="lg-scorecard-narration">
+                    {topGaps && <TopGapNarration moves={topGaps.moves} />}
+                    {showNoGaps && (
+                      <p
+                        role="status"
+                        aria-label="Skill gap result"
+                        style={{ fontSize: '14px', opacity: 0.8, margin: 0 }}
+                      >
+                        {NO_GAPS_MESSAGE}
+                      </p>
+                    )}
                   </div>
                 </div>
-                <div className="lg-donut-legend">
-                  <div>
-                    <span className="lg-swatch" style={{ background: 'var(--have)' }} />
-                    Already have {haveCount}
-                  </div>
-                  <div>
-                    <span className="lg-swatch" style={{ background: 'var(--learn)' }} />
-                    Worth learning {gapCount}
-                  </div>
-                  <div>
-                    <span className="lg-swatch" style={{ background: 'var(--color-neutral-400)' }} />
-                    Not scored yet {unscoredCount}
-                  </div>
-                </div>
-              </div>
-              <div className="lg-scorecard-narration">
-                {topGaps && <TopGapNarration moves={topGaps.moves} />}
-                {showNoGaps && (
-                  <p role="status" style={{ fontSize: '14px', opacity: 0.8, margin: 0 }}>
-                    {NO_GAPS_MESSAGE}
-                  </p>
-                )}
-              </div>
+              )}
             </section>
           )}
 
           {hasRows && (
-            <>
+            <div className="card blueprint elev-md evidence-root">
               <SkillGroupBreakdown
                 rows={rows}
                 haveSkillKeys={haveSkillKeys}
                 selectedGroup={selectedGroup}
                 onSelectGroup={setSelectedGroup}
+              />
+              <FilterStatusBar
+                selectedGroup={selectedGroup}
+                filteredCount={filteredRows.length}
+                totalCount={rows.length}
+                onClear={() => setSelectedGroup(null)}
               />
               <SkillMatrix rows={filteredRows} haveSkillKeys={haveSkillKeys} />
               <SkillLeverageTable
@@ -461,7 +469,7 @@ function App() {
                 haveSkillKeys={haveSkillKeys}
                 roleName={selectedRole}
               />
-            </>
+            </div>
           )}
         </div>
       </main>

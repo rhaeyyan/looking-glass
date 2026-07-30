@@ -65,6 +65,15 @@
   padding: 10px 20px 20px;
 }
 
+/* Spec 033: the Evidence card's outer wrapper — App.tsx renders this as the shared glass card
+ * (`card blueprint elev-md evidence-root`) framing the four flush bands above/below
+ * (breakdown/filter-status/matrix/leverage). `overflow: hidden` clips any band's content
+ * (e.g. the matrix plot) to the card's own rounded corners rather than letting it square off the
+ * shared radius at the edges. */
+.evidence-root {
+  overflow: hidden;
+}
+
 /* Dark theme: applied both by system preference and by the in-app toggle stamping
  * data-theme="dark" on <html> (mirrors looking-glass.css's pattern). The explicit toggle must win
  * over the system default in both directions:
@@ -771,6 +780,13 @@
   background: var(--series-1);
   color: #fff;
   border-color: var(--series-1);
+}
+
+/* Spec 033: a subtle tint on the #1 move's own card border (distinct from the rank badge's fill
+ * above), so the top move reads as a rank-ordered position, not color-only — the rank badge's `1`
+ * text/fill and the "Start here" tag elsewhere already carry the meaning; this is reinforcement. */
+.topmove[data-rank='1'] {
+  border-color: color-mix(in srgb, var(--series-1) 45%, var(--border));
 }
 
 .topmove-name {

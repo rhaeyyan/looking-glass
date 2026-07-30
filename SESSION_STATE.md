@@ -31,9 +31,28 @@
   (a SPEC wording tightening, an optional dedicated fetch-once assertion) — not actioned this round.
 - Full suite green: 746/746 vitest, 67 passed/9 expected-skipped e2e (all 4 profiles), tsc/eslint
   clean. Ready to commit.
-- **Next**: nothing blocking. Spec 032's audit (from round 23, 2026-07-28) was never re-run after
-  hitting a session limit, and spec 033 (App.tsx two-card assembly) was never started — both still
-  open from the prior round if that thread is picked back up.
+- Dispatched Cedar on recommendation #4 (multi-role comparison). Reading the post-spec-034 code,
+  Cedar found the isolation risk Pine flagged was real (`App.tsx`'s helpers write into flat
+  top-level state, no per-role key — 3 parallel calls today would race on network order) and split
+  it into two sequential SPECs: **035** (`useRolePanel` hook + `RoleResultsPanel`, isolation proven
+  by construction via distinct closures, zero visible change) and **036** (the actual compare-mode
+  UI on top of it, no cross-role aggregate score). Human approved both, chose to land the
+  never-started **spec 033** first (033/035 both touch `App.tsx`), and approved cutting persistence
+  for compare-mode's extra slots out of round 1. Persisted to `specs/035-*.md`/`036-*.md`.
+- Picked the spec 033 thread back up: re-ran spec 032's audit from scratch (the round-23 attempt
+  had hit a session limit, no verdict) — **PASS**, verified chrome-only against the actual
+  historical diff, not just the SPEC's claim. Cypress red → Magnolia green for spec 033 (Standing +
+  Evidence two-card assembly, FilterStatusBar wired in).
+- Magnolia's build surfaced a real cross-spec collision: FilterStatusBar's live region and the
+  no-gaps narration live region both bare `role="status"`, indistinguishable once mounted together
+  — a genuine WCAG gap, not a stale-test artifact. Correctly halted rather than guessing a fix
+  outside its file scope. Dispatched Cedar for a follow-up SPEC (renumbered 034→**037**, since 034
+  was already taken by the persistence feature); approved, built (two `aria-label`s), and audited
+  together with 033 in one combined pass — **PASS**, 746/746 vitest, 87 passed/9 expected-skipped
+  e2e, zero scope drift confirmed via `git diff`.
+- **Next**: commit specs 033+037's code as one commit, specs 035/036 (docs-only, no code yet) as a
+  separate commit — Cypress's own audit recommendation, to keep each commit's diff matching its
+  declared scope. Then spec 035 can start (its dependency, 033, will be landed).
 
 ---
 

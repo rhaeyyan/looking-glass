@@ -34,6 +34,7 @@ export function FilterStatusBar({
       className="filter-status-root filter-status-bar"
       role="status"
       aria-live="polite"
+      aria-label="Skill filter status"
       data-filtered={isFiltered || undefined}
     >
       {isFiltered ? (

@@ -134,6 +134,9 @@ describe('<FilterStatusBar /> live-region contract', () => {
 
     const statusEl = screen.getByRole('status')
     expect(statusEl).toHaveAttribute('aria-live', 'polite')
+    // spec 037: distinguishes this region's accessible name from the narration "no gaps" status
+    // region now that both can mount simultaneously in the Evidence card.
+    expect(statusEl).toHaveAttribute('aria-label', 'Skill filter status')
   })
 })
 

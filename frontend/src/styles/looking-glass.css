@@ -725,6 +725,15 @@ textarea.input {
   font-size: 26px;
   overflow-wrap: anywhere;
 }
+/* Spec 033 — the role name's new anchor: was a small `.tag.tag-accent` chip, now the Standing
+ * card's clear second-level heading. Font family/weight/line-height/letter-spacing (-0.015em) are
+ * inherited from the shared h1,h2,h3 rule above; only the size is overridden here (24px, between
+ * the shared h2's 22px and the page h1's 38px). */
+.lg-role-heading {
+  margin: 0;
+  font-size: 24px;
+  overflow-wrap: anywhere;
+}
 .lg-summary-tags {
   display: flex;
   flex-wrap: wrap;
@@ -737,9 +746,17 @@ textarea.input {
 }
 
 /* Ready-score donut (share of role skills already covered). Non-color-only: the % and legend
- * text carry the meaning; the ring is reinforcement. */
+ * text carry the meaning; the ring is reinforcement.
+ * Spec 033: `.lg-scorecard` moves from being its own top-level `.card.blueprint.elev-sm` section
+ * to the Standing card's second inner band (nested inside `.standing-root`, no longer a sibling
+ * of it) — its `background`/`backdrop-filter`/`border-radius` (spec 020, still locked by
+ * scorecard-glass-restyle.test.ts) are kept verbatim, and a `border-top`/`padding-top` divider is
+ * added on top to mark the seam against the header band above, gated on the donut band actually
+ * rendering (i.e. `analyzed`) purely by React only ever mounting this element when true. */
 .lg-scorecard {
   padding: 20px 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-divider);
   gap: 16px;
   display: grid;
   grid-template-columns: auto 1fr;
@@ -863,10 +880,12 @@ textarea.input {
   gap: 8px;
 }
 
-/* Loading skeleton — shaped stand-ins for the scorecard/scatter/table that will replace them once
- * the fetch resolves. Every block is `aria-hidden="true"` in the markup (never real content), so
- * the static (non-animated) look below is itself a perfectly valid reduced-motion state — the
- * shimmer is a pure enhancement gated behind `prefers-reduced-motion: no-preference`. */
+/* Loading skeleton — shaped stand-ins for the Standing + Evidence cards that will replace them
+ * once the fetch resolves (spec 033: two blocks, not three — the result column itself collapsed
+ * from four sibling sections to two cards, so the skeleton mirrors that shape). Every block is
+ * `aria-hidden="true"` in the markup (never real content), so the static (non-animated) look below
+ * is itself a perfectly valid reduced-motion state — the shimmer is a pure enhancement gated behind
+ * `prefers-reduced-motion: no-preference`. */
 .lg-skeleton {
   display: flex;
   flex-direction: column;
@@ -878,14 +897,11 @@ textarea.input {
   background: color-mix(in srgb, var(--color-text) 6%, transparent);
   border-radius: var(--radius-md);
 }
-.lg-skeleton-scorecard {
+.lg-skeleton-standing {
   height: 132px;
 }
-.lg-skeleton-scatter {
-  height: 320px;
-}
-.lg-skeleton-table {
-  height: 220px;
+.lg-skeleton-evidence {
+  height: 560px;
 }
 @media (prefers-reduced-motion: no-preference) {
   .lg-skeleton-block::after {
