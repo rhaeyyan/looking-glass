@@ -12,12 +12,14 @@
 // PROVENANCE FLAG — read before editing SENIORITY_GRADIENT.
 //
 // All 18 cells below are now REAL, live-extracted figures — the raw file the SPEC's Constraints
-// section calls for has landed in this checkout at `data/raw/ai-requirements/ai-requirements-index.csv`
-// (originally cited as `data/raw/AI-Skills-in-Job-Requirements/`; briefly lived at
-// `data/raw/archive/` before a later dataset pull reused that directory name and displaced it —
-// this comment reflects the current, correct path as of 2026-07-28). Extracted 2026-07-28 via:
+// section calls for has landed in this checkout at
+// `data/raw/AI-Skills-in-Job-Requirements/ai-requirements-index.csv` (this is a gitignored,
+// local-only path that has moved at least three times across sessions — briefly `data/raw/archive/`,
+// then `data/raw/ai-requirements/`, now back to matching the original citation in
+// `data/dataset-evaluations.md`; re-verify this path before trusting it on a fresh checkout).
+// Extracted 2026-07-28 via:
 //   grep -E '^2026-07-22,(ai|data|devops|engineering|product|security),(entry|mid|senior),any_ai,' \
-//     data/raw/ai-requirements/ai-requirements-index.csv
+//     data/raw/AI-Skills-in-Job-Requirements/ai-requirements-index.csv
 // i.e. `snapshot_date=2026-07-22`, `tier=any_ai`, one row per category x seniority, `pct` column.
 // The 3 previously-cited-as-REAL values (engineering's full triple; security's entry+senior;
 // devops's entry) were cross-checked against this raw pull and match exactly — no discrepancy.
@@ -58,9 +60,9 @@ interface SeniorityGradient {
 const SNAPSHOT_DATE = '2026-07-22'
 
 export const SENIORITY_GRADIENT: Record<DatamataCategory, SeniorityGradient> = {
-  // REAL — data/raw/ai-requirements/ai-requirements-index.csv @ 2026-07-22, tier=any_ai.
+  // REAL — data/raw/AI-Skills-in-Job-Requirements/ai-requirements-index.csv @ 2026-07-22, tier=any_ai.
   ai: { category: 'ai', snapshot_date: SNAPSHOT_DATE, entry_pct: 35.0, mid_pct: 40.2, senior_pct: 46.7 },
-  // REAL — data/raw/ai-requirements/ai-requirements-index.csv @ 2026-07-22, tier=any_ai.
+  // REAL — data/raw/AI-Skills-in-Job-Requirements/ai-requirements-index.csv @ 2026-07-22, tier=any_ai.
   // NOMINAL INVERSION, RESOLVED AS SAMPLE-SIZE NOISE (2026-07-28): entry_pct (7.4) > mid_pct
   // (7.2) here, but this is not a real inversion of the entry<=mid<=senior gradient — it's noise.
   // The `data`/entry pool (~370-380 total listings) is ~10x smaller than `data`/mid (~3,800-4,300),
@@ -76,15 +78,15 @@ export const SENIORITY_GRADIENT: Record<DatamataCategory, SeniorityGradient> = {
   // section for the full writeup. seniorityFraming.test.ts encodes this exception (Cypress, spec
   // 028 follow-up), not a code fix here.
   data: { category: 'data', snapshot_date: SNAPSHOT_DATE, entry_pct: 7.4, mid_pct: 7.2, senior_pct: 11.0 },
-  // REAL — data/raw/ai-requirements/ai-requirements-index.csv @ 2026-07-22, tier=any_ai. entry_pct (0.0)
+  // REAL — data/raw/AI-Skills-in-Job-Requirements/ai-requirements-index.csv @ 2026-07-22, tier=any_ai. entry_pct (0.0)
   // matches dataset-evaluations.md line 87's prior citation exactly.
   devops: { category: 'devops', snapshot_date: SNAPSHOT_DATE, entry_pct: 0.0, mid_pct: 3.1, senior_pct: 4.3 },
-  // REAL — data/raw/ai-requirements/ai-requirements-index.csv @ 2026-07-22, tier=any_ai. Matches
+  // REAL — data/raw/AI-Skills-in-Job-Requirements/ai-requirements-index.csv @ 2026-07-22, tier=any_ai. Matches
   // dataset-evaluations.md's worked example exactly (3.0/7.3/11.0).
   engineering: { category: 'engineering', snapshot_date: SNAPSHOT_DATE, entry_pct: 3.0, mid_pct: 7.3, senior_pct: 11.0 },
-  // REAL — data/raw/ai-requirements/ai-requirements-index.csv @ 2026-07-22, tier=any_ai.
+  // REAL — data/raw/AI-Skills-in-Job-Requirements/ai-requirements-index.csv @ 2026-07-22, tier=any_ai.
   product: { category: 'product', snapshot_date: SNAPSHOT_DATE, entry_pct: 2.8, mid_pct: 7.5, senior_pct: 13.4 },
-  // REAL — data/raw/ai-requirements/ai-requirements-index.csv @ 2026-07-22, tier=any_ai. entry_pct (0.0)
+  // REAL — data/raw/AI-Skills-in-Job-Requirements/ai-requirements-index.csv @ 2026-07-22, tier=any_ai. entry_pct (0.0)
   // and senior_pct (5.6) match dataset-evaluations.md's prior citation exactly; mid_pct (1.7) is
   // newly extracted — an unvalidated placeholder estimate of 2.5 stood here before this pull.
   security: { category: 'security', snapshot_date: SNAPSHOT_DATE, entry_pct: 0.0, mid_pct: 1.7, senior_pct: 5.6 },
