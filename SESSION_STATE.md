@@ -125,27 +125,32 @@
   answer above. Combined audit **PASS**: 755/755 vitest, 119 passed/9 expected-skipped e2e,
   `submitResumeAutoConfirm` confirmed byte-identical to the pre-split logic via direct diff against
   `git show HEAD`, not just a passing test.
-- **Next**: commit spec 038a (implementation) + specs 038a/038b (docs, 038b not yet built). Then
-  038b: the checklist UI + persistence v2 bump. Recommendation #3 (deepen weak-coverage-role data,
-  UNKNOWN/SPIKE) is still unstarted. The `scrollable-region-focusable` finding on
-  `SkillLeverageTable` (found during spec 036's audit) is a candidate for a small follow-up ticket
-  whenever picked up.
+- Spec 038a committed/pushed (`de3f8ae` implementation, `cfeeff6` specs-only). Dispatched Cypress
+  for spec 038b's red: `skill-confirmation.spec.ts` (new) + `localPersistence.test.ts` (v2 schema
+  cases) — both failed for the right reason (missing checklist/v2 support). Cypress also caught a
+  real scope gap before it could bite later: the shared e2e helper `gotoRenderedLeverageTable`
+  (plus `persistence.spec.ts`'s own inline flow — 7 call sites total, not the 6 first assumed)
+  would break once panel 0 requires confirmation, and wasn't in 038b's file list.
+- Dispatched Cedar to resolve it. Corrected the 6→7 count, then verified the fix is genuinely
+  zero-risk (not just a reasonable approximation) by tracing `useRolePanel.ts` directly: confirming
+  the pre-checked auto-detected set with no edits runs the identical `computeSkillGap` call over
+  the identical input `submitResumeAutoConfirm` already runs — byte-for-byte equivalent. Decision:
+  stays out of 038b's file list (already at cap, and it's test-harness continuity — Cypress's own
+  domain), applied as two direct amendments instead. Cypress applied both; independently verified
+  (76 passed/9 skipped matches exactly) rather than trusting the report at face value — an earlier
+  notification from that same dispatch arrived truncated mid-wait, a reminder to re-verify rather
+  than assume "completed" means a full report actually landed.
+- **Next**: dispatch Redwood (`localPersistence.ts` v2 bump) + Magnolia (`SkillConfirmationChecklist.tsx`,
+  `App.tsx` panel-0 rewiring) to build spec 038b against the confirmed red (63 failed/76 passed/9
+  skipped — 7 harness-continuity sites + 038b's own 3 tests, all one root cause, meant to turn green
+  together in one pass, not chased individually). After 038b ships: recommendation #3 (deepen
+  weak-coverage-role data, UNKNOWN/SPIKE) is still unstarted, and the `/grill-me`-answered compare-mode
+  confirmation extension (one checklist per panel, sequentially) is unspecced. The
+  `scrollable-region-focusable` finding on `SkillLeverageTable` (found during spec 036's audit) is
+  a candidate for a small follow-up ticket whenever picked up.
 
 ---
 
 ## History
-
-- **2026-07-28 (round 23: results-column restructure, specs 030-032)** — `feature/v2-scope-expansion`
-  merged to `main` via PR #1 before this session. User pointed at
-  `assets/design_handoff_v2_results_column/` (option 1b: collapse results column's four cards into
-  two — Standing + Evidence). Cedar split into 4 sequential SPECs (030→033), overriding the
-  mockup's color-only chip selection on a11y grounds (spec 031 mandates a non-color glyph). Spec
-  030 (`FilterStatusBar`): red→build→audit all PASS (`cf97870`, `3cdbc9e`). Spec 031 (chip row +
-  `selectedGroup` single-source-of-truth): red proved a real landmine (`SkillGroupBreakdown` held
-  its own local `useState` independent of `App.tsx`'s), audit PASS (`487e3c4`, `9d29db5`). Spec 032
-  (strip `SkillMatrix`/`SkillLeverageTable` own card chrome): build clean (143/143, 722/722),
-  committed (`16ec6a8`, `48e8f2b`) but **audit never finished** — Cypress hit a session API limit
-  mid-run. Spec 033 (App.tsx two-card assembly) not started. Strict dependency order (nothing in
-  030-033 parallelizable) still applies if resumed.
 
 See [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md) for all prior sessions.

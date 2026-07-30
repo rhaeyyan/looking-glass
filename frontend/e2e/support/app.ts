@@ -110,7 +110,11 @@ export async function stubRoleSkillProfile(page: Page, rows = STUB_ROWS): Promis
 
 /**
  * Drive the full primary flow to a rendered leverage table: stub the read, pick the role, paste the
- * resume, submit. Resolves once the table is actually on screen, so specs never race the render.
+ * resume, submit, confirm the skill-confirmation checklist's pre-checked auto-detected set
+ * unedited (spec 038b — panel 0 in single-panel/`compareMode === false` mode, the only mode this
+ * helper's callers ever exercise, now stops at a checklist between submit and analyzed results
+ * instead of computing the gap immediately). Resolves once the table is actually on screen, so
+ * specs never race the render.
  */
 export async function gotoRenderedLeverageTable(page: Page): Promise<void> {
   await stubRoleSkillProfile(page)
@@ -119,6 +123,7 @@ export async function gotoRenderedLeverageTable(page: Page): Promise<void> {
   await page.getByLabel('Target role').selectOption(STUB_ROLE)
   await page.getByLabel('Resume text').fill(STUB_RESUME)
   await page.getByRole('button', { name: 'Find my gaps' }).click()
+  await page.getByRole('button', { name: 'Confirm skills' }).click()
 
   await page.locator('table.leverage-table tbody tr').first().waitFor({ state: 'visible' })
 }

@@ -29,6 +29,7 @@ test.describe('local persistence of resumeText / selectedRole / selectedSeniorit
     await page.locator('#seniority-picker').selectOption('mid')
     await page.getByLabel('Resume text').fill(STUB_RESUME)
     await page.getByRole('button', { name: 'Find my gaps' }).click()
+    await page.getByRole('button', { name: 'Confirm skills' }).click()
 
     await page.locator('table.leverage-table tbody tr').first().waitFor({ state: 'visible' })
     await expect(page.getByText(NOTE_TEXT)).toBeVisible()
@@ -61,6 +62,7 @@ test.describe('local persistence of resumeText / selectedRole / selectedSeniorit
     await page.locator('#seniority-picker').selectOption('senior')
     await page.getByLabel('Resume text').fill(STUB_RESUME)
     await page.getByRole('button', { name: 'Find my gaps' }).click()
+    await page.getByRole('button', { name: 'Confirm skills' }).click()
     await page.locator('table.leverage-table tbody tr').first().waitFor({ state: 'visible' })
 
     await page.getByRole('button', { name: 'Clear saved data' }).click()

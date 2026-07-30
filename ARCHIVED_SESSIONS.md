@@ -737,3 +737,19 @@
   marker coincidentally broke that threshold. Cypress rescoped all 5 affected assertions to the
   real `.lg-skeleton`/`.lg-skeleton-block` selectors spec 009 introduced, immune to future
   collisions. **169/169 vitest, eslint/tsc clean.** Committed (`04c6d91`), pushed.
+
+---
+
+## 2026-07-28 — round 23: results-column restructure, specs 030-032
+
+`feature/v2-scope-expansion` merged to `main` via PR #1 before this session. User pointed at
+`assets/design_handoff_v2_results_column/` (option 1b: collapse results column's four cards into
+two — Standing + Evidence). Cedar split into 4 sequential SPECs (030→033), overriding the
+mockup's color-only chip selection on a11y grounds (spec 031 mandates a non-color glyph). Spec
+030 (`FilterStatusBar`): red→build→audit all PASS (`cf97870`, `3cdbc9e`). Spec 031 (chip row +
+`selectedGroup` single-source-of-truth): red proved a real landmine (`SkillGroupBreakdown` held
+its own local `useState` independent of `App.tsx`'s), audit PASS (`487e3c4`, `9d29db5`). Spec 032
+(strip `SkillMatrix`/`SkillLeverageTable` own card chrome): build clean (143/143, 722/722),
+committed (`16ec6a8`, `48e8f2b`) but **audit never finished** — Cypress hit a session API limit
+mid-run. Spec 033 (App.tsx two-card assembly) not started. Strict dependency order (nothing in
+030-033 parallelizable) still applies if resumed.
