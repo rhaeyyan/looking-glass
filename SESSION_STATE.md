@@ -50,9 +50,29 @@
   was already taken by the persistence feature); approved, built (two `aria-label`s), and audited
   together with 033 in one combined pass — **PASS**, 746/746 vitest, 87 passed/9 expected-skipped
   e2e, zero scope drift confirmed via `git diff`.
-- **Next**: commit specs 033+037's code as one commit, specs 035/036 (docs-only, no code yet) as a
-  separate commit — Cypress's own audit recommendation, to keep each commit's diff matching its
-  declared scope. Then spec 035 can start (its dependency, 033, will be landed).
+- Both committed/pushed separately as recommended (`b5a0e2e` code, `7f11459` specs-only). Re-checked
+  spec 035 against the now-landed post-033/037 `App.tsx` before dispatching further — Cedar's
+  original draft described a flat layout that no longer existed; revised in place to target the
+  actual Standing/Evidence two-card shape and to preserve spec 037's two `aria-label`s verbatim.
+  Flagged a forward-pointer for spec 036: those same labels will collide again once 2-3 panels
+  mount at once, unless 036 qualifies them per-panel — noted now so it isn't rediscovered as a
+  fresh a11y bug during that audit.
+- Cypress red → Redwood green for spec 035 (`useRolePanel` + `RoleResultsPanel` extraction, isolation
+  proven by construction via per-instance closures + a request-generation guard). Cypress resolved
+  one API ambiguity itself (`role` seeds the hook's *initial* value only; changes go through the
+  hook's own `loadRole()`, never a re-render with a new `role` prop) and flagged it explicitly for
+  Redwood rather than silently encoding it — Redwood read the test and agreed, no conflict.
+  749/749 vitest, 87 passed/9 expected-skipped e2e, tsc/eslint clean.
+- Redwood surfaced one pre-existing (not newly introduced) race: reloading with a persisted
+  role+resume, then manually switching role in the narrow window before the mount-hydration fetch
+  resolves, can burn the one-shot post-hydration auto-submit against the wrong role — the restored
+  session silently doesn't auto-analyze as intended (user just re-clicks "Find my gaps"). Decided
+  **not to chase it now**: unreproduced, so per this project's own routing rules it's UNKNOWN, not
+  fix-ready — a future SPIKE should produce a reproduction (a test that deliberately races the two
+  events) before anyone specs a fix. Left out of spec 035's audit scope; not a regression.
+- **Next**: dispatch Cypress to audit spec 035 (out of scope: the pre-existing hydration race
+  above). If it passes, commit/push, then spec 036 can start — remembering it needs its own revision
+  pass for per-panel-qualified accessible names before its own audit.
 
 ---
 

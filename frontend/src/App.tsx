@@ -1,22 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { ROLES, type Role } from './lib/roles'
-import { fetchRoleSkillProfile, type RoleSkillRow } from './lib/supabaseClient'
-import { extractResumeSkills } from './lib/resumeSkills'
-import { computeSkillGap } from './lib/gap'
-import { narrateTopGaps } from './lib/narrate'
-import { formatNum } from './lib/format'
-import { normalizeSkillName } from './lib/normalize'
-import { getSeniorityFraming, type SeniorityLevel } from './lib/seniorityFraming'
+import { ROLES } from './lib/roles'
 import { savePersistedState, loadPersistedState, clearPersistedState } from './lib/localPersistence'
-import { SkillMatrix } from './components/matrix/SkillMatrix'
-import { SkillLeverageTable } from './components/matrix/SkillLeverageTable'
-import { SkillGroupBreakdown } from './components/matrix/SkillGroupBreakdown'
-import { FilterStatusBar } from './components/matrix/FilterStatusBar'
-import { TopGapNarration } from './components/matrix/TopGapNarration'
-import { SeniorityFraming } from './components/matrix/SeniorityFraming'
+import { useRolePanel } from './lib/useRolePanel'
+import { type SeniorityLevel } from './lib/seniorityFraming'
+import { RoleResultsPanel } from './components/matrix/RoleResultsPanel'
 
-type Status = 'idle' | 'loading' | 'success' | 'error'
-type TopGaps = ReturnType<typeof narrateTopGaps>
 type Theme = 'light' | 'dark'
 
 // Resume text is capped client-side to the edge function's own limit (spec 004, Task 6) so an
@@ -24,19 +12,6 @@ type Theme = 'light' | 'dark'
 const MAX_RESUME_LENGTH = 20000
 const ROLE_REQUIRED_MESSAGE = 'Select a target role before finding your gaps.'
 const RESUME_REQUIRED_MESSAGE = 'Paste your resume text before finding your gaps.'
-// Locked verbatim (spec 005, Cypress's compliance report) — the authoritative wording, not the
-// SPEC's example text. Never re-derive or paraphrase.
-const NO_GAPS_MESSAGE = 'No gaps — you already have every skill this role needs.'
-
-// Display-only ranking: descending by the already-computed arbitrage_score, null-score rows last —
-// the exact rule computeSkillGap/ArbitrageLadder use. Reads the score verbatim (Bounded-AI: a
-// presentation sort, never a new metric).
-function byArbitrageDesc(a: RoleSkillRow, b: RoleSkillRow): number {
-  if (a.arbitrage_score === null && b.arbitrage_score === null) return 0
-  if (a.arbitrage_score === null) return 1
-  if (b.arbitrage_score === null) return -1
-  return b.arbitrage_score - a.arbitrage_score
-}
 
 function initialTheme(): Theme {
   if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
@@ -60,17 +35,16 @@ function App() {
   const [persistedOnMount] = useState(() => loadPersistedState())
 
   const [selectedRole, setSelectedRole] = useState(() => persistedOnMount?.selectedRole ?? '')
-  const [rows, setRows] = useState<RoleSkillRow[]>([])
-  const [status, setStatus] = useState<Status>('idle')
-  const [errorMessage, setErrorMessage] = useState('')
+  // spec 035: the entire rows/status/errorMessage/haveSkillKeys/topGaps/selectedGroup slice, plus
+  // the former loadRoleProfile/runGapPipeline functions, now live inside this reusable hook — its
+  // initial role argument is only ever consumed once (React's useState(initialValue) convention);
+  // every later role change goes through `panel.loadRole`, never a re-render with a new argument.
+  const panel = useRolePanel(selectedRole)
 
   const [resumeText, setResumeText] = useState(() =>
     persistedOnMount ? persistedOnMount.resumeText.slice(0, MAX_RESUME_LENGTH) : '',
   )
   const [validationError, setValidationError] = useState('')
-  const [haveSkillKeys, setHaveSkillKeys] = useState<Set<string> | undefined>(undefined)
-  const [topGaps, setTopGaps] = useState<TopGaps | undefined>(undefined)
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
   // specs/029: local-only, plain <select> state — never touched by handleRoleChange, never
   // refetches, never feeds computeSkillGap/the matrix/the table. See seniorityNote below.
   const [selectedSeniority, setSelectedSeniority] = useState<SeniorityLevel | ''>(
@@ -92,44 +66,10 @@ function App() {
     savePersistedState({ resumeText, selectedRole, selectedSeniority })
   }, [resumeText, selectedRole, selectedSeniority])
 
-  // Shared with mount-time hydration (spec 034) so there is exactly one implementation of
-  // "load a role's profile" that both handleRoleChange and the hydration effect call.
-  async function loadRoleProfile(role: string) {
-    setSelectedRole(role)
-    setHaveSkillKeys(undefined)
-    setTopGaps(undefined)
-    setSelectedGroup(null)
-
-    if (!role) {
-      setStatus('idle')
-      setRows([])
-      return
-    }
-
-    setStatus('loading')
-    try {
-      const result = await fetchRoleSkillProfile(role)
-      setRows(result)
-      setStatus('success')
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Unknown error')
-      setStatus('error')
-    }
-  }
-
   function handleRoleChange(event: React.ChangeEvent<HTMLSelectElement>) {
-    void loadRoleProfile(event.target.value)
-  }
-
-  // Shared with mount-time hydration (spec 034) so there is exactly one implementation of
-  // "run the gap pipeline against the current rows/resumeText" that both handleResumeSubmit and
-  // the hydration effect call.
-  function runGapPipeline(gapRows: RoleSkillRow[], text: string) {
-    const vocabulary = gapRows.map((row) => row.skill_name_raw)
-    const skills = extractResumeSkills(text, vocabulary)
-    const gap = computeSkillGap(gapRows, skills)
-    setHaveSkillKeys(gap.haveSkillKeys)
-    setTopGaps(narrateTopGaps(gap.rows, gap.haveSkillKeys))
+    const role = event.target.value
+    setSelectedRole(role)
+    panel.loadRole(role)
   }
 
   function handleResumeSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -145,93 +85,45 @@ function App() {
       return
     }
 
-    runGapPipeline(rows, resumeText)
+    panel.submitResume(resumeText)
   }
 
   // Mount-time hydration (spec 034): resumeText/selectedRole/selectedSeniority are already seeded
-  // from `persistedOnMount` above (synchronously, at first render). This effect only handles the
-  // side effects hydration additionally needs: re-fetching a restored role's profile via the same
-  // path `handleRoleChange` uses, and — once rows arrive — re-running the gap pipeline via the
-  // same path `handleResumeSubmit` uses, if resumeText was also restored. Guarded by a ref (not
-  // just the empty deps array) so React 18 StrictMode's dev-only double-invocation of mount
-  // effects can't double-fire the fetch.
-  const didRunMountFetch = useRef(false)
+  // from `persistedOnMount` above (synchronously, at first render), and `useRolePanel`'s own
+  // role-keyed effect already fires the restored role's fetch at mount (its initial argument is
+  // `selectedRole`, seeded the same way). This effect only handles the one side effect hydration
+  // additionally needs: once that fetch settles, re-running the gap pipeline via the same
+  // `panel.submitResume` path `handleResumeSubmit` uses, if resumeText was also restored. Guarded
+  // by a ref (not just the dependency array) so this only ever fires once, even across React 18
+  // StrictMode's dev-only double-invocation of effects.
+  const didRunMountSubmit = useRef(false)
   useEffect(() => {
-    if (didRunMountFetch.current) return
-    didRunMountFetch.current = true
+    if (didRunMountSubmit.current) return
+    if (persistedOnMount === null || !persistedOnMount.selectedRole) {
+      didRunMountSubmit.current = true
+      return
+    }
 
-    if (persistedOnMount === null || !persistedOnMount.selectedRole) return
-
-    setStatus('loading')
-    fetchRoleSkillProfile(persistedOnMount.selectedRole)
-      .then((result) => {
-        setRows(result)
-        setStatus('success')
-        if (persistedOnMount.resumeText.trim() !== '') {
-          runGapPipeline(result, persistedOnMount.resumeText)
-        }
-      })
-      .catch((err) => {
-        setErrorMessage(err instanceof Error ? err.message : 'Unknown error')
-        setStatus('error')
-      })
+    if (panel.status === 'success') {
+      didRunMountSubmit.current = true
+      if (persistedOnMount.resumeText.trim() !== '') {
+        panel.submitResume(persistedOnMount.resumeText)
+      }
+    } else if (panel.status === 'error') {
+      didRunMountSubmit.current = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [panel.status])
 
   function handleClearSavedData() {
     clearPersistedState()
     setResumeText('')
     setSelectedRole('')
     setSelectedSeniority('')
-    setRows([])
-    setStatus('idle')
-    setHaveSkillKeys(undefined)
-    setTopGaps(undefined)
-    setSelectedGroup(null)
+    panel.loadRole('')
   }
 
-  const hasRows = status === 'success' && rows.length > 0
-  const analyzed = haveSkillKeys !== undefined
-
-  // Derived, not stored (spec 029): recomputes automatically on role/seniority change, so there is
-  // no stale-note bug and nothing to reset in handleRoleChange. Independent of `analyzed` — visible
-  // as soon as Step 1 is complete, before or after Step 2 (the SPEC's Bounded-AI boundary: this
-  // note never depends on haveSkillKeys/topGaps/the gap pipeline at all).
-  const seniorityNote =
-    hasRows && selectedSeniority ? getSeniorityFraming(selectedRole as Role, selectedSeniority) : null
-
-  // Ranked-for-display (top move chip). Never mutates state's `rows`.
-  const ranked = [...rows].sort(byArbitrageDesc)
-  const topMove = ranked[0]
-  const scoredCount = rows.filter((r) => r.demand_score !== null && r.scarcity_index !== null).length
-
-  // Donut partition — only meaningful once a resume has been analyzed.
-  let haveCount = 0
-  let gapCount = 0
-  let unscoredCount = 0
-  if (haveSkillKeys) {
-    for (const row of rows) {
-      const key = row.skill_key ?? normalizeSkillName(row.skill_name_raw)
-      if (haveSkillKeys.has(key)) haveCount++
-      else if (row.arbitrage_score === null) unscoredCount++
-      else gapCount++
-    }
-  }
-  // A plain array `.filter()` over the already-fetched rows — SkillMatrix/SkillLeverageTable never
-  // learn about `selectedGroup` themselves, so their own hard-won a11y/touch-hover fixes (spec 018)
-  // are untouched by this task (spec 027's Intellectual Control).
-  const filteredRows = selectedGroup
-    ? rows.filter((r) => (r.skill_group ?? 'Uncategorized') === selectedGroup)
-    : rows
-
-  const havePct = rows.length ? Math.round((haveCount / rows.length) * 100) : 0
-  const goodDeg = rows.length ? (haveCount / rows.length) * 360 : 0
-  const gapDeg = rows.length ? (gapCount / rows.length) * 360 : 0
-  const donutGradient = `conic-gradient(var(--have) 0deg ${goodDeg}deg, var(--learn) ${goodDeg}deg ${
-    goodDeg + gapDeg
-  }deg, var(--color-neutral-400) ${goodDeg + gapDeg}deg 360deg)`
-
-  const showNoGaps = analyzed && topGaps === null
+  const hasRows = panel.status === 'success' && panel.rows.length > 0
 
   return (
     <div className="lg-fade">
@@ -316,13 +208,15 @@ function App() {
               </select>
             </div>
 
-            {status === 'loading' && (
+            {panel.status === 'loading' && (
               <p role="status" aria-label="Loading skill profile">
                 Loading skill profile…
               </p>
             )}
-            {status === 'error' && <p role="alert">Could not load skill profile: {errorMessage}</p>}
-            {status === 'success' && rows.length === 0 && (
+            {panel.status === 'error' && (
+              <p role="alert">Could not load skill profile: {panel.errorMessage}</p>
+            )}
+            {panel.status === 'success' && panel.rows.length === 0 && (
               <p role="status" aria-label="No skills found for this role">
                 No skills found for this role.
               </p>
@@ -370,7 +264,7 @@ function App() {
         </div>
 
         <div className="lg-results">
-          {status === 'idle' && (
+          {panel.status === 'idle' && (
             <section className="card blueprint elev-sm lg-empty-state">
               <div className="card-kicker">Get started</div>
               <div className="card-title">Your leverage matrix appears here</div>
@@ -381,7 +275,7 @@ function App() {
             </section>
           )}
 
-          {status === 'loading' && (
+          {panel.status === 'loading' && (
             <div className="lg-skeleton" aria-hidden="true">
               <div className="card blueprint elev-sm lg-skeleton-block lg-skeleton-standing" aria-hidden="true" />
               <div className="card blueprint elev-sm lg-skeleton-block lg-skeleton-evidence" aria-hidden="true" />
@@ -389,87 +283,15 @@ function App() {
           )}
 
           {hasRows && (
-            <section className="card blueprint elev-md standing-root">
-              <header className="lg-results-head">
-                <span className="card-kicker">Target role</span>
-                <h2 className="lg-role-heading">{selectedRole}</h2>
-                <div className="lg-summary-tags">
-                  <span className="tag tag-neutral">
-                    {scoredCount} of {rows.length} scored
-                  </span>
-                  {topMove && (
-                    <span className="tag tag-outline">
-                      Start here: {topMove.skill_name_raw}
-                      {topMove.arbitrage_score !== null &&
-                        ` · leverage ${formatNum(topMove.arbitrage_score)}`}
-                    </span>
-                  )}
-                </div>
-                <SeniorityFraming note={seniorityNote} />
-              </header>
-
-              {analyzed && (
-                <div className="lg-scorecard lg-fade">
-                  <div className="lg-donut-wrap">
-                    <div className="lg-donut" style={{ background: donutGradient }} aria-hidden="true">
-                      <div className="lg-donut-hole">
-                        <div className="lg-donut-pct">{havePct}%</div>
-                        <div className="lg-donut-label">ready</div>
-                      </div>
-                    </div>
-                    <div className="lg-donut-legend">
-                      <div>
-                        <span className="lg-swatch" style={{ background: 'var(--have)' }} />
-                        Already have {haveCount}
-                      </div>
-                      <div>
-                        <span className="lg-swatch" style={{ background: 'var(--learn)' }} />
-                        Worth learning {gapCount}
-                      </div>
-                      <div>
-                        <span className="lg-swatch" style={{ background: 'var(--color-neutral-400)' }} />
-                        Not scored yet {unscoredCount}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="lg-scorecard-narration">
-                    {topGaps && <TopGapNarration moves={topGaps.moves} />}
-                    {showNoGaps && (
-                      <p
-                        role="status"
-                        aria-label="Skill gap result"
-                        style={{ fontSize: '14px', opacity: 0.8, margin: 0 }}
-                      >
-                        {NO_GAPS_MESSAGE}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </section>
-          )}
-
-          {hasRows && (
-            <div className="card blueprint elev-md evidence-root">
-              <SkillGroupBreakdown
-                rows={rows}
-                haveSkillKeys={haveSkillKeys}
-                selectedGroup={selectedGroup}
-                onSelectGroup={setSelectedGroup}
-              />
-              <FilterStatusBar
-                selectedGroup={selectedGroup}
-                filteredCount={filteredRows.length}
-                totalCount={rows.length}
-                onClear={() => setSelectedGroup(null)}
-              />
-              <SkillMatrix rows={filteredRows} haveSkillKeys={haveSkillKeys} />
-              <SkillLeverageTable
-                rows={filteredRows}
-                haveSkillKeys={haveSkillKeys}
-                roleName={selectedRole}
-              />
-            </div>
+            <RoleResultsPanel
+              role={selectedRole}
+              selectedSeniority={selectedSeniority}
+              rows={panel.rows}
+              haveSkillKeys={panel.haveSkillKeys}
+              topGaps={panel.topGaps}
+              selectedGroup={panel.selectedGroup}
+              setSelectedGroup={panel.setSelectedGroup}
+            />
           )}
         </div>
       </main>
