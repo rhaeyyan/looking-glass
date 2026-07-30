@@ -1,6 +1,7 @@
 # Looking Glass — Development Report
 
-*From initial commit to post-mortem. 154 commits, 2026-07-21 → 2026-07-26.*
+*From initial commit through the post-mortem, plus the V2 work that followed. 181 commits,
+2026-07-21 → 2026-07-28 (in progress as of 2026-07-29).*
 
 ---
 
@@ -8,19 +9,24 @@
 
 | | |
 |---|---|
-| **Duration** | 6 calendar days (2026-07-21 → 2026-07-26) |
-| **Commits** | 154 |
-| **Specs written & approved** | 24 (`specs/001`–`024`) |
-| **Working rounds** | 19 |
-| **Commits that touched code** | 68 of 154 (44%) |
-| **Commits that touched only the ledger** | 45 of 154 (29%) |
-| **Final test state** | 622 vitest · 202 pytest (+16 cleanly skipped) · 10 Playwright e2e · ruff/eslint/tsc clean |
+| **Duration** | 8 calendar days so far (2026-07-21 → 2026-07-28) |
+| **Commits** | 181 |
+| **Specs written & approved** | 33 (`specs/001`–`033`; 030–032 shipped, 033 not yet built) |
+| **Working rounds** | 23 (round 23 in progress) |
+| **Commits that touched code/specs** | 82 of 181 (45%) — `feat` 36, `fix` 21, `test` 20, `build` 5 |
+| **Commits that touched only the ledger** | 47 of 181 (26%) |
+| **Current test state** | 722/722 vitest · 239 pytest (+16 cleanly skipped) · 59/68 Playwright e2e (9 skipped as expected pointer-mode mismatches) · ruff/eslint/tsc clean |
 | **LLM calls in the shipped runtime path** | 0 |
 
 The product: pick a target role, paste a resume, get your skill gaps ranked by a deterministic
 **leverage score** (demand × scarcity) computed across three public Kaggle datasets, with the
 single highest-leverage move narrated in plain language. Live at
 [looking-glass-zeta.vercel.app](https://looking-glass-zeta.vercel.app/).
+
+Phases 0–6 below are the original post-mortem, unchanged from when it was first written
+(round 20, 2026-07-26) — it closes on the process overhaul that came out of the mobile
+`:hover` bug. Phase 7, at the end, picks the story back up from there: the V2 feature work and
+the UI restructure now in flight.
 
 ---
 
@@ -276,6 +282,67 @@ into something that can fail:
 
 The clearest single sentence the project produced about itself: **a fix verified once by hand and
 described only in prose is not fixed, it is unobserved.**
+
+---
+
+## Phase 7 — V2 scope expansion and the results-column restructure (Jul 26–28, rounds 20–23, specs 025–033)
+
+The post-mortem above was itself round 19's output. Three more rounds of feature work followed
+under the rebuilt process, plus a fourth now in progress.
+
+**Round 20** wrote this report — a doc-only round the rebuilt Pine lanes correctly route around
+any oracle requirement for.
+
+**Round 21** opened `feature/v2-scope-expansion` to work through four V2 candidates the README
+had scoped: skill-alias fuzzy matching, category-level UI granularity, seniority in the role
+picker, and role expansion via a LinkedIn postings dataset. Two shipped clean: **spec 025**
+(a static alias table — `k8s`→Kubernetes, `postgres`→PostgreSQL — reusing spec 006's existing
+matching machinery, no new engine) passed its Cypress audit first try; **specs 026/027**
+(per-`skill_group` breakdown, both a data-layer view and a filterable UI panel) needed one
+rejection-loop retry after Cypress caught the selected-state relying on color alone — fixed with
+a visible ✓+"Selected" badge, WCAG 1.4.1.
+
+**Round 22** merged in 94 commits from `main` that had landed while the branch was open (the
+Playwright oracle harness and specs 007–024 among them), then shipped **specs 028/029**:
+seniority in the role picker, backed by the previously-parked AI Requirements Index dataset as
+context-only framing copy — never a score input. The data layer (028) found the raw CSV's `data`
+category broke strict `entry ≤ mid ≤ senior` ordering; rather than loosen the invariant globally,
+the team traced it to a real, documented cause (`data`'s entry-tier sample is ~10x smaller than
+mid's, a ~1.3pp standard error large enough for the two values to trade places) and carved out a
+named, evidenced exception, keeping strict zero-tolerance monotonicity everywhere else. The UI
+layer (029) hit the branch's one rejection-loop cycle: Magnolia added an unauthorized guard in
+`App.tsx` to route around a flaky e2e assertion, which is exactly the shadow-patch Rule 8 exists
+to catch — Cypress traced the real fault to a redundant line in its own test, deleted it, and the
+guard came out clean. Separately, the LinkedIn/arshkon postings dataset was evaluated directly
+against its raw files and **rejected** for the role-expansion framing originally proposed: its
+prebuilt skill join is a 36-value job-function taxonomy, not a skill vocabulary (the same
+wrong-grain failure that sank the AI Requirements Index for scoring use), and the postings
+themselves skew general cross-industry, away from this app's 15 tech-only roles. A narrower path
+— extracting skill mentions from the postings' free-text descriptions — tested real on a
+6,193-row sample but stayed parked pending a fresher pull (the dataset is a 2023–2024 crawl).
+
+**Round 23** merged `feature/v2-scope-expansion` to `main` (PR #1), then picked up a new,
+unrelated design-handoff bundle (`assets/design_handoff_v2_results_column/`) specifying a UI
+restructure: collapse the results column's four sibling cards (head / scorecard / breakdown /
+matrix / table) into two — **Standing** (role identity, donut, top moves) and **Evidence**
+(skill-group chips, a new status bar, the matrix, the table — one shared card, no internal
+chrome). Cedar split it into four sequential specs (030→033, none parallelizable — all four
+touch `matrix.css`) and overrode one point in the mockup using its standing accessibility
+authority: the handoff's chips carried selection by color alone, which would have regressed
+027's already-shipped WCAG 1.4.1 fix, so spec 031 mandated the same non-color glyph. **Spec 030**
+(`FilterStatusBar`, a new isolated component) and **spec 031** (the chip row, made fully
+prop-controlled — Cypress's red proved `SkillGroupBreakdown` was silently holding its own
+duplicate selection state, a real split-brain risk, before Magnolia deleted it) both passed their
+audits clean. **Spec 032** (stripping `SkillMatrix`/`SkillLeverageTable`'s own card chrome) built
+clean — full suite green, confirmed chrome-only diff — but its Cypress audit was cut off mid-run
+by a session API limit, with no PASS/FAIL verdict recorded; it needs a clean re-run, trusting
+nothing from the cut-off pass. **Spec 033** (assembling the two-card shell in `App.tsx`) has not
+been started.
+
+As of this writing: 722/722 vitest, 239/239 pytest (+16 cleanly skipped), 59/68 Playwright e2e
+(9 skipped as expected pointer-mode mismatches), ruff/eslint/tsc all clean — the existing suites
+all pass, which is a different claim than "spec 032 is audited" or "spec 033 exists." Next: re-run
+032's audit, then build 033.
 
 ---
 

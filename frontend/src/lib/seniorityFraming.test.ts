@@ -11,7 +11,7 @@
 // fixture coverage called out in the handoff.
 //
 // FIXTURE-VALIDATION NOTE (updated 2026-07-28 — all 18 `SENIORITY_GRADIENT` cells are now real,
-// live-extracted figures, sourced from `data/raw/ai-requirements/ai-requirements-index.csv`; see
+// live-extracted figures, sourced from `data/raw/AI-Skills-in-Job-Requirements/ai-requirements-index.csv`; see
 // `dataset-evaluations.md` for the full extraction record). At the time this suite was first
 // written (RED phase, before Redwood's build), only `engineering`'s full triple and `security`'s
 // entry+senior were validated — the byte-for-byte fixtures below are still scoped to exactly
@@ -50,7 +50,7 @@ const SOURCE_PATH = path.join(LIB_DIR, 'seniorityFraming.ts')
 const ALL_SIX_CATEGORIES: DatamataCategory[] = ['ai', 'data', 'devops', 'engineering', 'product', 'security']
 
 // The 5 categories that hold the strict `entry_pct <= mid_pct <= senior_pct` ordering on real,
-// live-extracted data (2026-07-28 pull, data/raw/ai-requirements/ai-requirements-index.csv). `data` is
+// live-extracted data (2026-07-28 pull, data/raw/AI-Skills-in-Job-Requirements/ai-requirements-index.csv). `data` is
 // deliberately excluded from this list and asserted separately below — see the dedicated
 // `SENIORITY_GRADIENT.data` describe block for the evidenced reason (NOT a blanket loosening: if
 // a future data refresh regresses strict ordering in any of these 5, this must still catch it).
@@ -115,7 +115,7 @@ describe('ROLE_TO_DATAMATA_CATEGORY — exhaustive mapping', () => {
 // ---------------------------------------------------------------------------------------------
 // Edge case 4: monotonic gradient invariant — entry_pct <= mid_pct <= senior_pct, 5 of 6
 // categories strictly, `data` as a named exception. Real, live-extracted figures landed
-// 2026-07-28 (data/raw/ai-requirements/ai-requirements-index.csv) and `data` genuinely reads
+// 2026-07-28 (data/raw/AI-Skills-in-Job-Requirements/ai-requirements-index.csv) and `data` genuinely reads
 // entry_pct=7.4 > mid_pct=7.2 — investigated and resolved as sample-size noise (see
 // SENIORITY_GRADIENT.data's own comment in seniorityFraming.ts and dataset-evaluations.md's
 // seniority-gradient section for the full writeup: data/entry's pool is ~370-380 listings vs.

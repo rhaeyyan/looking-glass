@@ -118,11 +118,12 @@ Parked rather than closed. Any **one** of these makes it worth re-opening:
 `ROLE_TO_DATAMATA_CATEGORY` mapping + `getSeniorityFraming(role, seniority)` template function,
 data-layer only (no UI; spec 029 covers the picker control). Initially shipped with 8 of 18 cells
 PLACEHOLDER because the gitignored raw file was absent from the checkout; the raw file has since
-landed (currently at `data/raw/ai-requirements/ai-requirements-index.csv` — note, NOT at the
-`data/raw/AI-Skills-in-Job-Requirements/` path this doc originally cited above; it briefly lived at
-`data/raw/archive/` before a later dataset pull — the arshkon LinkedIn Job Postings set, see the
-entry below — reused that directory name and displaced it, so this citation reflects the current,
-correct path as of 2026-07-28) and **all 18 cells are
+landed. This is a gitignored, local-only path that has moved at least three times across sessions:
+it briefly lived at `data/raw/archive/` before the arshkon LinkedIn Job Postings set (see the entry
+below) reused that directory name and displaced it; a 2026-07-28 note then cited
+`data/raw/ai-requirements/`; as of 2026-07-29 it is back at
+`data/raw/AI-Skills-in-Job-Requirements/ai-requirements-index.csv` — matching this doc's original
+citation above (line 15). Re-verify this path on any fresh checkout before trusting it. All 18 cells are
 now real, live-extracted figures** (2026-07-28 pull, same 2026-07-22 snapshot, `tier=any_ai`). The
 3 previously-cited values here — `engineering`'s full triple (3.0/7.3/11.0), `security`'s
 entry+senior (0.0/5.6), `devops`'s entry (0.0) — were cross-checked against the raw pull and match
@@ -132,7 +133,7 @@ exactly.
 entry_pct=7.4, mid_pct=7.2, senior_pct=11.0 — entry_pct nominally > mid_pct, which appeared to
 **break** the "monotonic in all 6 categories" claim in the "Which cuts survive" table above (line
 75). That claim predates this category ever being pulled. Direct investigation against the raw CSV
-(`data/raw/ai-requirements/ai-requirements-index.csv`) resolved this as **sample-size noise, not a real
+(`data/raw/AI-Skills-in-Job-Requirements/ai-requirements-index.csv`) resolved this as **sample-size noise, not a real
 inversion**:
 
 - `data`/entry's pool is ~370-380 total listings; `data`/mid's pool is ~3,800-4,300 — roughly 10x
