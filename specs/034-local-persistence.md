@@ -1,0 +1,46 @@
+[SPEC] Local persistence for resume text, target role, and seniority
+
+- **Objective**: Persist the user's `resumeText`, `selectedRole`, and `selectedSeniority` to `localStorage` so all three survive a page reload, and automatically re-run the existing deterministic gap pipeline on rehydration when both a role and resume text are present — with an explicit user-facing control to clear all persisted data. "Gap-tracking progress" beyond this (e.g. a future "mark skill as learned" feature) does not exist in the app today and remains **out of scope**; the SPEC that adds such a feature would extend this same module with a new namespaced key.
+
+- **Inputs/Outputs**:
+  - New module `localPersistence.ts` exports:
+    - `savePersistedState(state: { resumeText: string; selectedRole: string; selectedSeniority: SeniorityLevel | '' }): void`
+    - `loadPersistedState(): { resumeText: string; selectedRole: string; selectedSeniority: SeniorityLevel | '' } | null` — returns `null` (never throws) on: no stored value, malformed JSON, a version-tag mismatch, `localStorage` being unavailable/throwing (Safari private mode, disabled storage), **or** either `selectedRole` or `selectedSeniority` failing validation (see Edge Cases). Validation is whole-object, not per-field: any single invalid field discards the entire stored blob back to `null` rather than partially hydrating — a corrupted/tampered value on one field means the rest of the blob can't be trusted either.
+    - `clearPersistedState(): void` — removes the key; never throws.
+  - Storage shape: one JSON blob under one versioned key, `lookingglass:v1:state` → `{ resumeText: string, selectedRole: string, selectedSeniority: SeniorityLevel | '' }`. **Key stays `v1`, not bumped to `v2`** — this SPEC has not yet been implemented or shipped (no code writes `lookingglass:v1:state` yet, so there is no real user data on disk anywhere to protect from a shape change). The version tag exists for *future* growth after this ships; folding `selectedSeniority` in now, before the first implementation, is defining what v1 actually is, not migrating away from a released v1. `SeniorityLevel` is imported from `./seniorityFraming` (`'entry' | 'mid' | 'senior'`), matching `App.tsx`'s existing `useState<SeniorityLevel | ''>('')`.
+  - `App.tsx` calls `loadPersistedState()` once on mount to seed `resumeText`, `selectedRole`, and `selectedSeniority`, and, if a role was restored, re-fetches its profile via the same code path `handleRoleChange` uses (extracted into a shared helper, one implementation, not two that can drift); if `resumeText` is also present once rows arrive, re-runs the same code path `handleResumeSubmit` uses (also extracted into a shared helper) to regenerate `haveSkillKeys`/`topGaps`. `selectedSeniority` is simply set into state on hydration — no recompute path needed for it, since `seniorityNote` is already a derived value computed straight from `hasRows && selectedSeniority` on every render.
+  - `App.tsx` calls `savePersistedState` on every `resumeText`/`selectedRole`/`selectedSeniority` change (plain synchronous write, no debounce — unchanged rationale from the original SPEC).
+  - New "Clear saved data" button calls `clearPersistedState()` and resets in-memory state to the app's existing idle values: `resumeText → ''`, `selectedRole → ''`, `selectedSeniority → ''`, `rows → []`, `status → 'idle'`, `haveSkillKeys/topGaps → undefined`, `selectedGroup → null`.
+
+- **Design Pattern**: none — simple case. The storage backend is not expected to vary, so a thin, directly-called module is enough. `Simplicity > Pattern purity`.
+
+- **Bounded-AI boundary**: Zero LLM involvement. This SPEC persists and rehydrates plain strings/enums only. Persisting `selectedSeniority` must not create any new pathway into `computeSkillGap` or the Arbitrage Score — `seniorityFraming.ts`'s existing import-isolation guarantee (spec 028: it must never import from `./gap`, `./supabaseClient`, or `./narrate`, enforced structurally by a source-text test) is unaffected, since `localPersistence.ts` only reads/writes the raw string App.tsx already holds and never imports `seniorityFraming.ts` itself. No new gap-computation, scoring, or join logic is introduced anywhere in this SPEC.
+
+- **Verification Oracle**:
+  - **Primary** — `frontend/e2e/persistence.spec.ts @ desktop-light`: drive the existing full flow (pick `STUB_ROLE`, select a seniority level, paste `STUB_RESUME`, submit — reusing `stubRoleSkillProfile`/`STUB_ROLE`/`STUB_RESUME` from `e2e/support/app.ts`), call `page.reload()`, and assert the role select, seniority select, resume textarea, and analyzed gap results (donut/topGaps/table rows, and the `SeniorityFraming` note) all reappear without resubmitting. Then click "Clear saved data", reload again, and assert the app is back to its idle empty state, including the seniority `<select>` back at "Not specified". `desktop-light` remains the right profile: this behavior is not touch/theme-specific.
+  - **Supporting** — `frontend/src/lib/localPersistence.test.ts` (vitest): round-trip save/load for all three fields, malformed-JSON discard, version-mismatch discard, `selectedRole` not in `ROLES` discards the whole blob, `selectedSeniority` outside `{'', 'entry', 'mid', 'senior'}` discards the whole blob, `localStorage` throwing (stub to simulate Safari private mode) never throws back to the caller.
+  - **Supporting** — `frontend/src/App.persistence.test.tsx` (vitest + RTL): pre-seed `localStorage` before rendering `<App />` and assert hydration populates the textarea/role-select/seniority-select and re-triggers the gap pipeline; separately pre-seed an invalid/stale `selectedRole` value and an invalid `selectedSeniority` value (each independently) and assert both cases discard to idle rather than rendering an orphaned control value.
+
+- **UI Scope**: cosmetic — the "Clear saved data" button reuses existing button/design-system classes; no new layout/DOM structure beyond one additional control near the resume field.
+
+- **Intellectual Control**: Only raw user input is persisted, never derived gap state, because the arbitrage_score view is a live invariant that must never be shadowed by a stale cached result. Extending the same single versioned blob to include `selectedSeniority` (rather than a second key) keeps the "one clear-all, one future migration surface" property intact — this was the whole reason a single-key blob was chosen originally, and it's exactly why folding a third field in later costs nothing structurally.
+
+- **Constraints**: No new NPM/PIP dependency (native `window.localStorage` only), no Supabase schema/migration touched, resume text and seniority never logged/transmitted/sent to analytics. `resumeText` read back from storage is still clamped to `MAX_RESUME_LENGTH` before being set into state.
+
+- **Edge Cases**: `localStorage` unavailable/throws → treated identically to "nothing stored," app behaves exactly as it does today. Corrupt/foreign-schema JSON → discarded silently, no crash. Resume text alone (no role) → textarea rehydrates, role picker stays at idle. Role alone (no resume text) → role rehydrates, profile re-fetches and renders ungapped, `analyzed` stays false. Stored `selectedRole` no longer present in `ROLES` → discards the whole blob, falls back to idle. Stored `selectedSeniority` value that isn't `''`, `'entry'`, `'mid'`, or `'senior'` (e.g. a future enum rename, or hand-edited storage) invalidates the whole blob back to idle, same treatment as an invalid `selectedRole` — never rendered into the `#seniority-picker` `<select>` as an orphaned value. A valid `selectedSeniority` restored alongside an *invalid* `selectedRole` (or vice versa) still discards the entire blob (whole-object validation, not per-field) — a user never ends up in a partially-hydrated state where one control shows a persisted value and another silently resets. Clear button → next reload must show idle, not stale data (asserted directly by the primary e2e oracle).
+
+- **Files** (5):
+  1. `frontend/src/lib/localPersistence.ts` (new) — Redwood
+  2. `frontend/src/lib/localPersistence.test.ts` (new) — Cypress (red first)
+  3. `frontend/src/App.tsx` (edit: mount-hydration, persist-on-change, extracted shared load/gap helpers, Clear button, now including `selectedSeniority`) — Redwood
+  4. `frontend/src/App.persistence.test.tsx` (new) — Cypress (red first)
+  5. `frontend/e2e/persistence.spec.ts` (new) — Cypress (red first)
+
+- **Tipping Point**: If a future feature needs to persist still more (a "mark skill learned" concept, multiple saved resumes), bump the storage key to `v2` at that point and add an explicit migration function, rather than growing the shape un-versioned again after this ships. If resume text or stored state ever approaches typical per-origin `localStorage` quota, revisit debouncing or compression — not needed at this scale.
+
+```markdown
+[FORCES]
+1. Never let persisted/cached data silently outlive the live scoring view it was derived from > convenience of caching computed results
+2. User control over their own resume-text persistence (explicit clear) > relying on browser-level site-data clearing alone
+3. Simplicity > Pattern purity
+```

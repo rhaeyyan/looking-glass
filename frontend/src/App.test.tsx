@@ -55,6 +55,10 @@ function makeRow(overrides: Partial<RoleSkillRow> = {}): RoleSkillRow {
 }
 
 beforeEach(() => {
+  // spec 034: App now persists resumeText/selectedRole/selectedSeniority to localStorage on every
+  // change and hydrates from it on mount. Without this, successive renders in this file leak state
+  // across tests via the shared jsdom `window.localStorage` instance.
+  window.localStorage.clear()
   mockFetch.mockReset()
   mockFetch.mockResolvedValue([])
   mockExtract.mockReset()
