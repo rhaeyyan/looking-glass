@@ -261,14 +261,28 @@ evaluated and parked:
 ### Status
 
 The full product described above is built, live-verified, and deployed against the real
-Supabase database, for the six V1 high-coverage technical roles, with zero AI-model calls
-anywhere in the flow. Since first shipping, the project has gone through multiple hardening
-passes: role coverage widened from 6 to all 15 roles; accessibility passes (WCAG 2.2 AA) on
-empty/loading states, the scatter legend, touch/motion, and salary-premium phrasing; and a
-light/dark-mode contrast, responsive-layout, and visual-design pass across the whole app,
-including a post-ship dark-mode regression caught from a real user screenshot and fixed. The
-full automated test suite (frontend and backend) passes as of this writing. Next: whatever comes
-after V1, the moderate-coverage roles, or a genuinely new feature, is unspecced.
+Supabase database, for all 15 target roles, with zero AI-model calls anywhere in the flow. Since
+first shipping, the project has gone through multiple hardening passes: role coverage widened
+from 6 to all 15 roles; accessibility passes (WCAG 2.2 AA) on empty/loading states, the scatter
+legend, touch/motion, and salary-premium phrasing; and a light/dark-mode contrast,
+responsive-layout, and visual-design pass across the whole app, including a post-ship dark-mode
+regression caught from a real user screenshot and fixed.
+
+Three deterministic V2 features have since shipped on top of that base — skill-alias fuzzy
+matching, a skill-group-level breakdown/filter, and seniority-aware framing copy in the role
+picker (see "Planned V2 scope expansion" below). A fourth, separate UI initiative is in
+progress: a design-handoff-driven restructure of the results column from four sibling cards into
+two, **Standing** and **Evidence** (specs
+[030](specs/030-filter-status-bar.md)–[033](specs/033-results-column-two-card-shell.md)). Three
+of those four specs are shipped; the fourth (assembling the two-card shell in `App.tsx`) has not
+been started, and spec 032's Cypress compliance audit was cut off mid-run (a session API limit,
+not a failure) and needs a clean re-run before that step is trusted complete.
+
+The full automated test suite passes as of this writing: 722/722 vitest, 239 pytest (+16 cleanly
+skipped), 59/68 Playwright e2e (9 skipped as expected pointer-mode mismatches for the profile
+they're tagged to), ruff/eslint/tsc all clean. Next: finish the results-column restructure
+(re-run the spec 032 audit, then build spec 033); after that, the moderate-coverage roles or a
+genuinely new feature is unspecced.
 
 ---
 
