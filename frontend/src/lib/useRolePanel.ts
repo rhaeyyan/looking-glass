@@ -3,9 +3,19 @@ import { fetchRoleSkillProfile, type RoleSkillRow } from './supabaseClient'
 import { extractResumeSkills } from './resumeSkills'
 import { computeSkillGap } from './gap'
 import { narrateTopGaps } from './narrate'
+import { normalizeSkillName } from './normalize'
 
 export type RolePanelStatus = 'idle' | 'loading' | 'success' | 'error'
 export type RolePanelTopGaps = ReturnType<typeof narrateTopGaps>
+
+// Extraction's output, awaiting the user's confirm/edit pass (spec 038a) before it is allowed to
+// feed `computeSkillGap`. `rows` is the exact row set extraction ran against, captured at
+// `submitResume` time, so a later, in-flight `loadRole` can never make `confirmSkills` re-slice
+// against a different role's rows.
+export interface PendingConfirmation {
+  rows: RoleSkillRow[]
+  autoDetectedKeys: Set<string>
+}
 
 export interface UseRolePanelResult {
   status: RolePanelStatus
@@ -15,7 +25,11 @@ export interface UseRolePanelResult {
   topGaps: RolePanelTopGaps | undefined
   selectedGroup: string | null
   setSelectedGroup: (group: string | null) => void
+  pendingConfirmation: PendingConfirmation | undefined
   submitResume: (resumeText: string) => void
+  submitResumeAutoConfirm: (resumeText: string) => void
+  confirmSkills: (checkedSkillKeys: Set<string>) => void
+  cancelConfirmation: () => void
   loadRole: (role: string) => void
 }
 
@@ -43,10 +57,16 @@ export function useRolePanel(role: string): UseRolePanelResult {
   const [haveSkillKeys, setHaveSkillKeys] = useState<Set<string> | undefined>(undefined)
   const [topGaps, setTopGaps] = useState<RolePanelTopGaps | undefined>(undefined)
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
+  const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | undefined>(
+    undefined,
+  )
 
   // Bumped on every effect run; a resolved/rejected fetch is only applied if this ref still
   // matches the generation it was issued under — discards a stale role's slow response after
-  // `loadRole` has already moved this instance on to a newer one.
+  // `loadRole` has already moved this instance on to a newer one. The same generation bump also
+  // guards `pendingConfirmation`: any draft outstanding when `loadRole` fires is stale by
+  // construction (its captured `rows` belong to the role being left), so it is discarded here
+  // alongside `haveSkillKeys`/`topGaps` rather than via a second, independently-drifting guard.
   const requestGenerationRef = useRef(0)
 
   useEffect(() => {
@@ -55,6 +75,7 @@ export function useRolePanel(role: string): UseRolePanelResult {
     setHaveSkillKeys(undefined)
     setTopGaps(undefined)
     setSelectedGroup(null)
+    setPendingConfirmation(undefined)
 
     if (!currentRole) {
       setStatus('idle')
@@ -80,14 +101,59 @@ export function useRolePanel(role: string): UseRolePanelResult {
     setCurrentRole(newRole)
   }, [])
 
-  // Hook-instance-local equivalent of the former `runGapPipeline`: reads only this instance's own
-  // `rows`, calls the existing (unchanged, unmoved) `computeSkillGap`/`narrateTopGaps`, and writes
-  // only this instance's own `haveSkillKeys`/`topGaps`.
+  // Extraction-only phase (spec 038a): runs `extractResumeSkills` against this instance's own
+  // `rows` and stores the result as a `pendingConfirmation` draft for the caller to review/edit.
+  // Deliberately does NOT call `computeSkillGap`/`narrateTopGaps` — that is `confirmSkills`' job,
+  // gated on the user's confirm step, never run implicitly on extraction alone.
   const submitResume = useCallback(
     (resumeText: string) => {
       const vocabulary = rows.map((row) => row.skill_name_raw)
-      const skills = extractResumeSkills(resumeText, vocabulary)
-      const gap = computeSkillGap(rows, skills)
+      const extractedNames = extractResumeSkills(resumeText, vocabulary)
+      const extractedNameSet = new Set(extractedNames)
+      const autoDetectedKeys = new Set(
+        rows
+          .filter((row) => extractedNameSet.has(row.skill_name_raw))
+          .map((row) => row.skill_key ?? normalizeSkillName(row.skill_name_raw)),
+      )
+      setPendingConfirmation({ rows, autoDetectedKeys })
+    },
+    [rows],
+  )
+
+  // Confirmation phase (spec 038a): pure re-slice of the draft's captured `rows` by the caller's
+  // chosen key set — no scoring of its own — then the existing, unmodified
+  // `computeSkillGap`/`narrateTopGaps` calls, exactly as the pre-split `submitResume` used to run
+  // inline. Uses `pendingConfirmation.rows` (not the live `rows` state) so a confirm can never be
+  // silently re-sliced against a role the fetch has since moved on to — though in practice
+  // `loadRole` already clears `pendingConfirmation` outright before that could happen.
+  const confirmSkills = useCallback(
+    (checkedSkillKeys: Set<string>) => {
+      if (!pendingConfirmation) return
+      const confirmedNames = pendingConfirmation.rows
+        .filter((row) => checkedSkillKeys.has(row.skill_key ?? normalizeSkillName(row.skill_name_raw)))
+        .map((row) => row.skill_name_raw)
+      const gap = computeSkillGap(pendingConfirmation.rows, confirmedNames)
+      setHaveSkillKeys(gap.haveSkillKeys)
+      setTopGaps(narrateTopGaps(gap.rows, gap.haveSkillKeys))
+      setPendingConfirmation(undefined)
+    },
+    [pendingConfirmation],
+  )
+
+  const cancelConfirmation = useCallback(() => {
+    setPendingConfirmation(undefined)
+  }, [])
+
+  // Permanent one-shot path (spec 038a amendment): App.tsx's compare-mode fan-out call sites,
+  // which have no confirm-step UI to hand a draft to. Runs the exact same
+  // extractResumeSkills → computeSkillGap → narrateTopGaps sequence `submitResume`/`confirmSkills`
+  // run in two steps, but in the old one-shot order, and never stages (or needs to clear) a
+  // `pendingConfirmation` draft.
+  const submitResumeAutoConfirm = useCallback(
+    (resumeText: string) => {
+      const vocabulary = rows.map((row) => row.skill_name_raw)
+      const extractedNames = extractResumeSkills(resumeText, vocabulary)
+      const gap = computeSkillGap(rows, extractedNames)
       setHaveSkillKeys(gap.haveSkillKeys)
       setTopGaps(narrateTopGaps(gap.rows, gap.haveSkillKeys))
     },
@@ -102,7 +168,11 @@ export function useRolePanel(role: string): UseRolePanelResult {
     topGaps,
     selectedGroup,
     setSelectedGroup,
+    pendingConfirmation,
     submitResume,
+    submitResumeAutoConfirm,
+    confirmSkills,
+    cancelConfirmation,
     loadRole,
   }
 }

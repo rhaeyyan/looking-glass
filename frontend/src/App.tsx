@@ -154,11 +154,11 @@ function App() {
 
     // spec 036: one shared resume paste fans out to every ACTIVE slot's own panel instance — each
     // computes its own have/gap split independently (no cross-role aggregate is ever computed).
-    panels[0].submitResume(resumeText)
+    panels[0].submitResumeAutoConfirm(resumeText)
     if (compareMode) {
-      panels[1].submitResume(resumeText)
+      panels[1].submitResumeAutoConfirm(resumeText)
       if (showThirdSlot) {
-        panels[2].submitResume(resumeText)
+        panels[2].submitResumeAutoConfirm(resumeText)
       }
     }
   }
@@ -168,7 +168,7 @@ function App() {
   // role-keyed effect already fires the restored role's fetch at mount (its initial argument is
   // `roleSlots[0]`, seeded the same way). This effect only handles the one side effect hydration
   // additionally needs: once that fetch settles, re-running the gap pipeline via the same
-  // `panels[0].submitResume` path `handleResumeSubmit` uses, if resumeText was also restored.
+  // `panels[0].submitResumeAutoConfirm` path `handleResumeSubmit` uses, if resumeText was also restored.
   // Guarded by a ref (not just the dependency array) so this only ever fires once, even across
   // React 18 StrictMode's dev-only double-invocation of effects. Slots 1/2 are never persisted
   // (spec 036), so they have nothing to hydrate.
@@ -183,7 +183,7 @@ function App() {
     if (panels[0].status === 'success') {
       didRunMountSubmit.current = true
       if (persistedOnMount.resumeText.trim() !== '') {
-        panels[0].submitResume(persistedOnMount.resumeText)
+        panels[0].submitResumeAutoConfirm(persistedOnMount.resumeText)
       }
     } else if (panels[0].status === 'error') {
       didRunMountSubmit.current = true

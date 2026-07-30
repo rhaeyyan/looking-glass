@@ -103,11 +103,33 @@
   guess violates the same "every number traceable to real data" identity as an LLM-guessed one
   would. **Verdict: REJECTED, no SPEC, no code** — same resolution pattern as the dropped Coursera
   and arshkon evaluations. Appended to `data/dataset-evaluations.md`.
-- **Next**: commit the dataset-evaluations.md addition (docs-only). Recommendation candidates #1
-  (manual "confirm your skills" checkbox, OBSERVABLE) and #3 (deepen weak-coverage-role data,
-  UNKNOWN/SPIKE) from the original career-changer review are still unstarted. The
-  `scrollable-region-focusable` finding on `SkillLeverageTable` (found during spec 036's audit) is
-  a candidate for a small follow-up ticket whenever picked up.
+- Dataset-evaluations.md addition committed/pushed (`b7a0877`). Dispatched Cedar on recommendation
+  #1 (manual "confirm your skills" checkbox) — flagged first that Pine originally routed this
+  OBSERVABLE (straight to a builder), but the human asked for Cedar anyway given how much the
+  architecture had grown since (`useRolePanel`, compare-mode). Right call: Cedar found it's
+  genuinely INVARIANT-shaped now — `submitResume` runs extraction and gap-computation in one
+  synchronous call inside the hook, so a confirmation step needs a real API split, and each active
+  compare-mode panel has a *different* role vocabulary from the same shared resume paste, which
+  Pine's original call never had to reckon with. Split into 038a (hook API split) and 038b
+  (checklist UI + persistence v2), both single-panel-mode only; correctly punted the compare-mode
+  confirmation UX to `/grill-me` rather than guessing at a product tradeoff. Human answered: one
+  checklist per panel, sequentially — recorded in 038b's Tipping Point for whoever specs that
+  extension later.
+- Spec 038a's build was the bumpiest of the session: Redwood built the core split, then correctly
+  halted on two real problems rather than guessing — a stale spec-035 test in the same file
+  directly contradicted the new contract, and `App.tsx`'s 3 call sites broke since nothing
+  auto-confirms anymore. Cedar resolved both: directed Cypress to fix its own test (retarget
+  through the new two-step API, not weaken the isolation check), and added a permanent
+  `submitResumeAutoConfirm` function (not a shim) to `App.tsx`'s call sites — reproduces the old
+  one-shot behavior exactly, and doubles as compare mode's steady-state path per the `/grill-me`
+  answer above. Combined audit **PASS**: 755/755 vitest, 119 passed/9 expected-skipped e2e,
+  `submitResumeAutoConfirm` confirmed byte-identical to the pre-split logic via direct diff against
+  `git show HEAD`, not just a passing test.
+- **Next**: commit spec 038a (implementation) + specs 038a/038b (docs, 038b not yet built). Then
+  038b: the checklist UI + persistence v2 bump. Recommendation #3 (deepen weak-coverage-role data,
+  UNKNOWN/SPIKE) is still unstarted. The `scrollable-region-focusable` finding on
+  `SkillLeverageTable` (found during spec 036's audit) is a candidate for a small follow-up ticket
+  whenever picked up.
 
 ---
 
