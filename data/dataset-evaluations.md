@@ -430,3 +430,98 @@ recording as a real open question rather than searching indefinitely on each re-
 None currently known. Re-open only if a **named, specific** dataset candidate surfaces meeting
 the per-skill grain + real-observation (not single-vendor-authored) bar above — evaluate it with
 the same live vocabulary-join test Coursera got before writing any SPEC.
+
+---
+
+## Weak-tier role skill-coverage gap — real inventory built, no closing dataset found
+
+- **Evaluated**: 2026-07-30
+- **Requested by**: round-24 senior-career-changer product review, recommendation #3. Routed by
+  Pine as UNKNOWN — no oracle nameable yet, because the actual missing-skill inventory for the six
+  Weak-tier roles didn't exist anywhere in the repo. Cedar first requested a `[CONTEXT-PACKET]`
+  from Birch to build that inventory (raw D1/D2/D3 CSVs are confirmed genuinely absent from this
+  checkout — not merely gitignored-but-present, verified via direct `Read` failures on the exact
+  paths `data/schema-notes.md` cites) before evaluating any dataset against it.
+- **Files checked**: `data/schema-notes.md`, this doc's four existing entries (AI Requirements
+  Index / synthetic ai_job_market trio / arshkon LinkedIn set / effort-tag), `README.md`'s Role
+  coverage table, `tests/test_data_invariants.py`, `src/ingest/pipeline.py`,
+  `frontend/src/test/fixtures/roleSkillProfile.fixture.ts`. The inventory itself was retrieved by
+  Birch via a **live** `GET /rest/v1/role_skill_arbitrage` query (Supabase project
+  `hzjvvsrasgvehmbkcddu.supabase.co`, the same RLS-public anon-key read the frontend already uses
+  in production — `frontend/src/lib/supabaseClient.ts`'s `fetchRoleSkillProfile` query pattern
+  replicated exactly), filtered per role, with `arbitrage_score IS NULL` as the unscored flag
+  (verified against `supabase/migrations/20260722160652_frontend_read_layer.sql` lines 42-58: the
+  view's `skill_key` is populated at ingest for every role-skill row regardless of a D1/D2 match,
+  so `skill_key IS NULL` would under-count; `arbitrage_score IS NULL` is the only reliable
+  unscored indicator).
+- **Verdict: REJECTED as a dataset-sourcing question for V1/V2, with a real inventory now on
+  record.** The finding is a hybrid of two of the three possible outcomes: the large majority of
+  unscored skills are a **structural** vocabulary gap (D1/D2's category taxonomy was never built
+  to cover these roles' domains), not a missing-CSV gap; a smaller, real residual of named hard
+  tools remains open, PARKED pending a specific, named candidate.
+
+### The inventory (live, 2026-07-30 — scored / unscored of 30, matches README exactly)
+
+| Role | Scored | Unscored |
+|---|---|---|
+| Security | 6 | 24 |
+| QA / Test | 6 | 24 |
+| Business Analyst | 5 | 25 |
+| Designer (UX/UI) | 3 | 27 |
+| Product Manager | 3 | 27 |
+| Project / Program Mgr | 3 | 27 |
+
+### Two categories of unscored skill, not one
+
+**Majority — generic professional-competency nouns, recurring across roles**: `communication`,
+`leadership`, `stakeholder management`, `attention to detail`, `analytical` / `analytical skills`,
+`collaboration`, `compliance`, `governance`, `risk management`, `business`, `finance`, `marketing`,
+`data`, `ai`, `automation`, plus role-adjacent broad-domain nouns (`cybersecurity`, `information
+security`, `testing`, `product management`, `project management`, `program management`) and
+process/methodology terms (`agile`, `scrum`, `scrum master`, `sdlc`). Roughly 118 of the 154
+unscored slots fall in this bucket, by inspection of the full lists in Birch's packet.
+
+**Minority — real, named, hard tools/standards (~22 distinct)**:
+- Security: `splunk`, `iso 27001`, `nist`, `edr`
+- QA / Test: `selenium`, `postman`, `playwright`, `jenkins`, `cypress`, `azure devops`
+- Business Analyst: `confluence`, `chatgpt`
+- Designer (UX/UI): `photoshop`, `illustrator`, `adobe photoshop`, `adobe xd`, `canva`, `adobe
+  creative suite`, `autocad`, `css`, `html`
+- Project / Program Mgr: `ms project`
+- Product Manager: none — all 27 unscored skills are generic soft-skill or broad-domain terms.
+
+### Why D1/D2 structurally can't carry the majority
+
+D1/D2's category taxonomy is exactly six values — `ai, data, devops, engineering, product,
+security` (`data/schema-notes.md`) — with no `design`, `QA`, `project-management`, or
+`business-analysis` category. Terms like `communication` or `stakeholder management` aren't
+skills a demand/scarcity-index scraper targeting *technical* hiring postings tracks as discrete,
+postable, scarce skill rows to begin with. This is the same shape of finding as the effort-tag
+rejection above: not a missing-CSV problem, a wrong-measurement-axis problem. No re-derivation of
+that discipline was needed here, only its application to a second question.
+
+### Why the four already-rejected candidates in this doc still don't close the minority
+
+Re-checked against the real 22-skill list, not hypothetically:
+
+- **AI Requirements Index**: still has zero `skill_name` column at any grain — can't score any of
+  the 22, named or not.
+- **ai_job_market / AI Job Market Dataset / ai_job_salary_dataset_10k**: still confirmed
+  synthetic — would fabricate a number for any of the 22 rather than observe one.
+- **arshkon LinkedIn set**: pre-built join is still a 36-value job-function taxonomy, same
+  wrong-grain failure. Its one surviving PARKED path — regex-matching the free-text `description`
+  field — is a real, non-synthetic signal and *could* plausibly catch some of these 22 (`photoshop`,
+  `selenium`, `jenkins`, `splunk` are unambiguous literal tokens; `css`/`html` are common enough as
+  substrings to need real boundary handling, not the crude substring test this doc's earlier
+  sanity check used). It remains stale (Dec 2023–Apr 2024) and unbuilt, and reviving it was already
+  gated on a fresh pull and a concrete feature spec — neither of which this evaluation changes.
+
+### Park conditions
+
+Re-open only if a **named, specific** dataset surfaces carrying real observed hiring-market
+demand/scarcity signal, at per-skill grain, for security-ops tooling, QA/test-automation tooling,
+creative-design tooling, or PM tooling — and clears a live vocabulary-join test against the 22
+skill names listed above specifically (the same bar D4/Coursera and arshkon were held to). None is
+currently known or located. Not searching further on each re-ask, per the same discipline recorded
+in the effort-tag entry above — this is a real open question, not a closed one, but it is not this
+project's job to search for a dataset that may not exist.

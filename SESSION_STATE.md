@@ -159,12 +159,29 @@
   `SkillConfirmationChecklist.test.tsx` (16 tests) since no existing oracle actually axe-scanned the
   checklist's own on-screen state. Combined audit **PASS** — 778/778 vitest, 139 passed/9
   expected-skipped e2e, tsc/eslint clean, zero critical violations. Ready to commit.
-- **Next**: commit spec 038b (implementation + the 4 test-file fixes/additions together). After
-  that ships: recommendation #3 (deepen weak-coverage-role data, UNKNOWN/SPIKE) is still unstarted,
-  and the `/grill-me`-answered compare-mode confirmation extension (one checklist per panel,
-  sequentially) is unspecced. The `scrollable-region-focusable` finding on `SkillLeverageTable`
-  (spec 036's audit) and a focus-order pass on the new checklist's mount/confirm/cancel transitions
-  (Cypress's non-blocking recommendation this round) are both candidates for small follow-up tickets.
+- Spec 038b committed and pushed (`72fd921`). Dispatched Cedar on recommendation #3 (deepen
+  weak-coverage-role data). Cedar correctly halted immediately — the raw D1/D2/D3 CSVs are
+  genuinely absent from this checkout (not just gitignored-but-present) and no substitute inventory
+  of the six Weak-tier roles' actual unscored skill names existed anywhere in the repo (only the
+  3-6-of-30 counts did) — and requested a `[CONTEXT-PACKET]` rather than guess. Dispatched Birch,
+  who retrieved the real list live from the production Supabase view (`arbitrage_score IS NULL`,
+  verified against the read-layer migration as the only reliable unscored flag): 154 of 180
+  unscored slots across the six roles, ~118 generic professional-competency nouns
+  (`communication`, `stakeholder management`, `leadership`, …) plus a real ~22-skill residual of
+  named hard tools (`splunk`, `selenium`, `photoshop`, `ms project`, …). Relayed to Cedar, who
+  rendered **REJECTED** — the majority is a structural vocabulary-taxonomy gap (D1/D2's six
+  categories never covered design/QA/PM/BA domains to begin with), not a missing-CSV problem; the
+  22-skill residual re-checked against all four already-closed candidates in
+  `data/dataset-evaluations.md` and none close it; no fifth dataset identified. PARKED, not
+  searched further, per this doc's own established discipline. Appended to
+  `data/dataset-evaluations.md`.
+- **Next**: commit the recommendation #3 rejection (dataset-evaluations.md + this ledger entry).
+  After that: the `/grill-me`-answered compare-mode confirmation extension (one checklist per
+  panel, sequentially) is unspecced. The `scrollable-region-focusable` finding on
+  `SkillLeverageTable` (spec 036's audit) and a focus-order pass on the checklist's
+  mount/confirm/cancel transitions (Cypress's non-blocking recommendation, spec 038b) are both
+  candidates for small follow-up tickets. All 5 of round 24's original review recommendations are
+  now resolved (shipped or formally rejected).
 
 ---
 
