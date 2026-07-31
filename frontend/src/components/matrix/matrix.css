@@ -366,10 +366,21 @@
   }
 }
 
-/* Visually hidden, but still present in the DOM/accessibility tree — used for text that is
- * already fully covered by an ancestor's `aria-label` (so it is `aria-hidden` to avoid
- * double-announcement) but still needs to be a real DOM text node for automated checks. */
-.visually-hidden {
+/* Visually hidden, but still present in the DOM/accessibility tree. Two call patterns share this
+ * exact clip-rect declaration set:
+ *   - text already fully covered by an ancestor's `aria-label` (so it is ALSO marked `aria-hidden`
+ *     at the call site to avoid double-announcement) but still needs to be a real DOM text node
+ *     for automated checks;
+ *   - the leverage table's own Status-column label (`.lev-status-label`/`.lev-status-h-label`),
+ *     which stays fully in the accessibility tree (never `aria-hidden`) once its icon-only compact
+ *     treatment kicks in — either via the `@media (max-width: 640px)` block above (narrow
+ *     viewports) or via `[data-compare-mode]` below (compare-mode panels, which hit the same
+ *     crowding regardless of viewport width). Folded into this rule's own selector list rather
+ *     than repeated as a third standalone copy of the same seven properties.
+ */
+.visually-hidden,
+.leverage-table[data-compare-mode] .lev-status-label,
+.leverage-table[data-compare-mode] .lev-status-h-label {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -447,6 +458,11 @@
    * Auto layout lets the browser widen those columns past their declared width whenever content
    * needs room, which desyncs the offsets and makes the pinned columns overlap. */
   table-layout: fixed;
+  /* Shared by BOTH the `@media (max-width: 640px)` compact-Status block below AND the
+   * `[data-compare-mode]` compact-Status block that mirrors it (compare-mode panels hit the exact
+   * same pinned-column crowding regardless of actual viewport width) — declared once here so the
+   * two independently-scoped triggers can never drift apart on the actual pixel value. */
+  --lev-status-compact-width: 2.75rem;
 }
 /* `(hover: hover)` gated: touch devices report a synthetic `:hover` on tap that never clears
  * without a real pointerleave event, "sticking" this row highlight on whatever row was last
@@ -561,40 +577,12 @@
   font-weight: 400;
   color: var(--text-secondary);
 }
-.lev-leverage {
-  min-width: 9rem;
-}
-.lev-bar-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.lev-bar-track {
-  position: relative;
-  flex: 1;
-  min-width: 48px;
-  height: 8px;
-  background: var(--gridline);
-  border-radius: 99px;
-  overflow: hidden;
-}
-.lev-bar {
-  display: block;
-  height: 100%;
-  border-radius: 99px;
-  background: var(--series-1);
-}
-.lev-bar-val {
-  min-width: 2.5rem;
-  font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono, monospace);
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-align: right;
-}
-
-/* Digit-heavy numeric data cells (demand, scarcity, salary premium %, days-to-fill, % of role) —
- * mono is used ONLY here for these raw figures, never on headings/body/labels. */
+/* Digit-heavy numeric data cells (leverage, demand, scarcity, salary premium %, days-to-fill, % of
+ * role) — mono is used ONLY here for these raw figures, never on headings/body/labels. The
+ * Leverage column used to be a fill-bar (`.lev-bar-wrap`/`.lev-bar-track`/`.lev-bar`/`.lev-bar-val`,
+ * removed) that visually distinguished it from the other metric columns; it is now a bare number
+ * with no bar to distinguish it, so it reads identically to Demand/Scarcity/Days-to-fill/% of role
+ * via this same shared class. */
 .lev-metric {
   font-family: var(--font-mono, monospace);
   font-variant-numeric: tabular-nums;
@@ -668,8 +656,11 @@
      * 0.2rem/0.6rem (≈3px/10px) padding — the base 9.5rem was sized for the now-hidden
      * "✕ Worth learning" text and left the pill a mostly-empty capsule once that text
      * disappeared. 2.75rem (44px) comfortably covers padding + glyph + a touch of breathing
-     * room without clipping, confirmed by rendering at a real-device 487px viewport. */
-    width: 2.75rem;
+     * room without clipping, confirmed by rendering at a real-device 487px viewport.
+     * Referenced via `--lev-status-compact-width` (declared once on `.leverage-table` above) so
+     * this figure and the `[data-compare-mode]` block below (same treatment, different trigger)
+     * can never drift apart. */
+    width: var(--lev-status-compact-width);
     /* Belt-and-suspenders containment: `.lev-status-h`'s own text ("Status") is visually hidden
      * via the same `.lev-status-label`-style clip-rect technique below (applied to a wrapping
      * span in the header cell), so nothing should ever paint past this 44px box in practice — but
@@ -705,6 +696,29 @@
     white-space: nowrap;
     border: 0;
   }
+}
+
+/* ---------- Compact Status column in compare mode ----------
+ * Compare-mode panels hit the EXACT same pinned-column crowding the `@media (max-width: 640px)`
+ * block above already solves — each comparison-mode panel (SkillLeverageTable's `compareMode`
+ * prop, threaded from RoleResultsPanel) is inherently narrower than a full-width single-role view,
+ * regardless of the actual browser window width, so the fix is triggered by `data-compare-mode`
+ * (an attribute selector, not a media feature) instead. Same treatment, factored so the two
+ * triggers can never drift apart on the actual numbers:
+ *   - the shared pixel width lives in one place, `--lev-status-compact-width` (declared once on
+ *     `.leverage-table` above and referenced by both this rule and the @media block's `width:`
+ *     declaration) — not two independently hand-maintained "2.75rem" literals;
+ *   - the label-hiding declarations below are folded directly into the existing `.visually-hidden`
+ *     utility rule's own selector list (this file's established clip-rect idiom for "hidden but
+ *     still in the accessibility tree") rather than repeated as a third copy of the same seven
+ *     properties.
+ */
+.leverage-table[data-compare-mode] .lev-status,
+.leverage-table[data-compare-mode] .lev-status-h {
+  position: static;
+  left: auto;
+  width: var(--lev-status-compact-width);
+  overflow: hidden;
 }
 
 /* ---------- Top moves (spec 005, extended to a ranked top-3) ----------
@@ -1086,16 +1100,17 @@
   }
 }
 
-/* ---------- Spec 036: Compare roles (toggle, "+ third role" control, multi-slot grid) ----------
+/* ---------- Spec 036/039a: Compare roles (toggle, 2-slot grid) ----------
  * These rules apply globally (this file is statically imported through App.tsx's component
  * chain, so it is loaded regardless of whether any panel — or compare mode — is currently
- * rendered). `.lg-compare-toggle`/`.lg-add-third-role` intentionally set no `color`/`accent-color`
- * of their own: this file's glass-v2-tokens guard (spec 018) forbids matrix.css from referencing
- * looking-glass.css's text/accent token layer by name, and these controls live in App.tsx's Step 1
- * sidebar card — outside `.matrix-root`/`.filter-status-root`/etc., so none of THIS file's own
- * locally-scoped tokens reach them either. Both inherit the ambient body text color and the
- * browser's native checkbox tint, which already reads as part of one system since nothing here
- * overrides it with a clashing color. */
+ * rendered). `.lg-compare-toggle` intentionally sets no `color`/`accent-color` of its own: this
+ * file's glass-v2-tokens guard (spec 018) forbids matrix.css from referencing
+ * looking-glass.css's text/accent token layer by name, and this control lives directly in
+ * App.tsx's `.lg-sidebar` (spec 039b moved it out of the Step 1 card — see that spec's own comment
+ * below — so it stays reachable regardless of the two cards' `hidden` state) — outside
+ * `.matrix-root`/`.filter-status-root`/etc., so none of THIS file's own locally-scoped tokens reach
+ * it either. It inherits the ambient body text color and the browser's native checkbox tint, which
+ * already reads as part of one system since nothing here overrides it with a clashing color. */
 
 .lg-compare-toggle-field {
   margin-bottom: 4px;
@@ -1117,8 +1132,25 @@
   cursor: pointer;
 }
 
-.lg-add-third-role {
+/* Spec 039b: the compare-mode-only sidebar disclosure toggle — rendered as a sibling of (never
+ * inside) the two collapsible Step 1/Step 2 cards, right after the "Compare roles" checkbox
+ * (itself relocated out of the Step 1 card by this same spec, for the identical reachability
+ * reason — see the comment above `.lg-compare-toggle-field`'s block). Spacing only, per the same
+ * "ambient inherited color" convention as `.lg-compare-toggle` above: reuses `.btn`/`.btn-block`
+ * verbatim for chrome, the exact idiom `.lg-add-third-role` used before spec 039a retired it. */
+.lg-sidebar-toggle {
   margin: 4px 0 12px;
+}
+
+/* Spec 039b: `looking-glass.css`'s `.card { display: flex; }` is an *author* rule, which beats the
+ * browser's own `[hidden] { display: none }` UA-stylesheet rule outright regardless of specificity
+ * (author normal always outranks user-agent normal) — so the two Step 1/Step 2 cards' new
+ * `hidden={...}` attribute was silently doing nothing without this override. Scoped to
+ * `.lg-sidebar .card.blueprint[hidden]` (higher specificity than plain `.card`) so only these two
+ * sidebar cards are affected; every other `.card` on the page keeps its native `hidden` behavior
+ * (which never needed help, since nothing else sets `display` on `.card` at that specificity). */
+.lg-sidebar .card.blueprint[hidden] {
+  display: none;
 }
 
 /* Each active slot's panel-level container. `auto-fit`/`minmax` mirrors the existing

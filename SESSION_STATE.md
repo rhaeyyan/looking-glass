@@ -5,7 +5,40 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-30 (round 24: spec 034, local persistence)
+## Current Session — 2026-07-31 (round 25: specs 039a/039b, leverage-table polish)
+
+- Continued round 24's compare-mode "missing polish" backlog. Clarified 4 open items via
+  AskUserQuestion before routing: the "confirm my skills" button was already shipped (specs
+  038b/038c) — skipped, no gap; fill-bar removal scoped to everywhere (not just compare mode);
+  sidebar toggle scoped to one combined control (not per-card), compare-mode-only, auto-restoring
+  when compare mode toggles off.
+- Cedar split the remaining 2 items into sequenced specs: **039a** (cap compare mode at exactly 2
+  roles — shrinks `roleSlots`/`panels` to a real 2-tuple, not just hiding a 3rd slot; removes
+  `showThirdSlot` and the "+ Compare a third role" button) and **039b** (the sidebar toggle,
+  depends on 039a's shape). Human approved both. Leverage-table polish (fill-bar removal +
+  compare-mode compact Status column) was dispatched straight to Magnolia as OBSERVABLE lane, no
+  SPEC — ran in parallel with Cedar's planning since it touched disjoint files.
+- **Process lesson**: dispatching two background builders that both happen to touch
+  `e2e/compare-roles.spec.ts` (039a's Cypress red, and the leverage-table task) is a real collision
+  risk even when the file lists looked disjoint on paper — it worked out this round (different
+  regions of the file) but should have been sequenced rather than assumed safe.
+- Cypress red → Magnolia green for 039a: clean, 784/784 vitest, e2e green, zero regressions.
+  Cypress red → Magnolia green for 039b: builder found and fixed two real gaps in the SPEC's own
+  prose — native `hidden` was silently defeated by `.card { display: flex }` (an author rule beats
+  the UA `[hidden]` rule regardless of specificity), and the "Compare roles" checkbox had to move
+  out of the Step-1 card to stay reachable once the sidebar collapses (otherwise no way to turn
+  compare mode back off). Both recorded as an IMPLEMENTATION NOTE appended to `specs/039b-*.md`
+  itself, not left only in the completion report.
+- Combined Cypress audit **PASS** across all three pieces landed this round: 784/784 vitest,
+  221/232 e2e (11 legitimate cross-profile skips, 0 failures), tsc/eslint/`npm audit` clean,
+  dead-code sweep clean (no lingering `showThirdSlot`/`lg-add-third-role`/`.lev-bar*` references),
+  governance check clean (no stray worktree/branch). Surfaced 2 non-blocking, pre-existing WCAG
+  `landmark-unique` gaps in `SkillGroupBreakdown`/`SkillMatrix` compare-mode headings — confirmed
+  not a regression from this round, parked for a future ticket.
+- **Next**: commit (specs-only + code). Consider opening a ticket/SPEC for the parked
+  landmark-uniqueness gap.
+
+## Previous Session — 2026-07-30 (round 24: spec 034, local persistence)
 
 - Session opened with a senior-career-changer review of the app (no code changes); human approved
   5 improvement candidates and had Pine route all five (2 INVARIANT→Cedar SPEC, 1 UNKNOWN→Cedar

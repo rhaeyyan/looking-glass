@@ -15,8 +15,19 @@ import { normalizeSkillName } from '../src/lib/normalize'
 
 /**
  * specs/038c-compare-mode-sequential-confirmation.md — RED-phase oracle for routing EVERY active
- * compare-mode panel (0, 1, and 2 if staged) through spec 038b's skill-confirmation checklist, one
- * panel at a time, in ascending slot order, before that panel's gap is computed.
+ * compare-mode panel (0 and 1) through spec 038b's skill-confirmation checklist, one panel at a
+ * time, in ascending slot order, before that panel's gap is computed.
+ *
+ * spec 039a amendment: compare mode caps at exactly 2 panels, permanently — there is no slot 2 to
+ * stage or walk through anymore. `setupThreeSlotCompare`/`addThirdRole` and the "3-panel walk is
+ * strictly 0 -> 1 -> 2" test are deleted: that test's unique claim (never 2+ checklists visible
+ * across a 3-long chain) is already fully subsumed by "exactly slot 0's checklist right after
+ * submit" + "confirming slot 0 ... advances to slot 1's checklist" below, and a slot-1-to-slot-2
+ * transition can no longer exist to test. A new test replaces the deleted "Back on slot 1 abandons
+ * slot 2" case: "Back" on slot 0's checklist, before confirming anything, must abandon slot 1's
+ * already-staged draft too — the only place `handleCancelConfirmationCompare`'s `laterSlot > slot`
+ * filter can still be observed with a 2-slot cap (Back on slot 1, the last slot, never has a later
+ * slot to abandon).
  *
  * Nothing this file depends on exists yet: `App.tsx`'s `handleResumeSubmit` still calls
  * `panels[slot].submitResumeAutoConfirm(resumeText)` for every panel — INCLUDING panel 0 — whenever
@@ -43,14 +54,12 @@ const CHECKLIST_TESTID = 'skill-confirmation-checklist'
 const CONFIRM_BUTTON_NAME = 'Confirm skills'
 
 // Slot 0 uses the same realistic STUB_ROWS/STUB_RESUME fixture as skill-confirmation.spec.ts, so
-// its auto-detected set is real extraction output, not a guess. Slots 1/2 use distinct roles with
-// a single marker-skill row each (compare-roles.spec.ts's `makeRow` idiom) — their own checklist
-// only needs to be locatable/confirmable in these tests, not edited.
+// its auto-detected set is real extraction output, not a guess. Slot 1 uses a distinct role with a
+// single marker-skill row (compare-roles.spec.ts's `makeRow` idiom) — its own checklist only needs
+// to be locatable/confirmable in these tests, not edited.
 const ROLE_1 = STUB_ROLE // 'Frontend'
 const ROLE_2 = 'Backend'
-const ROLE_3 = 'Data Engineer'
 const BRAVO_SKILL = 'bravo-only-skill'
-const CHARLIE_SKILL = 'charlie-only-skill'
 
 // ---- Ground truth, computed against the REAL extraction logic, not hand-waved. -----------------
 const VOCABULARY = STUB_ROWS.map((row) => row.skill_name_raw)
@@ -101,10 +110,6 @@ function comparisonColumn(page: Page, role: string) {
   return page.getByRole('region', { name: `${role} comparison column` })
 }
 
-async function addThirdRole(page: Page): Promise<void> {
-  await page.getByRole('button', { name: '+ Compare a third role' }).click()
-}
-
 /** Scoped to the one checklist ever on screen at a time — safe globally, same rationale as
  * `confirmSkillChecklist` (support/app.ts). */
 function checkboxFor(page: Page, skillName: string) {
@@ -120,20 +125,6 @@ async function setupTwoSlotCompare(page: Page): Promise<void> {
   await enableCompareMode(page)
   await targetRoleSelect(page, 0).selectOption(ROLE_1)
   await targetRoleSelect(page, 1).selectOption(ROLE_2)
-}
-
-async function setupThreeSlotCompare(page: Page): Promise<void> {
-  await stubMultiRoleProfile(page, [
-    { role: ROLE_1, rows: STUB_ROWS },
-    { role: ROLE_2, rows: [makeRow(ROLE_2, BRAVO_SKILL)] },
-    { role: ROLE_3, rows: [makeRow(ROLE_3, CHARLIE_SKILL)] },
-  ])
-  await page.goto('/')
-  await enableCompareMode(page)
-  await targetRoleSelect(page, 0).selectOption(ROLE_1)
-  await targetRoleSelect(page, 1).selectOption(ROLE_2)
-  await addThirdRole(page)
-  await targetRoleSelect(page, 2).selectOption(ROLE_3)
 }
 
 async function submitSharedResume(page: Page): Promise<void> {
@@ -222,48 +213,17 @@ test.describe("Confirming slot 0 with an edit advances the walk and reflects the
   })
 })
 
-test.describe('The 3-panel walk is strictly 0 -> 1 -> 2 (spec 038c, oracle item 3)', () => {
-  test('exactly one checklist is visible at any moment across all three confirmations — never zero while a panel remains unconfirmed, never two or more', async ({
+// spec 039a: the former "3-panel walk is strictly 0 -> 1 -> 2" test (oracle item 3) is deleted —
+// there is no slot 2 to walk to anymore, and its unique claim (never 2+ checklists visible across
+// a 3-long chain) is already fully subsumed by "exactly slot 0's checklist right after submit" and
+// "confirming slot 0 ... advances to slot 1's checklist" above (both describe blocks preceding this
+// comment) — no coverage is lost.
+
+test.describe('"Back" abandons a later slot without touching an already-confirmed earlier slot (spec 038c, oracle item 4; adapted to a 2-slot cap by spec 039a)', () => {
+  test('"Back" on slot 1\'s checklist leaves slot 0\'s confirmed result untouched and returns slot 1 to its un-analyzed view, with no checklist anywhere', async ({
     page,
   }) => {
-    await setupThreeSlotCompare(page)
-    await submitSharedResume(page)
-
-    await expect(
-      page.getByTestId(CHECKLIST_TESTID),
-      "expected exactly slot 0's checklist right after submit",
-    ).toHaveCount(1, { timeout: 5_000 })
-    await expect(comparisonColumn(page, ROLE_1).getByTestId(CHECKLIST_TESTID)).toHaveCount(1)
-
-    await confirmSkillChecklist(page)
-    await expect(
-      page.getByTestId(CHECKLIST_TESTID),
-      "expected the walk to advance to exactly slot 1's checklist, never 0 and never 2+",
-    ).toHaveCount(1, { timeout: 5_000 })
-    await expect(comparisonColumn(page, ROLE_2).getByTestId(CHECKLIST_TESTID)).toHaveCount(1)
-    await expect(comparisonColumn(page, ROLE_3).getByTestId(CHECKLIST_TESTID)).toHaveCount(0)
-
-    await confirmSkillChecklist(page)
-    await expect(
-      page.getByTestId(CHECKLIST_TESTID),
-      "expected the walk to advance to exactly slot 2's checklist",
-    ).toHaveCount(1, { timeout: 5_000 })
-    await expect(comparisonColumn(page, ROLE_3).getByTestId(CHECKLIST_TESTID)).toHaveCount(1)
-    await expect(comparisonColumn(page, ROLE_2).getByTestId(CHECKLIST_TESTID)).toHaveCount(0)
-
-    await confirmSkillChecklist(page)
-    await expect(
-      page.getByTestId(CHECKLIST_TESTID),
-      'all 3 slots are confirmed — no checklist should remain anywhere',
-    ).toHaveCount(0, { timeout: 5_000 })
-  })
-})
-
-test.describe('"Back" abandons the rest of the batch without touching an already-confirmed earlier slot (spec 038c, oracle item 4)', () => {
-  test('"Back" on slot 1\'s checklist leaves slot 0\'s confirmed result untouched and returns slots 1 and 2 to their un-analyzed view, with no checklist anywhere', async ({
-    page,
-  }) => {
-    await setupThreeSlotCompare(page)
+    await setupTwoSlotCompare(page)
     await submitSharedResume(page)
 
     await expect(page.getByTestId(CHECKLIST_TESTID)).toBeVisible({ timeout: 5_000 })
@@ -287,14 +247,46 @@ test.describe('"Back" abandons the rest of the batch without touching an already
     const reactRow = slot0.locator('table.leverage-table tbody tr').filter({ hasText: 'react' })
     await expect(reactRow.locator('.lev-status')).toHaveAttribute('data-have', 'true')
 
-    // Slots 1 and 2 both fall back to their ordinary un-analyzed browsing view — no donut, no
-    // checklist, and no new "abandoned" placeholder either.
+    // Slot 1 falls back to its ordinary un-analyzed browsing view — no donut, no checklist, and no
+    // new "abandoned" placeholder either.
     await expect(slot1.locator('.lg-donut-wrap')).toHaveCount(0)
     await expect(slot1.locator('.standing-root')).toBeVisible()
+  })
 
-    const slot2 = comparisonColumn(page, ROLE_3)
-    await expect(slot2.locator('.lg-donut-wrap')).toHaveCount(0)
-    await expect(slot2.locator('.standing-root')).toBeVisible()
+  // spec 039a: the 2-slot equivalent of the deleted "Back on slot 1 abandons slot 2" case — the
+  // only place `handleCancelConfirmationCompare`'s `laterSlot > slot` filter can still be observed
+  // with a 2-slot cap, since Back on slot 1 (the last slot) never has a later slot to abandon.
+  test('"Back" on slot 0\'s checklist, before confirming anything, abandons slot 1\'s already-staged draft too', async ({
+    page,
+  }) => {
+    await setupTwoSlotCompare(page)
+    await submitSharedResume(page)
+
+    // Slot 1 already has its own staged draft in the background (both active slots' submitResume
+    // fire together on submit — only slot 0's checklist is shown first, per oracle item 1).
+    await expect(page.getByTestId(CHECKLIST_TESTID)).toHaveCount(1, { timeout: 5_000 })
+    await expect(comparisonColumn(page, ROLE_1).getByTestId(CHECKLIST_TESTID)).toHaveCount(1)
+
+    await page.getByRole('button', { name: 'Back' }).click()
+
+    await expect(
+      page.getByTestId(CHECKLIST_TESTID),
+      'expected no checklist anywhere after "Back" on slot 0, before anything was confirmed — ' +
+        "slot 1's already-staged draft must be abandoned too, not silently promoted to the new " +
+        'earliest-pending slot',
+    ).toHaveCount(0, { timeout: 5_000 })
+
+    const slot0 = comparisonColumn(page, ROLE_1)
+    await expect(slot0.locator('.lg-donut-wrap')).toHaveCount(0)
+    await expect(slot0.locator('.standing-root')).toBeVisible()
+
+    const slot1 = comparisonColumn(page, ROLE_2)
+    await expect(
+      slot1.getByTestId(CHECKLIST_TESTID),
+      "slot 1's checklist must never surface — its staged draft was abandoned along with slot 0's",
+    ).toHaveCount(0)
+    await expect(slot1.locator('.lg-donut-wrap')).toHaveCount(0)
+    await expect(slot1.locator('.standing-root')).toBeVisible()
   })
 })
 

@@ -10,8 +10,7 @@ import './matrix.css'
 // rule: the numbers a chart encodes must also be available as an accessible table).
 //
 // Bounded-AI: the sort is a presentation transform of the already-computed `arbitrage_score` (read
-// verbatim, null-score rows last); the inline leverage bar's width is `score / topScore`, a display
-// transform — no new metric is computed here.
+// verbatim, null-score rows last) — no new metric is computed here.
 
 const DEMAND_ONLY_FLAG = 'Demand only, scarcity unknown'
 
@@ -26,10 +25,20 @@ export function SkillLeverageTable({
   rows,
   haveSkillKeys,
   roleName,
+  compareMode,
 }: {
   rows: RoleSkillRow[]
   haveSkillKeys?: Set<string>
   roleName: string
+  // Mirrors `RoleResultsPanelProps.compareMode`'s boolean-prop idiom. Optional (unlike that prop) so
+  // every existing single-role call site — including the many test renders in
+  // SkillLeverageTable.test.tsx that predate compare mode — stays valid with no prop at all;
+  // `undefined` and `false` behave identically (plain, non-compact Status column). Drives the
+  // `data-compare-mode` attribute below, which triggers the same compact Status-column treatment
+  // the ≤640px media query already applies on narrow viewports — each compare-mode panel is
+  // inherently narrower than a full-width single-role view, so it hits the same crowding problem
+  // regardless of the actual window width.
+  compareMode?: boolean
 }) {
   const titleId = useId()
   const salaryFootnoteId = useId()
@@ -39,7 +48,6 @@ export function SkillLeverageTable({
   // distinct `aria-label` (not a shared id) sidesteps that collision entirely.
   const scrollRegionLabel = `Scrollable table: ${roleName} — every skill, ranked by leverage`
   const ranked = [...rows].sort(byArbitrageDesc)
-  const topScore = ranked.reduce((max, r) => Math.max(max, r.arbitrage_score ?? 0), 0)
 
   return (
     <section className="leverage-root" aria-labelledby={titleId}>
@@ -47,9 +55,8 @@ export function SkillLeverageTable({
         {roleName} — every skill, ranked by leverage
       </h3>
       <p className="ladder-hint">
-        Every skill this role needs, ranked by leverage score (most worth learning first). The bar
-        shows each score next to the top move; skills we only have demand data for are listed last
-        and flagged.
+        Every skill this role needs, ranked by leverage score (most worth learning first). Skills
+        we only have demand data for are listed last and flagged.
       </p>
 
       {/* WCAG 2.2 AA `scrollable-region-focusable`: this wrapper is the horizontally-scrolling
@@ -69,7 +76,15 @@ export function SkillLeverageTable({
         role="region"
         aria-label={scrollRegionLabel}
       >
-        <table className="matrix-table leverage-table">
+        <table
+          className="matrix-table leverage-table"
+          // Presence-only boolean attribute (mirrors `.breakdown-chip[data-selected]` /
+          // `.filter-status-bar[data-filtered]`'s existing idiom in this codebase) — omitted
+          // entirely when `compareMode` is falsy so `.leverage-table[data-compare-mode]` never
+          // matches outside compare mode. Drives the same compact Status-column treatment
+          // matrix.css already applies at `@media (max-width: 640px)`.
+          data-compare-mode={compareMode || undefined}
+        >
           <caption className="visually-hidden">
             Skill profile for {roleName}, ranked by leverage score
           </caption>
@@ -119,10 +134,6 @@ export function SkillLeverageTable({
           <tbody>
             {ranked.map((row, i) => {
               const demandOnly = row.arbitrage_score === null
-              const widthPct =
-                topScore > 0 && row.arbitrage_score !== null
-                  ? (row.arbitrage_score / topScore) * 100
-                  : 0
               const key = row.skill_key ?? normalizeSkillName(row.skill_name_raw)
               const have = haveSkillKeys?.has(key)
               return (
@@ -143,19 +154,16 @@ export function SkillLeverageTable({
                       <span className="lev-status-label">{have ? 'Already have' : 'Worth learning'}</span>
                     </td>
                   )}
-                  <td className="lev-leverage">
-                    {demandOnly ? (
-                      <span className="lev-bar-val" aria-hidden="true">
-                        —
-                      </span>
-                    ) : (
-                      <span className="lev-bar-wrap">
-                        <span className="lev-bar-track" aria-hidden="true">
-                          <span className="lev-bar" style={{ width: `${widthPct}%` }} />
-                        </span>
-                        <span className="lev-bar-val">{formatNum(row.arbitrage_score)}</span>
-                      </span>
-                    )}
+                  {/* Bare number, same treatment as Demand/Scarcity/Days-to-fill/% of role below —
+                      no fill-bar. `.lev-leverage` carries no CSS declarations of its own anymore
+                      (kept only as a stable selector hook identifying "the leverage column",
+                      mirroring `.lev-skill`/`.lev-status`'s own column-identity classes); `.lev-metric`
+                      supplies all the actual styling, identically to the other numeric columns. The
+                      em-dash fallback for demand-only rows matches every other null-metric cell in
+                      this table (median_days_open, salary_premium_pct, d3_corroborated) — plain text,
+                      not aria-hidden. */}
+                  <td className="lev-leverage lev-metric">
+                    {demandOnly ? '—' : formatNum(row.arbitrage_score)}
                   </td>
                   <td className="lev-metric">{formatNum(row.demand_score)}</td>
                   <td className="lev-metric">{formatNum(row.scarcity_index)}</td>

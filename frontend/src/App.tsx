@@ -69,30 +69,27 @@ function App() {
 
   // spec 036: `roleSlots[0]` plays exactly the role `selectedRole` used to play (only source of
   // truth for the controlled slot-0 `<select>`, and the only slot persistence still covers).
-  // `roleSlots[1]`/`roleSlots[2]` are compare-mode-only, session-only (never persisted — SPEC's
-  // Constraints), and start blank every load.
-  const [roleSlots, setRoleSlots] = useState<[string, string, string]>(() => [
+  // `roleSlots[1]` is compare-mode-only, session-only (never persisted — SPEC's Constraints), and
+  // starts blank every load.
+  const [roleSlots, setRoleSlots] = useState<[string, string]>(() => [
     persistedOnMount?.selectedRole ?? '',
-    '',
     '',
   ])
   const [compareMode, setCompareMode] = useState(false)
-  const [showThirdSlot, setShowThirdSlot] = useState(false)
+  // spec 039b: compare-mode-only sidebar disclosure — session-only, mirrors compareMode's own
+  // session-only treatment (spec 036). Never read outside the `.lg-sidebar-toggle` button and the
+  // two Step 1/Step 2 cards' `hidden` expressions below.
+  const [sidebarVisible, setSidebarVisible] = useState(true)
 
-  // spec 035/036: the entire rows/status/errorMessage/haveSkillKeys/topGaps/selectedGroup slice
-  // for ONE role lives inside `useRolePanel`. Exactly 3 fixed, unconditional call sites — never
-  // called inside a loop/condition — so this stays Rules-of-Hooks-safe regardless of how many
-  // slots are currently shown. Each instance's `role` argument only ever seeds its *initial*
-  // state (React's `useState(initialValue)` convention): every later role change for slot `i`
-  // must go through `panels[i].loadRole(...)`, never by re-rendering with a new argument.
+  // spec 035/036/039a: the entire rows/status/errorMessage/haveSkillKeys/topGaps/selectedGroup
+  // slice for ONE role lives inside `useRolePanel`. Exactly 2 fixed, unconditional call sites —
+  // never called inside a loop/condition — so this stays Rules-of-Hooks-safe regardless of
+  // whether slot 1 is currently shown. Each instance's `role` argument only ever seeds its
+  // *initial* state (React's `useState(initialValue)` convention): every later role change for
+  // slot `i` must go through `panels[i].loadRole(...)`, never by re-rendering with a new argument.
   const panel0 = useRolePanel(roleSlots[0])
   const panel1 = useRolePanel(roleSlots[1])
-  const panel2 = useRolePanel(roleSlots[2])
-  const panels: readonly [UseRolePanelResult, UseRolePanelResult, UseRolePanelResult] = [
-    panel0,
-    panel1,
-    panel2,
-  ]
+  const panels: readonly [UseRolePanelResult, UseRolePanelResult] = [panel0, panel1]
 
   const [resumeText, setResumeText] = useState(() =>
     persistedOnMount ? persistedOnMount.resumeText.slice(0, MAX_RESUME_LENGTH) : '',
@@ -129,7 +126,7 @@ function App() {
   // (Intellectual Control: the arbitrage_score view must never be shadowed by a stale cached
   // result). Safe under StrictMode's double-invoked effects: the initial values already come from
   // `persistedOnMount` above, so a duplicate write is idempotent (same value twice), not a wipe.
-  // spec 036: only slot 0's role is persisted — slots 1/2 and compareMode are session-only.
+  // spec 036: only slot 0's role is persisted — slot 1 and compareMode are session-only.
   // spec 038b: confirmedSkillKeys/confirmedFingerprint round-trip alongside them — a confirmed set
   // is treated as user input (like resumeText), not cached score.
   useEffect(() => {
@@ -142,12 +139,13 @@ function App() {
     })
   }, [resumeText, roleSlots, selectedSeniority, confirmedSkillKeys, confirmedFingerprint])
 
-  // spec 036: the ONE two-call pattern every slot-role change goes through — `setRoleSlots` for
-  // the controlled `<select>`'s value, `panels[slot].loadRole` for the side-effecting refetch.
-  // Mirrors the pre-036 `handleRoleChange` exactly, generalized to any of the 3 fixed slots.
-  function handleSlotRoleChange(slot: 0 | 1 | 2, role: string) {
+  // spec 036/039a: the ONE two-call pattern every slot-role change goes through —
+  // `setRoleSlots` for the controlled `<select>`'s value, `panels[slot].loadRole` for the
+  // side-effecting refetch. Mirrors the pre-036 `handleRoleChange` exactly, generalized to
+  // either of the 2 fixed slots.
+  function handleSlotRoleChange(slot: 0 | 1, role: string) {
     setRoleSlots((prev) => {
-      const next: [string, string, string] = [...prev]
+      const next: [string, string] = [...prev]
       next[slot] = role
       return next
     })
@@ -158,12 +156,12 @@ function App() {
     const checked = event.target.checked
     setCompareMode(checked)
     if (!checked) {
-      // SPEC's explicit cleanup: discard slots 1/2 entirely, not just stop rendering them — a
+      // SPEC's explicit cleanup: discard slot 1 entirely, not just stop rendering it — a
       // still-hook-mounted slot otherwise keeps stale fetched data lingering out of view.
-      setRoleSlots((prev) => [prev[0], '', ''])
+      setRoleSlots((prev) => [prev[0], ''])
       panels[1].loadRole('')
-      panels[2].loadRole('')
-      setShowThirdSlot(false)
+      // spec 039b: auto-restore the sidebar regardless of prior state when leaving compare mode.
+      setSidebarVisible(true)
     }
   }
 
@@ -203,11 +201,12 @@ function App() {
     setConfirmedFingerprint({ resumeText, role: roleSlots[0] })
   }
 
-  // spec 038c: slots 1/2's own compare-mode-only checklist confirm — mirrors handleConfirmSkills'
-  // gap-computation call exactly, but never persists (slots 1/2 are session-only, never restored;
-  // Q2). Slot 0's compare-mode checklist reuses handleConfirmSkills verbatim instead of this
-  // function — it is already correct for slot 0 regardless of compareMode.
-  function handleConfirmSkillsCompare(slot: 1 | 2, checkedSkillKeys: Set<string>) {
+  // spec 038c/039a: slot 1's own compare-mode-only checklist confirm — mirrors
+  // handleConfirmSkills' gap-computation call exactly, but never persists (slot 1 is
+  // session-only, never restored; Q2). Slot 0's compare-mode checklist reuses handleConfirmSkills
+  // verbatim instead of this function — it is already correct for slot 0 regardless of
+  // compareMode.
+  function handleConfirmSkillsCompare(slot: 1, checkedSkillKeys: Set<string>) {
     panels[slot].confirmSkills(checkedSkillKeys)
   }
 
@@ -215,7 +214,7 @@ function App() {
   // still-staged draft — never an earlier, already-confirmed slot, and never a bare single-slot
   // cancel (which would otherwise let the next active slot's already-staged draft silently become
   // the new earliest-pending one, i.e. skip forward instead of abandoning the rest of the batch).
-  function handleCancelConfirmationCompare(slot: 0 | 1 | 2) {
+  function handleCancelConfirmationCompare(slot: 0 | 1) {
     panels[slot].cancelConfirmation()
     activeSlotIndices
       .filter((laterSlot) => laterSlot > slot)
@@ -230,8 +229,8 @@ function App() {
   // same `panels[0].submitResume` path `handleResumeSubmit` uses (spec 038b: staging, not
   // computing — the second effect below finishes the job), if resumeText was also restored.
   // Guarded by a ref (not just the dependency array) so this only ever fires once, even across
-  // React 18 StrictMode's dev-only double-invocation of effects. Slots 1/2 are never persisted
-  // (spec 036), so they have nothing to hydrate.
+  // React 18 StrictMode's dev-only double-invocation of effects. Slot 1 is never persisted
+  // (spec 036), so it has nothing to hydrate.
   const didRunMountSubmit = useRef(false)
   useEffect(() => {
     if (didRunMountSubmit.current) return
@@ -280,7 +279,7 @@ function App() {
   function handleClearSavedData() {
     clearPersistedState()
     setResumeText('')
-    setRoleSlots((prev) => ['', prev[1], prev[2]])
+    setRoleSlots((prev) => ['', prev[1]])
     setSelectedSeniority('')
     setConfirmedSkillKeys(null)
     setConfirmedFingerprint(null)
@@ -288,15 +287,10 @@ function App() {
     panels[0].loadRole('')
   }
 
-  // Which of the 3 fixed slots are currently shown: always slot 0; slot 1 once compare mode is on;
-  // slot 2 once "+ Compare a third role" has been clicked. Order is always ascending, so DOM order
-  // of the per-slot `<select>`s always matches slot index (the e2e oracle tells slots apart by
-  // `nth(i)`, never by a distinct label).
-  const activeSlotIndices: number[] = compareMode
-    ? showThirdSlot
-      ? [0, 1, 2]
-      : [0, 1]
-    : [0]
+  // Which of the 2 fixed slots are currently shown: always slot 0; slot 1 once compare mode is
+  // on. Order is always ascending, so DOM order of the per-slot `<select>`s always matches slot
+  // index (the e2e oracle tells slots apart by `nth(i)`, never by a distinct label).
+  const activeSlotIndices: number[] = compareMode ? [0, 1] : [0]
 
   // spec 038c: the earliest active slot, ascending, that still needs confirming — a pure
   // derivation over each panel's own `pendingConfirmation`, never stored state, so it can never
@@ -359,20 +353,33 @@ function App() {
 
       <main className="lg-main">
         <div className="lg-sidebar">
-          <section className="card blueprint elev-sm">
+          {/* spec 039b: lives outside both collapsible cards, same as the toggle button below —
+              it must stay reachable (and so must stay able to turn compareMode off) even while the
+              sidebar is collapsed, which a location inside the hidden-gated Step 1 card would not
+              allow. */}
+          <div className="field lg-compare-toggle-field">
+            <label className="lg-compare-toggle">
+              <input type="checkbox" checked={compareMode} onChange={handleCompareModeToggle} />
+              Compare roles
+            </label>
+          </div>
+          {compareMode && (
+            <button
+              type="button"
+              className="btn btn-block lg-sidebar-toggle"
+              aria-expanded={sidebarVisible}
+              onClick={() => setSidebarVisible((visible) => !visible)}
+            >
+              {sidebarVisible ? 'Hide sidebar' : 'Show sidebar'}
+            </button>
+          )}
+          <section className="card blueprint elev-sm" hidden={compareMode && !sidebarVisible}>
             <div className="card-kicker">Step 1</div>
             <div className="card-title">
               <span className="lg-step-badge" aria-hidden="true">
                 1
               </span>
               Pick your target role
-            </div>
-
-            <div className="field lg-compare-toggle-field">
-              <label className="lg-compare-toggle">
-                <input type="checkbox" checked={compareMode} onChange={handleCompareModeToggle} />
-                Compare roles
-              </label>
             </div>
 
             {!compareMode ? (
@@ -402,7 +409,7 @@ function App() {
                       id={`role-picker-${slot}`}
                       className="input"
                       value={roleSlots[slot]}
-                      onChange={(event) => handleSlotRoleChange(slot as 0 | 1 | 2, event.target.value)}
+                      onChange={(event) => handleSlotRoleChange(slot as 0 | 1, event.target.value)}
                     >
                       <option value="">Select a role</option>
                       {ROLES.map((role) => (
@@ -414,16 +421,6 @@ function App() {
                   </div>
                 )
               })
-            )}
-
-            {compareMode && !showThirdSlot && (
-              <button
-                type="button"
-                className="btn btn-block lg-add-third-role"
-                onClick={() => setShowThirdSlot(true)}
-              >
-                + Compare a third role
-              </button>
             )}
 
             <div className="field">
@@ -480,7 +477,7 @@ function App() {
             )}
           </section>
 
-          <section className="card blueprint elev-sm">
+          <section className="card blueprint elev-sm" hidden={compareMode && !sidebarVisible}>
             <div className="card-kicker">Step 2</div>
             <div className="card-title">
               <span className="lg-step-badge" aria-hidden="true">
@@ -568,9 +565,9 @@ function App() {
                         onConfirm={
                           slot === 0
                             ? handleConfirmSkills
-                            : (keys) => handleConfirmSkillsCompare(slot as 1 | 2, keys)
+                            : (keys) => handleConfirmSkillsCompare(slot as 1, keys)
                         }
-                        onCancel={() => handleCancelConfirmationCompare(slot as 0 | 1 | 2)}
+                        onCancel={() => handleCancelConfirmationCompare(slot as 0 | 1)}
                       />
                     ) : (
                       <RoleResultsPanel

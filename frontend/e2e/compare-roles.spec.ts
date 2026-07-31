@@ -11,10 +11,9 @@ import {
 /**
  * specs/036-compare-roles.md — RED-phase oracle. Nothing in this file's assumptions is implemented
  * yet: `App.tsx` has no `compareMode` state, no `roleSlots` array, no `.compare-grid`, no "Compare
- * roles" toggle, no "+ Compare a third role" control, and `RoleResultsPanel`/`FilterStatusBar` take
- * no `compareMode`/`roleName` props. Every assertion below is expected to fail today, and should
- * fail because the referenced control/DOM/aria-label does not exist — not because of a locator
- * mistake in this file.
+ * roles" toggle, and `RoleResultsPanel`/`FilterStatusBar` take no `compareMode`/`roleName` props.
+ * Every assertion below is expected to fail today, and should fail because the referenced
+ * control/DOM/aria-label does not exist — not because of a locator mistake in this file.
  *
  * Naming assumptions this oracle bakes in (none of these strings are literally quoted by the SPEC,
  * so they are Cypress's best-effort, spec-consistent guesses; if Redwood/Magnolia land the feature
@@ -26,7 +25,6 @@ import {
  *     label, so slots are told apart by DOM order (`nth(i)`), not by distinct label text.
  *
  * Strings taken directly from the SPEC (not guesses):
- *   - "+ Compare a third role" (quoted verbatim, bullet 1 / Inputs-Outputs bullet 2).
  *   - `.compare-grid` (quoted verbatim, Inputs/Outputs bullet 4/10).
  *   - `` `${roleSlots[i]} comparison column` `` region label (quoted verbatim, bullet 15).
  *   - `` `Skill filter status — ${roleName}` `` / `` `Loading skill profile — ${roleSlots[i]}` ``
@@ -42,6 +40,14 @@ import {
  * skill rowheader (previously visible immediately after "Find my gaps") is now gated behind
  * confirming that checklist first. No other test in this file submits a resume, so no other
  * assertion here is affected by 038c.
+ *
+ * spec 039a amendment: compare mode caps at exactly 2 panels, permanently. Spec 036 originally
+ * shipped a "+ Compare a third role" button (Inputs/Outputs bullet 2) that grew `.compare-grid` to
+ * 3 children; spec 039a removes that control, `showThirdSlot` state, and the `panel2` hook call
+ * site entirely — there is no third slot to reach, ever. The "+ Compare a third role" test below is
+ * now a negative assertion (no such control exists; `.compare-grid` never exceeds 2 children), and
+ * this oracle is also the regression guard: it fails if that control, or any other path to a 3rd
+ * panel, is ever reintroduced without a new SPEC.
  */
 
 const ROLE_A = 'Backend'
@@ -116,22 +122,27 @@ test.describe('Compare mode layout (spec 036, oracle item 1)', () => {
     ).toHaveCount(2, { timeout: 5_000 })
   })
 
-  test('"+ Compare a third role" adds a 3rd panel-level container', async ({ page }) => {
+  test('compare mode caps at exactly 2 panels — no "+ Compare a third role" control exists', async ({
+    page,
+  }) => {
     await page.goto('/')
     await enableCompareMode(page)
     await expect(page.locator('.compare-grid > *')).toHaveCount(2, { timeout: 5_000 })
 
-    const addThird = page.getByRole('button', { name: '+ Compare a third role' })
     await expect(
-      addThird,
-      'expected a "+ Compare a third role" control once compare mode is on — it does not exist today',
-    ).toBeVisible({ timeout: 5_000 })
-    await addThird.click()
+      page.getByRole('button', { name: '+ Compare a third role' }),
+      'spec 039a removes the third-slot capability entirely — no "+ Compare a third role" control ' +
+        'should exist anywhere once compare mode is on',
+    ).toHaveCount(0)
 
+    // No path to a 3rd panel exists — `.compare-grid` stays at exactly 2 children. Re-asserted
+    // after a settle wait (not just immediately post-toggle) so this is never a false pass caught
+    // mid-transition, per this project's own animated-property lesson (CLAUDE.md, oracle section).
+    await page.waitForTimeout(300)
     await expect(
       page.locator('.compare-grid > *'),
-      'clicking "+ Compare a third role" did not bring the panel-level container count to 3',
-    ).toHaveCount(3, { timeout: 5_000 })
+      '.compare-grid must never exceed 2 direct children — the third slot is gone, not just hidden',
+    ).toHaveCount(2, { timeout: 5_000 })
   })
 
   test('the 2 active slots lay out side by side on desktop / stacked on mobile', async ({ page }, info) => {
@@ -325,5 +336,75 @@ test.describe('Zero regression in default (non-compare) mode (spec 036, oracle i
       compareToggle(page),
       'expected the "Compare roles" toggle to exist (unchecked) even in default mode',
     ).not.toBeChecked()
+  })
+})
+
+/**
+ * Compact Status column in compare mode. Each compare-mode panel is inherently narrower than a
+ * full-width single-role view — the exact same pinned-column crowding the ≤640px real-phone fix
+ * (spec 024, matrix.css) already solves — but the CSS viewport itself stays wide (Desktop Chrome's
+ * default ~1280px), so the `@media (max-width: 640px)` rule never fires there no matter how narrow
+ * an individual `.compare-grid` column gets. `SkillLeverageTable`'s `compareMode` prop instead
+ * stamps `data-compare-mode` on `<table class="leverage-table">`, matched by matrix.css's
+ * `.leverage-table[data-compare-mode] .lev-status`/`.lev-status-h` rule — the same compact
+ * treatment, triggered by an attribute instead of a width media feature.
+ *
+ * Desktop-only on purpose (see the file-level oracle note above): a mobile-touch project's narrow
+ * viewport would ALSO trigger the pre-existing `@media (max-width: 640px)` block, confounding which
+ * mechanism produced the compact column. Running this at desktop-light/desktop-dark — comfortably
+ * wider than 640px — isolates the claim to `compareMode` alone.
+ */
+test.describe('Compact Status column in compare mode', () => {
+  test('the Status column\'s text label is visually hidden (present in the DOM, clipped to 1x1px) once compare mode is on, at a viewport far wider than the 640px breakpoint', async ({
+    page,
+  }, info) => {
+    test.skip(
+      info.project.name.startsWith('mobile-touch'),
+      'desktop-only oracle — a narrow mobile viewport would also trigger the pre-existing ' +
+        '@media (max-width: 640px) rule, confounding which mechanism caused the compacting',
+    )
+
+    await stubMultiRoleProfile(page, [
+      { role: ROLE_A, rows: [makeRow(ROLE_A, ALPHA_SKILL)] },
+      { role: ROLE_B, rows: [makeRow(ROLE_B, BRAVO_SKILL)] },
+    ])
+    await page.goto('/')
+    await enableCompareMode(page)
+    await targetRoleSelect(page, 0).selectOption(ROLE_A)
+    await targetRoleSelect(page, 1).selectOption(ROLE_B)
+
+    expect(
+      page.viewportSize()!.width,
+      'sanity check: this oracle only proves the compareMode-driven claim if the viewport is ' +
+        'genuinely wider than the 640px breakpoint',
+    ).toBeGreaterThan(640)
+
+    await page.getByLabel('Resume text').fill(STUB_RESUME)
+    await page.getByRole('button', { name: 'Find my gaps' }).click()
+    await confirmSkillChecklist(page) // slot 0's checklist
+    await confirmSkillChecklist(page) // slot 1's checklist (spec 038c sequential walk)
+
+    const slot0 = comparisonColumn(page, ROLE_A)
+    const statusHeaderLabel = slot0.locator('.lev-status-h-label')
+
+    // Still fully in the accessibility tree — this is a visual clip, never a removal.
+    await expect(statusHeaderLabel).toHaveText('Status')
+
+    // But visually clipped to a 1x1px box (this file's own established clip-rect idiom, shared with
+    // the ≤640px block and `.visually-hidden` — see matrix.css), not merely small.
+    const box = await statusHeaderLabel.evaluate((el) => el.getBoundingClientRect().toJSON())
+    expect(
+      box.width,
+      'expected the Status header label to be clipped to <=1px wide in compare mode',
+    ).toBeLessThanOrEqual(1)
+    expect(
+      box.height,
+      'expected the Status header label to be clipped to <=1px tall in compare mode',
+    ).toBeLessThanOrEqual(1)
+
+    // "Icon-only" means the glyph itself must still actually be visible — never accidentally
+    // clipped along with the label.
+    const firstRowIcon = slot0.locator('table.leverage-table tbody .lev-status-icon').first()
+    await expect(firstRowIcon).toBeVisible()
   })
 })

@@ -188,7 +188,12 @@ export function RoleResultsPanel({
           roleName={compareMode ? role : undefined}
         />
         <SkillMatrix rows={filteredRows} haveSkillKeys={haveSkillKeys} />
-        <SkillLeverageTable rows={filteredRows} haveSkillKeys={haveSkillKeys} roleName={role} />
+        <SkillLeverageTable
+          rows={filteredRows}
+          haveSkillKeys={haveSkillKeys}
+          roleName={role}
+          compareMode={compareMode}
+        />
       </div>
     </>
   )

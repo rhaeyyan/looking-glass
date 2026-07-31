@@ -419,8 +419,8 @@ describe('<SkillLeverageTable /> spec 022 — CSS-only pill/bar/radius restyle (
     })
   })
 
-  describe('`.lev-status` pill shape (padding + fully-rounded radius), reusing the existing 99px pill idiom already used by `.lev-bar-track`/`.lev-bar` in this same file', () => {
-    it('declares a `border-radius` of the same fully-rounded value already used by `.lev-bar-track`/`.lev-bar` (99px)', () => {
+  describe('`.lev-status` pill shape (padding + fully-rounded radius), reusing the existing 99px fully-rounded pill idiom already used elsewhere in this same file (`.breakdown-chip`, `.filter-status-clear`)', () => {
+    it('declares a `border-radius` of the same fully-rounded value already used by those other pills (99px)', () => {
       const body = declarationsFor(matrixCss, '.lev-status')
       const radiusDecl = /border-radius\s*:\s*([^;]+);/.exec(body)
       expect(radiusDecl).not.toBeNull()
@@ -588,35 +588,14 @@ describe('<SkillLeverageTable /> spec 022 — CSS-only pill/bar/radius restyle (
     })
   })
 
-  describe('the leverage progress-bar (`.lev-bar-track`/`.lev-bar`/`.lev-bar-val`) is polished onto the token system — no ad hoc hex/rgba color literal', () => {
-    it('`.lev-bar-track` declares no ad hoc hex/rgba color literal — every color traces to a var() token', () => {
-      const body = declarationsFor(matrixCss, '.lev-bar-track')
-      expect(body).not.toMatch(/#[0-9a-fA-F]{3,6}\b/)
-      expect(body).not.toMatch(/rgba?\(/)
-    })
-    it('`.lev-bar` declares no ad hoc hex/rgba color literal — every color traces to a var() token', () => {
-      const body = declarationsFor(matrixCss, '.lev-bar')
-      expect(body).not.toMatch(/#[0-9a-fA-F]{3,6}\b/)
-      expect(body).not.toMatch(/rgba?\(/)
-    })
-    it('`.lev-bar-val` declares no ad hoc hex/rgba color literal — every color traces to a var() token', () => {
-      const body = declarationsFor(matrixCss, '.lev-bar-val')
-      expect(body).not.toMatch(/#[0-9a-fA-F]{3,6}\b/)
-      expect(body).not.toMatch(/rgba?\(/)
-    })
-
-    it('`.lev-bar-track` and `.lev-bar` keep the fully-rounded 99px pill radius (unchanged idiom, still a track/fill pair)', () => {
-      for (const selector of ['.lev-bar-track', '.lev-bar']) {
-        const body = declarationsFor(matrixCss, selector)
-        const radiusDecl = /border-radius\s*:\s*([^;]+);/.exec(body)
-        expect(radiusDecl).not.toBeNull()
-        expect(radiusDecl![1].trim()).toBe('99px')
-      }
-    })
-  })
-
-  describe('behavioral regression guard — the ALREADY-CORRECT bar width formula (score / topScore) and demand-only "—" fallback are unaffected by this CSS-only restyle', () => {
-    it('renders each scored row\'s `.lev-bar` inline width as exactly `(arbitrage_score / topScore) * 100`, topScore = the max arbitrage_score across all rows (9.1, Rust)', () => {
+  // Fill-bar removed: the Leverage column now renders a bare number (`.lev-metric`), the same
+  // treatment already shared by Demand/Scarcity/Days-to-fill/% of role — there is no more
+  // `.lev-bar-wrap`/`.lev-bar-track`/`.lev-bar`/`.lev-bar-val` markup or CSS anywhere in this
+  // component, in EITHER single-role or compare-mode view. See the describe block below for the
+  // positive "no bar renders anywhere" + "the number is still correct" coverage that replaces the
+  // old bar-width-formula and bar-CSS-token assertions this section used to carry.
+  describe('behavioral regression guard — the leverage cell is a bare `arbitrage_score` number (no fill-bar), and the demand-only "—" fallback is unaffected', () => {
+    it('renders no `.lev-bar`/`.lev-bar-track`/`.lev-bar-wrap` anywhere in the table, for scored rows or the demand-only row alike', () => {
       render(
         <SkillLeverageTable
           rows={roleSkillProfileFixture}
@@ -625,23 +604,31 @@ describe('<SkillLeverageTable /> spec 022 — CSS-only pill/bar/radius restyle (
         />,
       )
       const table = screen.getByRole('table')
-      const topScore = 9.1
+      expect(table.querySelector('.lev-bar')).toBeNull()
+      expect(table.querySelector('.lev-bar-track')).toBeNull()
+      expect(table.querySelector('.lev-bar-wrap')).toBeNull()
+      expect(table.querySelector('.lev-bar-val')).toBeNull()
+    })
 
-      const expectations: Array<[string, number]> = [
-        ['Rust', 9.1],
-        ['Kubernetes', 7.3],
-        ['PostgreSQL', 4.2],
+    it('renders each scored row\'s leverage cell as the bare `arbitrage_score` number, verbatim and unwrapped', () => {
+      render(<SkillLeverageTable rows={roleSkillProfileFixture} roleName="Backend" />)
+      const table = screen.getByRole('table')
+
+      const expectations: Array<[string, string]> = [
+        ['Rust', '9.1'],
+        ['Kubernetes', '7.3'],
+        ['PostgreSQL', '4.2'],
       ]
       for (const [skill, score] of expectations) {
         const row = within(table).getByRole('rowheader', { name: new RegExp(skill) }).closest('tr')!
-        const bar = row.querySelector('.lev-bar') as HTMLElement
-        expect(bar).toBeTruthy()
-        const expectedPct = (score / topScore) * 100
-        expect(bar.style.width).toBe(`${expectedPct}%`)
+        const cell = row.querySelector('.lev-leverage') as HTMLElement
+        expect(cell).toBeTruthy()
+        expect(cell).toHaveClass('lev-metric')
+        expect(cell.textContent?.trim()).toBe(score)
       }
     })
 
-    it('renders no `.lev-bar-track`/`.lev-bar` at all for the demand-only row (gRPC) — only the em-dash fallback, decorative and hidden from assistive tech', () => {
+    it('renders "—" (not a bar, not aria-hidden) for the demand-only row (gRPC)\'s leverage cell, matching every other null-metric cell in this table', () => {
       render(<SkillLeverageTable rows={roleSkillProfileFixture} roleName="Backend" />)
       const table = screen.getByRole('table')
       const grpcRow = within(table)
@@ -651,9 +638,9 @@ describe('<SkillLeverageTable /> spec 022 — CSS-only pill/bar/radius restyle (
       expect(grpcRow.querySelector('.lev-bar-track')).toBeNull()
       expect(grpcRow.querySelector('.lev-bar')).toBeNull()
 
-      const dash = within(grpcRow).getAllByText('—')[0]
-      expect(dash).toHaveClass('lev-bar-val')
-      expect(dash).toHaveAttribute('aria-hidden', 'true')
+      const leverageCell = grpcRow.querySelector('.lev-leverage') as HTMLElement
+      expect(leverageCell.textContent?.trim()).toBe('—')
+      expect(leverageCell).not.toHaveAttribute('aria-hidden')
     })
 
     it('the demand-only row (gRPC), which is ALSO a "have" skill in the fixture, still renders the "Already have" pill text alongside its em-dash leverage fallback — the pill restyle and the demand-only fallback are independent and both survive together', () => {
@@ -1017,13 +1004,25 @@ describe('<SkillLeverageTable /> regression guard — mobile ≤640px must not l
 
   /** Parses a length declaration (`rem`/`px`/`em`) for `prop` out of a rule body and returns px,
    * assuming the default 16px root font-size (this repo declares no `html { font-size }`
-   * override, verified by inspection — so `rem` == `px * 16` holds here). */
+   * override, verified by inspection — so `rem` == `px * 16` holds here). Resolves one level of a
+   * `var(--name)` indirection against that custom property's own `--name: <length>;` declaration
+   * anywhere else in the stylesheet: matrix.css's `.lev-status`/`.lev-status-h` width now shares
+   * `--lev-status-compact-width` between the `@media (max-width: 640px)` block and the
+   * `[data-compare-mode]` compare-mode block (declared once on `.leverage-table`) precisely so the
+   * two can never drift apart on the actual pixel value — a literal-only regex here would go blind
+   * to that width the moment the sharing was introduced. */
   function pxDecl(body: string, prop: string): number | null {
     const escaped = prop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const m = new RegExp(`${escaped}\\s*:\\s*([\\d.]+)(rem|px|em)\\s*;`).exec(body)
+    const m = new RegExp(`${escaped}\\s*:\\s*([^;]+);`).exec(body)
     if (!m) return null
-    const val = parseFloat(m[1])
-    return m[2] === 'px' ? val : val * 16 // rem and em both resolve to *16 here (root/base 16px)
+    const raw = m[1].trim()
+    const varMatch = /^var\(\s*(--[\w-]+)\s*\)$/.exec(raw)
+    const lengthMatch = varMatch
+      ? new RegExp(`${varMatch[1]}\\s*:\\s*([\\d.]+)(rem|px|em)\\s*;`).exec(matrixCss)
+      : /^([\d.]+)(rem|px|em)$/.exec(raw)
+    if (!lengthMatch) return null
+    const val = parseFloat(lengthMatch[1])
+    return lengthMatch[2] === 'px' ? val : val * 16 // rem and em both resolve to *16 here (root/base 16px)
   }
 
   /** `padding: <vertical> <horizontal>;` shorthand -> horizontal px (one side). */
@@ -1171,6 +1170,54 @@ describe('<SkillLeverageTable /> a11y — scroll wrapper is keyboard-focusable (
   it('has zero axe violations with the scroll wrapper as a focusable region', async () => {
     const { container } = render(
       <SkillLeverageTable rows={roleSkillProfileFixture} roleName="Backend" />,
+    )
+    expect(await axe(container)).toHaveNoViolations()
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// Compare-mode compact Status column — `compareMode` drives a `data-compare-mode` attribute on
+// `<table class="leverage-table">`, matched by matrix.css's `.leverage-table[data-compare-mode]
+// .lev-status`/`.lev-status-h` rule (the same compact treatment the `@media (max-width: 640px)`
+// block already applies on narrow viewports, since each compare-mode panel is inherently narrower
+// than a full single-role view regardless of actual window width). jsdom never applies matrix.css
+// (vitest.config's `test.css` is unset — see this file's own established convention above), so this
+// suite only asserts the STRUCTURAL contract (the attribute is present/absent as expected); the
+// real "does this actually compact the column visually" claim is verified in a real Chromium render
+// by e2e/compare-roles.spec.ts.
+describe('<SkillLeverageTable /> compareMode — data-compare-mode attribute', () => {
+  it('renders `data-compare-mode` on the table when `compareMode` is true', () => {
+    const { container } = render(
+      <SkillLeverageTable rows={roleSkillProfileFixture} roleName="Backend" compareMode />,
+    )
+    const table = container.querySelector('table.leverage-table')
+    expect(table).toHaveAttribute('data-compare-mode')
+  })
+
+  it('omits `data-compare-mode` entirely when `compareMode` is false', () => {
+    const { container } = render(
+      <SkillLeverageTable rows={roleSkillProfileFixture} roleName="Backend" compareMode={false} />,
+    )
+    const table = container.querySelector('table.leverage-table')
+    expect(table).not.toHaveAttribute('data-compare-mode')
+  })
+
+  it('omits `data-compare-mode` entirely when the prop is not passed at all (the existing single-role call sites throughout this file)', () => {
+    const { container } = render(
+      <SkillLeverageTable rows={roleSkillProfileFixture} roleName="Backend" />,
+    )
+    const table = container.querySelector('table.leverage-table')
+    expect(table).not.toHaveAttribute('data-compare-mode')
+  })
+
+  it('has zero axe violations in compare mode with the Status column populated', async () => {
+    const { container } = render(
+      <SkillLeverageTable
+        rows={roleSkillProfileFixture}
+        roleName="Backend"
+        haveSkillKeys={HAVE_SKILL_KEYS}
+        compareMode
+      />,
     )
     expect(await axe(container)).toHaveNoViolations()
   })
