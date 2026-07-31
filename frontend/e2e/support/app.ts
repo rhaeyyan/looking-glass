@@ -153,3 +153,77 @@ export function settleBackgroundTransition(page: Page): Promise<void> {
 export function reportsHover(page: Page): Promise<boolean> {
   return page.evaluate(() => window.matchMedia('(hover: hover)').matches)
 }
+
+/**
+ * Clicks the singular "Confirm skills" button on whichever skill-confirmation checklist is
+ * currently on screen. Safe without any further scoping because exactly one checklist is ever
+ * rendered app-wide at a time — single-panel mode (spec 038b) or compare-mode's sequential walk
+ * (spec 038c) alike, both by construction (`confirmationSlot`/the single-panel branch each render
+ * at most one `SkillConfirmationChecklist` at once). Callers still own waiting for whatever comes
+ * next (a leverage table, the following slot's checklist, etc.) — this helper only performs the
+ * click.
+ */
+export async function confirmSkillChecklist(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Confirm skills' }).click()
+}
+
+/**
+ * A minimal fixture for one role's stubbed `role_skill_arbitrage` rows, keyed by `role`, with an
+ * optional artificial per-role delay (used to test out-of-order/race handling across slots).
+ * Promoted out of `compare-roles.spec.ts` (spec 036) unchanged, so `compare-confirmation.spec.ts`
+ * (spec 038c) can build its own multi-role fixtures without re-pasting a near-duplicate stub.
+ */
+export interface RoleFixture {
+  role: string
+  rows: StubRoleSkillRow[]
+  delayMs?: number
+}
+
+/** A single generic stub row for `role`/`skill` — used by tests that only care about a marker
+ * skill's presence/absence, not the full realistic STUB_ROWS shape. Promoted from
+ * `compare-roles.spec.ts` unchanged. */
+export function makeRow(role: string, skill: string): StubRoleSkillRow {
+  return {
+    role_family: role,
+    skill_name_raw: skill,
+    skill_key: skill,
+    pct_of_role: 40,
+    postings_with_skill: 4000,
+    demand_score: 60,
+    scarcity_index: 50,
+    arbitrage_score: 45,
+    scarcity_data_completeness: 'complete',
+    d3_corroborated: true,
+    d3_pct_of_all_postings: 20,
+    salary_premium_pct: 8,
+    median_days_open: 25,
+  }
+}
+
+/**
+ * Extends `stubRoleSkillProfile`'s technique to serve *different* fixture rows — and an optional
+ * artificial per-role delay — depending on which role the app's `.eq('role_family', role)` query
+ * actually asked for. PostgREST encodes that filter as a `role_family=eq.<role>` query param, so
+ * the fixture is selected by decoding it back out of the intercepted request URL, never by request
+ * order (multiple slots can be in flight concurrently). Promoted from `compare-roles.spec.ts`
+ * (spec 036) unchanged.
+ */
+export async function stubMultiRoleProfile(page: Page, fixtures: RoleFixture[]): Promise<void> {
+  const byRole = new Map(fixtures.map((fixture) => [fixture.role, fixture]))
+  await page.route('**/rest/v1/role_skill_arbitrage**', async (route: Route) => {
+    const url = new URL(route.request().url())
+    const eqParam = url.searchParams.get('role_family') ?? ''
+    const role = eqParam.replace(/^eq\./, '')
+    const fixture = byRole.get(role)
+
+    if (fixture?.delayMs) {
+      await new Promise((resolve) => setTimeout(resolve, fixture.delayMs))
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(fixture?.rows ?? []),
+    })
+  })
+}

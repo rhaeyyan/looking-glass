@@ -182,21 +182,13 @@ function App() {
 
     // spec 036: one shared resume paste fans out to every ACTIVE slot's own panel instance — each
     // computes its own have/gap split independently (no cross-role aggregate is ever computed).
-    // spec 038b: single-panel mode (compareMode === false) is the ONLY call site that changes —
-    // panel 0 now stages a confirmation draft (submitResume) instead of computing the gap
-    // immediately, so the checklist can render before computeSkillGap ever runs. Compare mode's
-    // panels — INCLUDING panel 0 while compareMode is true — keep the one-shot
-    // submitResumeAutoConfirm path unchanged; compare mode's own confirmation UX is a separate,
-    // not-yet-specced extension (see spec 038b's Tipping Point).
-    if (compareMode) {
-      panels[0].submitResumeAutoConfirm(resumeText)
-      panels[1].submitResumeAutoConfirm(resumeText)
-      if (showThirdSlot) {
-        panels[2].submitResumeAutoConfirm(resumeText)
-      }
-    } else {
-      panels[0].submitResume(resumeText)
-    }
+    // spec 038c: every active slot — including panel 0 in compare mode — now stages a confirmation
+    // draft (submitResume) instead of computing the gap immediately, so each panel's checklist
+    // renders, one at a time in ascending slot order (see confirmationSlot below), before that
+    // panel's computeSkillGap ever runs. This single fan-out line is correct for single-panel mode
+    // too: activeSlotIndices === [0] there, so it collapses to the exact same submitResume(...)
+    // call single-panel mode already made pre-038c.
+    activeSlotIndices.forEach((slot) => panels[slot].submitResume(resumeText))
   }
 
   // spec 038b: the checklist's "Confirm skills" action — hands the user's edited checked set to
@@ -209,6 +201,25 @@ function App() {
     panels[0].confirmSkills(checkedSkillKeys)
     setConfirmedSkillKeys([...checkedSkillKeys])
     setConfirmedFingerprint({ resumeText, role: roleSlots[0] })
+  }
+
+  // spec 038c: slots 1/2's own compare-mode-only checklist confirm — mirrors handleConfirmSkills'
+  // gap-computation call exactly, but never persists (slots 1/2 are session-only, never restored;
+  // Q2). Slot 0's compare-mode checklist reuses handleConfirmSkills verbatim instead of this
+  // function — it is already correct for slot 0 regardless of compareMode.
+  function handleConfirmSkillsCompare(slot: 1 | 2, checkedSkillKeys: Set<string>) {
+    panels[slot].confirmSkills(checkedSkillKeys)
+  }
+
+  // spec 038c (Q3): "Back" on slot N abandons N's own staged draft AND every later active slot's
+  // still-staged draft — never an earlier, already-confirmed slot, and never a bare single-slot
+  // cancel (which would otherwise let the next active slot's already-staged draft silently become
+  // the new earliest-pending one, i.e. skip forward instead of abandoning the rest of the batch).
+  function handleCancelConfirmationCompare(slot: 0 | 1 | 2) {
+    panels[slot].cancelConfirmation()
+    activeSlotIndices
+      .filter((laterSlot) => laterSlot > slot)
+      .forEach((laterSlot) => panels[laterSlot].cancelConfirmation())
   }
 
   // Mount-time hydration (spec 034): resumeText/selectedRole/selectedSeniority are already seeded
@@ -286,6 +297,13 @@ function App() {
       ? [0, 1, 2]
       : [0, 1]
     : [0]
+
+  // spec 038c: the earliest active slot, ascending, that still needs confirming — a pure
+  // derivation over each panel's own `pendingConfirmation`, never stored state, so it can never
+  // drift out of sync with the per-instance state it reads (Intellectual Control). `null` once
+  // every active slot has confirmed (or in single-panel mode, once slot 0 has).
+  const confirmationSlot: number | null =
+    activeSlotIndices.find((slot) => panels[slot].pendingConfirmation !== undefined) ?? null
 
   // Each slot's own `<select>` disables options already active in a sibling slot (SPEC Edge
   // Cases) — prevented at the picker, never detected post-hoc.
@@ -540,18 +558,32 @@ function App() {
                 >
                   {panels[slot].status === 'idle' && <EmptyStateCard />}
                   {panels[slot].status === 'loading' && <LoadingSkeleton />}
-                  {panels[slot].status === 'success' && panels[slot].rows.length > 0 && (
-                    <RoleResultsPanel
-                      compareMode
-                      role={roleSlots[slot]}
-                      selectedSeniority={selectedSeniority}
-                      rows={panels[slot].rows}
-                      haveSkillKeys={panels[slot].haveSkillKeys}
-                      topGaps={panels[slot].topGaps}
-                      selectedGroup={panels[slot].selectedGroup}
-                      setSelectedGroup={panels[slot].setSelectedGroup}
-                    />
-                  )}
+                  {panels[slot].status === 'success' &&
+                    panels[slot].rows.length > 0 &&
+                    (slot === confirmationSlot && panels[slot].pendingConfirmation ? (
+                      <SkillConfirmationChecklist
+                        role={roleSlots[slot]}
+                        rows={panels[slot].pendingConfirmation.rows}
+                        autoDetectedKeys={panels[slot].pendingConfirmation.autoDetectedKeys}
+                        onConfirm={
+                          slot === 0
+                            ? handleConfirmSkills
+                            : (keys) => handleConfirmSkillsCompare(slot as 1 | 2, keys)
+                        }
+                        onCancel={() => handleCancelConfirmationCompare(slot as 0 | 1 | 2)}
+                      />
+                    ) : (
+                      <RoleResultsPanel
+                        compareMode
+                        role={roleSlots[slot]}
+                        selectedSeniority={selectedSeniority}
+                        rows={panels[slot].rows}
+                        haveSkillKeys={panels[slot].haveSkillKeys}
+                        topGaps={panels[slot].topGaps}
+                        selectedGroup={panels[slot].selectedGroup}
+                        setSelectedGroup={panels[slot].setSelectedGroup}
+                      />
+                    ))}
                 </section>
               ))}
             </div>

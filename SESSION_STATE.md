@@ -175,13 +175,34 @@
   `data/dataset-evaluations.md` and none close it; no fifth dataset identified. PARKED, not
   searched further, per this doc's own established discipline. Appended to
   `data/dataset-evaluations.md`.
-- **Next**: commit the recommendation #3 rejection (dataset-evaluations.md + this ledger entry).
-  After that: the `/grill-me`-answered compare-mode confirmation extension (one checklist per
-  panel, sequentially) is unspecced. The `scrollable-region-focusable` finding on
-  `SkillLeverageTable` (spec 036's audit) and a focus-order pass on the checklist's
-  mount/confirm/cancel transitions (Cypress's non-blocking recommendation, spec 038b) are both
-  candidates for small follow-up tickets. All 5 of round 24's original review recommendations are
-  now resolved (shipped or formally rejected).
+- Recommendation #3 rejection committed/pushed (`212c47f`). All 5 of round 24's original review
+  recommendations now resolved (shipped or formally rejected). Picked up the last open thread: the
+  `/grill-me`-answered compare-mode confirmation extension (one checklist per panel, sequentially,
+  including panel 0). Dispatched Cedar for spec 038c — traced all 5 open questions against the
+  live post-038b code rather than assuming: sequencing collapses `handleResumeSubmit` to one
+  `activeSlotIndices.forEach` fan-out with a derived, stateless `confirmationSlot` (subsumes the
+  single-panel branch, doesn't just sit beside it); no `localPersistence.ts` change needed (slots
+  1/2 stay session-only per spec 036, slot 0's confirmation surface is unchanged whether compare
+  mode is on or off); "Back" abandons the rest of the batch from that slot on, never an
+  already-confirmed earlier slot; toggling compare mode or changing a role mid-sequence is already
+  handled by spec 035's per-instance isolation, zero new cleanup; one SPEC, not two, since 038a
+  built the hook API panel-agnostic for exactly this reuse. Persisted to
+  `specs/038c-compare-mode-sequential-confirmation.md`.
+- Cypress red → Magnolia green: `compare-confirmation.spec.ts` (new, 6 oracle items) plus a
+  one-line fix to `compare-roles.spec.ts`'s rapid-re-pick test (slot 0 now shows a checklist before
+  its rowheader is visible) and promotion of `stubMultiRoleProfile`/`makeRow`/`RoleFixture` out of
+  that file into `support/app.ts` so the new spec doesn't re-paste a near-duplicate stub.
+- Combined audit **PASS**, independently re-run rather than trusting the build report: tsc/eslint
+  clean, 778/778 vitest, 42/42 e2e assertions green across `compare-confirmation.spec.ts` +
+  `compare-roles.spec.ts` + `skill-confirmation.spec.ts` @ desktop-light + mobile-touch-dark (both
+  SPEC-declared profiles), zero regression in specs 036/038b's own suites. Re-verified a second
+  time from a clean worktree copy of the diff (byte-identical `git diff --stat`) before committing,
+  not just the original checkout.
+- Spec 038c committed and pushed this session. **Next**: two round-24 non-blocking findings remain
+  unspecced — a pre-existing `scrollable-region-focusable` axe violation on `SkillLeverageTable`
+  (spec 036's audit) and a focus-order pass on the checklist's mount/confirm/cancel transitions
+  (Cypress's non-blocking recommendation, spec 038b's audit). Neither is a regression; both are
+  candidates for small follow-up tickets.
 
 ---
 

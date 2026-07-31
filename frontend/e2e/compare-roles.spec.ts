@@ -1,9 +1,11 @@
-import { expect, test, type Page, type Route } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import {
+  confirmSkillChecklist,
   gotoRenderedLeverageTable,
+  makeRow,
   reportsHover,
+  stubMultiRoleProfile,
   STUB_RESUME,
-  type StubRoleSkillRow,
 } from './support/app'
 
 /**
@@ -31,6 +33,15 @@ import {
  *     (quoted verbatim, bullets 12/13/14/22).
  *
  * Verification Oracle (per spec 036): this file @ desktop-light, @ desktop-dark, @ mobile-touch-light.
+ *
+ * spec 038c amendment: `RoleFixture`/`makeRow`/`stubMultiRoleProfile`, previously defined only in
+ * this file, are now promoted, unchanged, into `support/app.ts` (so `compare-confirmation.spec.ts`
+ * can reuse them too) and imported from there instead. The "Data isolation across slots" describe
+ * block's rapid-re-pick test also gains one `confirmSkillChecklist(page)` call for slot 0 — spec
+ * 038c routes panel 0 through the skill-confirmation checklist in compare mode too, so slot 0's
+ * skill rowheader (previously visible immediately after "Find my gaps") is now gated behind
+ * confirming that checklist first. No other test in this file submits a resume, so no other
+ * assertion here is affected by 038c.
  */
 
 const ROLE_A = 'Backend'
@@ -40,57 +51,6 @@ const ROLE_C = 'Security'
 const ALPHA_SKILL = 'alpha-only-skill'
 const BRAVO_SKILL = 'bravo-only-skill'
 const CHARLIE_SKILL = 'charlie-only-skill'
-
-interface RoleFixture {
-  role: string
-  rows: StubRoleSkillRow[]
-  delayMs?: number
-}
-
-function makeRow(role: string, skill: string): StubRoleSkillRow {
-  return {
-    role_family: role,
-    skill_name_raw: skill,
-    skill_key: skill,
-    pct_of_role: 40,
-    postings_with_skill: 4000,
-    demand_score: 60,
-    scarcity_index: 50,
-    arbitrage_score: 45,
-    scarcity_data_completeness: 'complete',
-    d3_corroborated: true,
-    d3_pct_of_all_postings: 20,
-    salary_premium_pct: 8,
-    median_days_open: 25,
-  }
-}
-
-/**
- * Extends `stubRoleSkillProfile`'s technique (support/app.ts) to serve *different* fixture rows —
- * and an optional artificial per-role delay — depending on which role the app's `.eq('role_family',
- * role)` query actually asked for. PostgREST encodes that filter as a `role_family=eq.<role>` query
- * param, so the fixture is selected by decoding it back out of the intercepted request URL, never
- * by request order (multiple slots can be in flight concurrently).
- */
-async function stubMultiRoleProfile(page: Page, fixtures: RoleFixture[]): Promise<void> {
-  const byRole = new Map(fixtures.map((fixture) => [fixture.role, fixture]))
-  await page.route('**/rest/v1/role_skill_arbitrage**', async (route: Route) => {
-    const url = new URL(route.request().url())
-    const eqParam = url.searchParams.get('role_family') ?? ''
-    const role = eqParam.replace(/^eq\./, '')
-    const fixture = byRole.get(role)
-
-    if (fixture?.delayMs) {
-      await new Promise((resolve) => setTimeout(resolve, fixture.delayMs))
-    }
-
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(fixture?.rows ?? []),
-    })
-  })
-}
 
 function compareToggle(page: Page) {
   return page.getByLabel('Compare roles')
@@ -236,6 +196,11 @@ test.describe('Data isolation across slots (spec 036, oracle item 2)', () => {
 
     // Re-pick slot 1 to C well before B's 1200ms delay can plausibly have resolved.
     await targetRoleSelect(page, 1).selectOption(ROLE_C)
+
+    // spec 038c: slot 0 now shows a skill-confirmation checklist in place of its RoleResultsPanel
+    // (and thus its skill rowheader) until confirmed — confirm it here so the rowheader assertions
+    // below are checking slot 0's actual analyzed results, not an unrelated missing-checklist red.
+    await confirmSkillChecklist(page)
 
     // Slot 0 must settle on role A's own data.
     await expect(
