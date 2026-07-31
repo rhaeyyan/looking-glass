@@ -35,8 +35,18 @@
   governance check clean (no stray worktree/branch). Surfaced 2 non-blocking, pre-existing WCAG
   `landmark-unique` gaps in `SkillGroupBreakdown`/`SkillMatrix` compare-mode headings — confirmed
   not a regression from this round, parked for a future ticket.
-- **Next**: commit (specs-only + code). Consider opening a ticket/SPEC for the parked
-  landmark-uniqueness gap.
+- User reported after commit `c3aa02d` that the sidebar toggle "does not work as intended": it hid
+  the two cards but never actually freed screen space for the comparison view. Root cause: `.lg-main`
+  (`looking-glass.css`) is a grid with a fixed `minmax(300px, 340px)` first track — hiding the cards'
+  *content* via `hidden` never shrinks the track itself, so `.lg-results`/`.compare-grid` never
+  gained the reclaimed width. The 6 existing `compare-sidebar-toggle.spec.ts` blocks only asserted
+  card visibility, never geometry, so this shipped green. OBSERVABLE-lane fix, no SPEC needed:
+  dispatched Magnolia directly with a new `lg-main--sidebar-collapsed` modifier class (narrows the
+  first track to `minmax(160px, auto)` on desktop only, `≥861px`) plus a new bounding-box e2e
+  assertion (confirmed red on the unfixed code first). 26/28 e2e green (2 expected mobile skips),
+  784/784 vitest, tsc/eslint clean.
+- **Next**: commit (specs-only + code + this follow-up fix). Consider opening a ticket/SPEC for the
+  parked landmark-uniqueness gap.
 
 ## Previous Session — 2026-07-30 (round 24: spec 034, local persistence)
 

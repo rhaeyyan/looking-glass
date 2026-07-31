@@ -686,6 +686,27 @@ textarea.input {
   padding: 20px 32px 48px;
   align-items: start;
 }
+/* Spec 039b follow-up: hiding the Step 1/Step 2 cards' *content* via `hidden` never shrank the
+ * grid track itself — CSS grid track sizing comes from `grid-template-columns`, not from the
+ * (now nearly-empty) content living inside the track, so `.lg-results`/`.compare-grid` never
+ * actually gained the reclaimed width the toggle was supposed to free up. This modifier (set on
+ * `.lg-main` in App.tsx from the same `compareMode && !sidebarVisible` condition already gating
+ * the two cards' `hidden`) narrows the first track down to just fit the "Compare roles" checkbox
+ * and the toggle button that remain — both live directly in `.lg-sidebar`, outside the
+ * collapsible cards, and must stay reachable (spec 039b) — while the second track's `minmax(0,
+ * 1fr)` is untouched, so it's the one that absorbs the freed space. Desktop-only: below 860px
+ * `.lg-main` already collapses to a single stacked column, where there is no second track to
+ * widen and no horizontal space to reclaim. */
+@media (min-width: 861px) {
+  .lg-main.lg-main--sidebar-collapsed {
+    grid-template-columns: minmax(160px, auto) minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lg-main {
+    transition: grid-template-columns 160ms ease;
+  }
+}
 @media (max-width: 860px) {
   .lg-main {
     grid-template-columns: 1fr;

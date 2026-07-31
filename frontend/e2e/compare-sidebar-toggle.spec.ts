@@ -32,6 +32,14 @@ import { expect, test, type Page } from '@playwright/test'
  *
  * Verification Oracle (per spec 039b): this file @ desktop-light, @ desktop-dark (primary),
  * @ mobile-touch-dark (compatibility check).
+ *
+ * Follow-up fix (root cause: `.lg-main`'s grid-template-columns never shrank when the cards'
+ * content was hidden, so `.lg-results` never actually gained the reclaimed width): the
+ * "Collapsing the sidebar actually reclaims layout width" block below adds a geometry assertion
+ * — bounding-box widths, not just visibility — and is desktop-only (`test.skip` under 861px,
+ * matching `.lg-main`'s own single-column breakpoint). Run @ desktop-dark (primary) and
+ * @ desktop-light; it self-skips on mobile-touch-dark rather than asserting a width change that
+ * was never supposed to happen on a stacked single-column layout.
  */
 
 function compareToggle(page: Page) {
@@ -179,6 +187,86 @@ test.describe('Turning compare mode off auto-restores the sidebar (spec 039b, or
         'the sidebar was left collapsed',
     ).toBeVisible()
     await expect(stepTwoHeading(page)).toBeVisible()
+  })
+})
+
+test.describe('Collapsing the sidebar actually reclaims layout width (follow-up fix)', () => {
+  /**
+   * Root-cause regression guard: the original 039b implementation hid the Step 1/Step 2 cards'
+   * *content* via `hidden`, but never shrank `.lg-main`'s fixed `grid-template-columns` first
+   * track — CSS grid track sizing comes from that declaration, not from the (now nearly-empty)
+   * content living inside the track, so `.lg-results`/`.compare-grid` never actually gained any
+   * width. The 6 describe blocks above only assert the cards' visibility/`hidden` state and the
+   * toggle's `aria-expanded`/accessible name, never any bounding box — which is exactly why that
+   * miss stayed green through all of them. This block measures rendered geometry instead.
+   *
+   * Desktop-only by construction: below 861px `.lg-main` already collapses to a single stacked
+   * column (no second track to widen, nothing to reclaim), so this is skipped on narrow viewports
+   * rather than asserting a geometry change that was never supposed to happen there.
+   */
+  test('the sidebar column shrinks and the results column widens when collapsed, then reverts on expand', async ({
+    page,
+  }) => {
+    const viewport = page.viewportSize()
+    test.skip(
+      !viewport || viewport.width <= 860,
+      '.lg-main only collapses to a single stacked column below 861px — there is no second ' +
+        'track to widen and no horizontal space to reclaim on narrow/mobile viewports.',
+    )
+
+    await page.goto('/')
+    await enableCompareMode(page)
+
+    const sidebar = page.locator('.lg-sidebar')
+    const results = page.locator('.lg-results')
+
+    const expandedSidebarBox = await sidebar.boundingBox()
+    const expandedResultsBox = await results.boundingBox()
+    expect(expandedSidebarBox, 'expected .lg-sidebar to have a measurable box pre-collapse').not.toBeNull()
+    expect(expandedResultsBox, 'expected .lg-results to have a measurable box pre-collapse').not.toBeNull()
+
+    await sidebarToggle(page).click() // collapse
+
+    // `.lg-main`'s grid-template-columns transitions over 160ms (prefers-reduced-motion:
+    // no-preference) — a bare read straight after the click would sample an interpolated width,
+    // not the settled value. Wait past the transition before measuring (CLAUDE.md's
+    // animated-property lesson, applied to grid track width instead of a background color).
+    await page.waitForTimeout(240)
+
+    const collapsedSidebarBox = await sidebar.boundingBox()
+    const collapsedResultsBox = await results.boundingBox()
+    expect(collapsedSidebarBox, 'expected .lg-sidebar to still have a measurable box once collapsed — it must stay in the DOM/layout for the checkbox+toggle to stay reachable').not.toBeNull()
+    expect(collapsedResultsBox).not.toBeNull()
+
+    expect(
+      collapsedSidebarBox!.width,
+      `expected .lg-sidebar's rendered width to measurably shrink once collapsed (was ` +
+        `${expandedSidebarBox!.width}px, now ${collapsedSidebarBox!.width}px) — the grid track ` +
+        'itself must narrow, not just have its cards\' content disappear while the track stays reserved',
+    ).toBeLessThan(expandedSidebarBox!.width - 50)
+
+    expect(
+      collapsedResultsBox!.width,
+      `expected .lg-results to measurably widen once the sidebar collapses (was ` +
+        `${expandedResultsBox!.width}px, now ${collapsedResultsBox!.width}px)`,
+    ).toBeGreaterThan(expandedResultsBox!.width + 50)
+
+    await sidebarToggle(page).click() // expand again
+    await page.waitForTimeout(240)
+
+    const restoredSidebarBox = await sidebar.boundingBox()
+    const restoredResultsBox = await results.boundingBox()
+    expect(restoredSidebarBox).not.toBeNull()
+    expect(restoredResultsBox).not.toBeNull()
+
+    expect(
+      Math.abs(restoredSidebarBox!.width - expandedSidebarBox!.width),
+      'expected .lg-sidebar to revert to its original width once re-expanded',
+    ).toBeLessThan(5)
+    expect(
+      Math.abs(restoredResultsBox!.width - expandedResultsBox!.width),
+      'expected .lg-results to revert to its original width once re-expanded',
+    ).toBeLessThan(5)
   })
 })
 

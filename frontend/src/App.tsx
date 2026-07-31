@@ -351,7 +351,11 @@ function App() {
         </p>
       </header>
 
-      <main className="lg-main">
+      <main
+        className={
+          compareMode && !sidebarVisible ? 'lg-main lg-main--sidebar-collapsed' : 'lg-main'
+        }
+      >
         <div className="lg-sidebar">
           {/* spec 039b: lives outside both collapsible cards, same as the toggle button below —
               it must stay reachable (and so must stay able to turn compareMode off) even while the
