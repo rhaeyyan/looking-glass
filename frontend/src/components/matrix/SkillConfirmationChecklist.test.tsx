@@ -382,3 +382,63 @@ describe('<SkillConfirmationChecklist /> accessibility', () => {
     expect(await axe(container)).toHaveNoViolations()
   })
 })
+
+// a11y fix (non-blocking finding from spec 038b's audit): mounting the checklist previously moved
+// focus nowhere, so a keyboard/screen-reader user was never told "you're now looking at a new
+// step". jsdom simulates DOM focus correctly (unlike layout), so this is a real, deterministic
+// assertion — not the layout-dependent kind this project reserves for a real-Chromium e2e check.
+describe('<SkillConfirmationChecklist /> focus management on mount', () => {
+  it('moves focus to its own heading on mount, so a keyboard/screen-reader user is told a new step has started', () => {
+    render(
+      <SkillConfirmationChecklist
+        role={TARGET_ROLE}
+        rows={ROWS}
+        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        onConfirm={() => {}}
+        onCancel={() => {}}
+      />,
+    )
+
+    const heading = screen.getByRole('heading', { name: 'Confirm what you already know' })
+    expect(heading).toHaveFocus()
+    // Programmatically focusable (so `.focus()` can target it) but not a normal Tab stop — the
+    // heading gets focus on mount, not by being permanently in the middle of the Tab sequence.
+    expect(heading).toHaveAttribute('tabindex', '-1')
+  })
+
+  it('does not re-steal focus when autoDetectedKeys changes on an already-mounted instance (resubmitting while the checklist is still on screen)', () => {
+    const { rerender } = render(
+      <SkillConfirmationChecklist
+        role={TARGET_ROLE}
+        rows={ROWS}
+        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        onConfirm={() => {}}
+        onCancel={() => {}}
+      />,
+    )
+
+    const heading = screen.getByRole('heading', { name: 'Confirm what you already know' })
+    expect(heading).toHaveFocus()
+
+    // Move focus elsewhere (simulating the user having tabbed on to a checkbox), then re-render
+    // with a NEW autoDetectedKeys set (the resubmit-while-showing case) WITHOUT unmounting.
+    const rust = screen.getByRole('checkbox', { name: 'Rust' })
+    rust.focus()
+    expect(rust).toHaveFocus()
+
+    rerender(
+      <SkillConfirmationChecklist
+        role={TARGET_ROLE}
+        rows={ROWS}
+        autoDetectedKeys={new Set(['rust'])}
+        onConfirm={() => {}}
+        onCancel={() => {}}
+      />,
+    )
+
+    // The mount-only effect (empty deps) must not re-fire just because autoDetectedKeys changed —
+    // focus stays wherever the user left it.
+    expect(rust).toHaveFocus()
+    expect(heading).not.toHaveFocus()
+  })
+})

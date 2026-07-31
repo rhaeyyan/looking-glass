@@ -373,3 +373,29 @@ test.describe('The compare-mode-confirmed edit survives a reload via the existin
     ).toHaveAttribute('data-have', 'false')
   })
 })
+
+// a11y fix (non-blocking finding from spec 038b's audit, covering the compare-mode sequencing case
+// added by spec 038c): when the walk advances to the next active slot's checklist, focus must move
+// to THAT checklist's own heading too — not just slot 0's, the only transition
+// skill-confirmation.spec.ts's own equivalent block can exercise. Exactly one checklist is ever
+// rendered app-wide at a time (this file's own established invariant — see `checkboxFor`'s comment
+// above), so its heading text is the same regardless of which slot's turn it is.
+test.describe("Focus moves to each newly-advanced slot's checklist heading (a11y fix, spec 038c sequencing)", () => {
+  test("confirming slot 0 advances the walk to slot 1's checklist, and focus moves to slot 1's checklist heading", async ({
+    page,
+  }) => {
+    await setupTwoSlotCompare(page)
+    await submitSharedResume(page)
+
+    await expect(page.getByTestId(CHECKLIST_TESTID)).toBeVisible({ timeout: 5_000 })
+    await confirmSkillChecklist(page) // confirm slot 0 -> advances to slot 1's checklist
+
+    await expect(comparisonColumn(page, ROLE_2).getByTestId(CHECKLIST_TESTID)).toBeVisible({
+      timeout: 5_000,
+    })
+    await expect(
+      page.getByRole('heading', { name: 'Confirm what you already know' }),
+      "expected focus to move to slot 1's own checklist heading once the walk advances to it",
+    ).toBeFocused({ timeout: 5_000 })
+  })
+})

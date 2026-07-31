@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { RoleSkillRow } from '../../lib/supabaseClient'
 import { normalizeSkillName } from '../../lib/normalize'
 import './matrix.css'
@@ -66,6 +66,23 @@ export function SkillConfirmationChecklist({
   const titleId = useId()
   const reduced = prefersReducedMotion()
 
+  // Focus management (non-blocking a11y finding from spec 038b's audit): this component is
+  // conditionally excluded from the tree (not just hidden) at every point it appears — App.tsx
+  // renders it in place of RoleResultsPanel, never alongside it — so it mounts fresh every time
+  // it's the user's turn to confirm (single-panel "Find my gaps", or a compare-mode slot's turn
+  // per spec 038c). Moving focus to its own heading on mount tells a keyboard/screen-reader user
+  // "you're now looking at a new step", which nothing did before. `tabIndex={-1}` makes the
+  // heading programmatically focusable without joining the normal Tab order permanently; the
+  // empty dependency array fires this exactly once per real mount, never on a re-render triggered
+  // by unrelated prop changes (e.g. the `autoDetectedKeys` re-sync effect below, which can fire on
+  // an already-mounted instance when a resume is resubmitted while the checklist is still on
+  // screen — that resync is deliberately NOT a fresh "new step" from the user's point of view, so
+  // it must not re-steal focus).
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    headingRef.current?.focus()
+  }, [])
+
   // Local edit buffer only — starts from the real extraction's auto-detected set and never
   // mutates `autoDetectedKeys` itself. Re-synced whenever the caller hands this component a NEW
   // draft: `useRolePanel.submitResume` constructs a brand-new Set every call, so a resubmitted
@@ -96,7 +113,7 @@ export function SkillConfirmationChecklist({
       data-testid="skill-confirmation-checklist"
     >
       <div className="card-kicker">Before we score it</div>
-      <h2 id={titleId} className="lg-role-heading">
+      <h2 id={titleId} className="lg-role-heading" ref={headingRef} tabIndex={-1}>
         Confirm what you already know
       </h2>
       <p style={{ margin: '4px 0 14px', fontSize: '14px', opacity: 0.75, maxWidth: '60ch' }}>

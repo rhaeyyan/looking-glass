@@ -106,3 +106,93 @@ test.describe('stuck touch-:hover row highlight (round 18 regression)', () => {
       .not.toBe(TRANSPARENT)
   })
 })
+
+/**
+ * `scrollable-region-focusable` (axe-core rule), found during spec 036's audit via a real-Chromium
+ * axe-core spot-check. `.leverage-tablewrap` (matrix.css) has `overflow-x: auto` with no way for a
+ * keyboard-only user (no mouse/trackpad) to reach and scroll it. jsdom never computes real layout
+ * (`scrollWidth`/`clientWidth` are always 0 there), so this can only be genuinely verified in a real
+ * browser — this file's own reason for existing (see the file-level comment above). Run across all
+ * 4 profiles: the table genuinely overflows its wrapper at every one of this harness's default
+ * viewport widths (measured directly: mobile-touch ~1030px content in a ~304px wrapper; desktop
+ * ~1149px content in a ~776px wrapper), so every profile is a valid oracle for this fix, not just a
+ * narrowed one.
+ */
+test.describe('leverage table scroll wrapper is keyboard-focusable (scrollable-region-focusable)', () => {
+  test('the table genuinely overflows its scroll wrapper at this profile\'s viewport (oracle self-check — a passing focus assertion below proves nothing otherwise)', async ({
+    page,
+  }) => {
+    await gotoRenderedLeverageTable(page)
+    const wrap = page.locator('.leverage-tablewrap')
+
+    const { scrollWidth, clientWidth } = await wrap.evaluate((el) => ({
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+    }))
+    expect(
+      scrollWidth,
+      'expected the leverage table to overflow its wrapper at this viewport — if it stops ' +
+        'overflowing, the scrollable-region-focusable fix below is untested at this profile',
+    ).toBeGreaterThan(clientWidth)
+  })
+
+  test('a keyboard-only user tabbing through the page lands on the scrollable region, and it is a properly-labeled ARIA region there (not just an accidentally-focusable div)', async ({
+    page,
+  }) => {
+    // NOTE on why this checks role/aria-label, not just raw reachability: modern Chromium ships a
+    // "focusable scrollers" heuristic that lets Tab reach ANY overflowing element even with no
+    // tabIndex/role at all (verified empirically — reverting this task's SkillLeverageTable.tsx fix
+    // and re-running this loop alone still reports the wrapper as reached). That heuristic is real
+    // but insufficient: it gives no accessible name/role, which is what axe-core's
+    // `scrollable-region-focusable` finding and screen-reader users actually need. So the assertion
+    // that proves THIS fix is the explicit `role="region"` + `aria-label` on whatever Tab lands on,
+    // not mere DOM focus.
+    await gotoRenderedLeverageTable(page)
+    const wrap = page.locator('.leverage-tablewrap')
+
+    let reached = false
+    for (let i = 0; i < 60 && !reached; i++) {
+      await page.keyboard.press('Tab')
+      reached = await wrap.evaluate((el) => el === document.activeElement)
+    }
+    expect(
+      reached,
+      'expected plain Tab-only keyboard navigation to eventually focus .leverage-tablewrap',
+    ).toBe(true)
+
+    const { role, label } = await wrap.evaluate((el) => ({
+      role: el.getAttribute('role'),
+      label: el.getAttribute('aria-label'),
+    }))
+    expect(
+      role,
+      'the element Tab lands on must be an explicit ARIA region (role="region"), not merely an ' +
+        "accidentally-focusable scroller with no accessible role — Chromium's own focusable-scroller " +
+        'heuristic does not supply this',
+    ).toBe('region')
+    expect(
+      label,
+      'the region must have its own aria-label distinct from the outer section heading',
+    ).toMatch(/Scrollable table/)
+  })
+
+  test('once focused, the region has its own accessible name (role="region" + aria-label) and scrolls via the keyboard with no JS handler needed', async ({
+    page,
+  }) => {
+    await gotoRenderedLeverageTable(page)
+
+    const region = page.getByRole('region', { name: /Scrollable table/ })
+    await region.focus()
+    await expect(region).toBeFocused()
+
+    const before = await region.evaluate((el) => el.scrollLeft)
+    await page.keyboard.press('ArrowRight')
+    await expect
+      .poll(() => region.evaluate((el) => el.scrollLeft), {
+        message:
+          'expected scrollLeft to advance after ArrowRight on the focused, overflowing region — ' +
+          'this is native browser behaviour for a focused block element and needs no keydown handler',
+      })
+      .toBeGreaterThan(before)
+  })
+})

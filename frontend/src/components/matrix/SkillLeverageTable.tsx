@@ -33,6 +33,11 @@ export function SkillLeverageTable({
 }) {
   const titleId = useId()
   const salaryFootnoteId = useId()
+  // The scroll wrapper below needs its OWN accessible name — reusing `titleId` here would give it
+  // the exact same computed name as the ancestor `<section aria-labelledby={titleId}>`, so a
+  // screen-reader user landmark-navigating would hear two nested regions announce identically. A
+  // distinct `aria-label` (not a shared id) sidesteps that collision entirely.
+  const scrollRegionLabel = `Scrollable table: ${roleName} — every skill, ranked by leverage`
   const ranked = [...rows].sort(byArbitrageDesc)
   const topScore = ranked.reduce((max, r) => Math.max(max, r.arbitrage_score ?? 0), 0)
 
@@ -47,7 +52,23 @@ export function SkillLeverageTable({
         and flagged.
       </p>
 
-      <div className="leverage-tablewrap">
+      {/* WCAG 2.2 AA `scrollable-region-focusable`: this wrapper is the horizontally-scrolling
+          region (matrix.css: `overflow-x: auto`). `tabIndex={0}` + `role="region"` +
+          `aria-label` put it in the tab order with its own accessible name distinct from both the
+          table's <caption> and the outer <section>'s heading, so a keyboard-only user can actually
+          tab to it and scroll it (native arrow-key scrolling on a focused, overflowing block —
+          no keydown handler needed). */}
+      <div
+        className="leverage-tablewrap"
+        // This is the WAI-ARIA APG "scrollable region" pattern (w3.org/WAI/tutorials/tables), not
+        // a stray tabindex on a static container: this region must be keyboard-focusable so it can
+        // be scrolled, and `role="region"` + `aria-label` give it a real accessible name/role. The
+        // lint rule's role allowlist has no "scrollable container" case.
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+        tabIndex={0}
+        role="region"
+        aria-label={scrollRegionLabel}
+      >
         <table className="matrix-table leverage-table">
           <caption className="visually-hidden">
             Skill profile for {roleName}, ranked by leverage score

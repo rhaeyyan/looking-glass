@@ -432,6 +432,15 @@
   border: 1px solid var(--border);
   border-radius: 11px;
 }
+/* Keyboard-focus ring for the scrollable region itself (WCAG 2.2 AA `scrollable-region-focusable` —
+ * SkillLeverageTable.tsx makes this div `tabIndex={0} role="region"`). Matches this file's own
+ * `--series-1` focus-ring convention (`.breakdown-chip:focus-visible`, `.filter-status-clear:focus-visible`)
+ * rather than the app-wide `--color-accent` default, so every focusable control inside the matrix
+ * card family reads as one consistent ring color. */
+.leverage-tablewrap:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
 .leverage-table {
   min-width: 660px; /* keep every column readable; the wrap scrolls on narrow screens */
   /* Fixed layout: the sticky columns' `left` offsets below hard-code 2.25rem/9rem/9.5rem widths.

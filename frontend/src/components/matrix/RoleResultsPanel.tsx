@@ -104,6 +104,19 @@ export function RoleResultsPanel({
       <section className="card blueprint elev-md standing-root">
         <header className="lg-results-head">
           <span className="card-kicker">Target role</span>
+          {/* Deliberately NOT a programmatic-focus target on mount. An earlier version of this task
+              added a `ref`/`tabIndex={-1}`/mount-`useEffect(() => .focus())` here to announce
+              "results ready" — but this component remounts on every ordinary role-`<select>`
+              switch too, not just after a deliberate "next step" click (App.tsx swaps in
+              `<LoadingSkeleton />` during the refetch, a different element at this JSX position, so
+              React unmounts/remounts this component). That yanked focus away from whatever the user
+              was already doing (e.g. typing into the resume textarea) on every background refetch —
+              a real regression Cypress reproduced (e2e/role-picker-focus-regression.spec.ts).
+              `SkillConfirmationChecklist`'s own mount-focus is safe because it only ever mounts
+              right after a deliberate click ("Find my gaps" / a compare-mode slot's turn); this
+              component has no equivalent guarantee, so it stays on the codebase's existing
+              convention of not moving focus on an async content refresh the user didn't directly
+              request (loading -> success elsewhere in this app doesn't move focus either). */}
           <h2 className="lg-role-heading">{role}</h2>
           <div className="lg-summary-tags">
             <span className="tag tag-neutral">

@@ -233,3 +233,33 @@ test.describe('Skill-confirmation checklist — persistence of the CONFIRMED (ed
     ).toHaveAttribute('data-have', 'true')
   })
 })
+
+// a11y fix (non-blocking finding from spec 038b's audit): the checklist's mount didn't move focus
+// anywhere, so a keyboard/screen-reader user was never told "you're now looking at a new step".
+// Real-browser assertion, not just the jsdom-level one in SkillConfirmationChecklist.test.tsx —
+// focus IS simulated correctly in jsdom, but this is still the actual keyboard-user experience this
+// fix is for, exercised through real navigation/clicks.
+//
+// This block originally also covered "Confirm skills" and "Back" moving focus to
+// `RoleResultsPanel`'s own role heading on those transitions. That half of the fix was reverted
+// (see the comment on `RoleResultsPanel.tsx`'s `<h2>`): the component remounts on every ordinary
+// role-`<select>` switch, not just after a deliberate step-transition, so a mount-focus effect there
+// stole focus from whatever the user was already doing on every background refetch — a real
+// regression pinned permanently in `e2e/role-picker-focus-regression.spec.ts`. Only
+// `SkillConfirmationChecklist`'s own mount-focus (asserted below) is safe and shipped, because it
+// only ever mounts right after a deliberate click.
+test.describe('Focus moves to the checklist\'s own heading on mount (a11y fix)', () => {
+  test('submitting "Find my gaps" moves focus to the checklist\'s own heading', async ({ page }) => {
+    await stubRoleSkillProfile(page)
+    await page.goto('/')
+
+    await page.getByLabel('Target role').selectOption(STUB_ROLE)
+    await page.getByLabel('Resume text').fill(STUB_RESUME)
+    await page.getByRole('button', { name: 'Find my gaps' }).click()
+
+    await expect(
+      page.getByRole('heading', { name: 'Confirm what you already know' }),
+      'expected focus to land on the checklist\'s own heading once it mounts',
+    ).toBeFocused({ timeout: 5_000 })
+  })
+})

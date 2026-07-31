@@ -1129,3 +1129,49 @@ describe('<SkillLeverageTable /> spec 032 — evidence-band chrome trim', () => 
     ).not.toBeInTheDocument()
   })
 })
+
+// ---------------------------------------------------------------------------------------------
+// a11y fix — `scrollable-region-focusable` (axe-core rule). `.leverage-tablewrap` has
+// `overflow-x: auto` (matrix.css) with no keyboard way in, absent these attributes. jsdom never
+// computes real layout (`scrollWidth`/`clientWidth` are always 0), so axe-core's rule can never
+// actually observe a real overflow condition here — a jest-axe assertion for this exact rule would
+// be a test that cannot fail. This is instead a plain structural assertion (deterministic
+// regardless of jsdom's layout limitations) that the keyboard-focusable attributes are present and
+// won't silently regress; the real "is it actually reachable/scrollable via a real keyboard" claim
+// is verified in a real Chromium render by e2e/leverage-table.spec.ts.
+describe('<SkillLeverageTable /> a11y — scroll wrapper is keyboard-focusable (scrollable-region-focusable)', () => {
+  it('`.leverage-tablewrap` is tab-focusable, exposed as an ARIA region with its own accessible name', () => {
+    const { container } = render(
+      <SkillLeverageTable rows={roleSkillProfileFixture} roleName="Backend" />,
+    )
+
+    const wrap = container.querySelector('.leverage-tablewrap')
+    expect(wrap).not.toBeNull()
+    expect(wrap).toHaveAttribute('tabindex', '0')
+    expect(wrap).toHaveAttribute('role', 'region')
+
+    const label = wrap!.getAttribute('aria-label')
+    expect(label).toBeTruthy()
+    expect(label).toMatch(/Backend/)
+  })
+
+  it("the wrapper's accessible name is distinct from the outer <section>'s own accessible name (no landmark collision)", () => {
+    render(<SkillLeverageTable rows={roleSkillProfileFixture} roleName="Backend" />)
+
+    const wrapRegion = screen.getByRole('region', { name: /Scrollable table/ })
+    const outerRegions = screen.getAllByRole('region')
+    // The outer <section aria-labelledby> and the inner scroll wrapper both compute to role
+    // "region" — assert there are exactly two, and their accessible names differ.
+    expect(outerRegions.length).toBe(2)
+    const outerRegion = outerRegions.find((el) => el !== wrapRegion)!
+    expect(outerRegion).toHaveAccessibleName('Backend — every skill, ranked by leverage')
+    expect(wrapRegion).not.toHaveAccessibleName('Backend — every skill, ranked by leverage')
+  })
+
+  it('has zero axe violations with the scroll wrapper as a focusable region', async () => {
+    const { container } = render(
+      <SkillLeverageTable rows={roleSkillProfileFixture} roleName="Backend" />,
+    )
+    expect(await axe(container)).toHaveNoViolations()
+  })
+})

@@ -199,11 +199,32 @@
   explicit go-ahead — deleted the remote branch and removed the local worktree/branch. The actual
   spec 038c changes were committed fresh from the main working tree, not by reusing the stray
   commit, so this ledger entry and the final commit message are the orchestrating session's own.
-- **Next**: two round-24 non-blocking findings remain unspecced — a pre-existing
-  `scrollable-region-focusable` axe violation on `SkillLeverageTable` (spec 036's audit) and a
-  focus-order pass on the checklist's mount/confirm/cancel transitions (Cypress's non-blocking
-  recommendation, spec 038b's audit). Neither is a regression; both are candidates for small
-  follow-up tickets whenever picked up.
+- Spec 038c committed (`08b3904`). Picked up the two remaining round-24/036/038b non-blocking
+  findings together as OBSERVABLE-lane work (oracle nameable now, no Cedar SPEC needed): the
+  `scrollable-region-focusable` axe violation on `SkillLeverageTable`'s scroll wrapper, and a
+  focus-order pass on the skill-confirmation checklist's transitions. Dispatched Magnolia directly.
+  Fix 1: `.leverage-tablewrap` gained `tabIndex={0} role="region" aria-label="Scrollable table: ..."`
+  (a distinct name from the ancestor `<section>` to avoid duplicate landmarks); flagged that jsdom
+  can't reproduce real overflow, so the regression guard is a real-Chromium e2e assertion
+  (`leverage-table.spec.ts`) plus a structural vitest attribute check, not jest-axe. Fix 2 (first
+  pass): mount-focus effects added to both `SkillConfirmationChecklist` and `RoleResultsPanel`'s own
+  headings.
+- Cypress's audit **FAILED** Fix 2 with a real, well-reproduced finding: `RoleResultsPanel`'s
+  unconditional mount-focus fired on every ordinary role switch (not just the checklist-transition
+  case it was meant for), yanking focus away from wherever the user actually was — e.g. mid-typing
+  in the resume textarea. Pinned red at `e2e/role-picker-focus-regression.spec.ts`, all 4 profiles.
+  Continued Magnolia (not respawned) per this project's retry protocol; the correct fix turned out
+  to be a full revert of `RoleResultsPanel`'s focus-management addition, not a narrower prop-gate —
+  the same async-background-update hazard applies to first mount too (the app's own golden path is
+  "pick role → immediately start pasting resume"), so no mount of `RoleResultsPanel` should steal
+  focus; `SkillConfirmationChecklist`'s own mount-focus (a genuine deliberate-click transition) was
+  untouched and never in dispute. Cypress then removed (not weakened) the two now-stale
+  `skill-confirmation.spec.ts` assertions that tested the reverted behavior, re-verified everything
+  independently, and passed the combined re-audit: 195 passed/9 expected-skipped e2e, 783/783
+  vitest, tsc/eslint clean, zero critical violations.
+- **Next**: both round-24-adjacent non-blocking findings are now resolved. Nothing outstanding from
+  this thread. Governance check (worktree/branch/remote) re-run before committing per the round-038c
+  incident — clean this time, no stray state.
 
 ---
 
