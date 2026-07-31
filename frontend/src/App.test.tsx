@@ -340,6 +340,9 @@ describe('<App /> resume input + have/gap', () => {
 
     await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'I know PostgreSQL.')
     await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+    // spec 038b: single-panel submit now stages a confirmation checklist first — confirm before
+    // the have/gap partition below is computed.
+    await user.click(await screen.findByRole('button', { name: 'Confirm skills' }))
 
     // PostgreSQL (matched) renders as "Already have"; gRPC (not extracted) renders as "Worth
     // learning" — traced verbatim through the real computeSkillGap, never a raw extraction field
@@ -372,6 +375,8 @@ describe('<App /> resume input + have/gap', () => {
 
     await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'PostgreSQL')
     await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+    // spec 038b: confirm the checklist before the have/gap state (and this axe scan) applies.
+    await user.click(await screen.findByRole('button', { name: 'Confirm skills' }))
     await screen.findByText('Already have')
 
     expect(await axe(container)).toHaveNoViolations()
@@ -480,6 +485,8 @@ describe('<App /> top-gap narration (spec 005)', () => {
 
     await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'no relevant skills')
     await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+    // spec 038b: single-panel submit now stages a confirmation checklist first.
+    await user.click(await screen.findByRole('button', { name: 'Confirm skills' }))
 
     const expected = expectedNarration(BACKEND_ROWS, [])
     expect(expected).not.toBeNull()
@@ -512,6 +519,8 @@ describe('<App /> top-gap narration (spec 005)', () => {
 
     await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'Rust and PostgreSQL expert')
     await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+    // spec 038b: single-panel submit now stages a confirmation checklist first.
+    await user.click(await screen.findByRole('button', { name: 'Confirm skills' }))
 
     const expected = expectedNarration(BACKEND_ROWS, ['Rust', 'PostgreSQL'])
     expect(expected).toBeNull()
@@ -544,6 +553,8 @@ describe('<App /> top-gap narration (spec 005)', () => {
     const textarea = screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME })
     await user.type(textarea, 'no relevant skills')
     await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+    // spec 038b: single-panel submit now stages a confirmation checklist first.
+    await user.click(await screen.findByRole('button', { name: 'Confirm skills' }))
     await screen.findByRole('region', { name: /Rust/i })
 
     // Re-submit: the resume now shows Rust, so PostgreSQL becomes the new top gap.
@@ -551,6 +562,7 @@ describe('<App /> top-gap narration (spec 005)', () => {
     await user.clear(textarea)
     await user.type(textarea, 'I know Rust now')
     await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+    await user.click(await screen.findByRole('button', { name: 'Confirm skills' }))
 
     const postgresSection = await screen.findByRole('region', { name: /PostgreSQL/i })
     expect(postgresSection).toBeInTheDocument()
@@ -568,6 +580,8 @@ describe('<App /> top-gap narration (spec 005)', () => {
 
     await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'no relevant skills')
     await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+    // spec 038b: single-panel submit now stages a confirmation checklist first.
+    await user.click(await screen.findByRole('button', { name: 'Confirm skills' }))
     await screen.findByRole('region', { name: /Rust/i })
 
     // Switching roles resets haveSkillKeys -> narration must disappear immediately, before any
@@ -581,6 +595,7 @@ describe('<App /> top-gap narration (spec 005)', () => {
 
     await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), ' still nothing relevant')
     await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+    await user.click(await screen.findByRole('button', { name: 'Confirm skills' }))
 
     const graphqlSection = await screen.findByRole('region', { name: /GraphQL/i })
     expect(graphqlSection).toBeInTheDocument()
@@ -596,6 +611,8 @@ describe('<App /> top-gap narration (spec 005)', () => {
 
     await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'no relevant skills')
     await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+    // spec 038b: single-panel submit now stages a confirmation checklist first.
+    await user.click(await screen.findByRole('button', { name: 'Confirm skills' }))
     await screen.findByRole('region', { name: /Rust/i })
 
     expect(await axe(container)).toHaveNoViolations()
@@ -610,6 +627,8 @@ describe('<App /> top-gap narration (spec 005)', () => {
 
     await user.type(screen.getByRole('textbox', { name: RESUME_TEXTAREA_NAME }), 'Rust and PostgreSQL expert')
     await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
+    // spec 038b: single-panel submit now stages a confirmation checklist first.
+    await user.click(await screen.findByRole('button', { name: 'Confirm skills' }))
     await screen.findByText(NO_GAPS_MESSAGE)
 
     expect(await axe(container)).toHaveNoViolations()

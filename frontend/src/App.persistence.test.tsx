@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, within, cleanup } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import App from './App'
 import type { RoleSkillRow } from './lib/supabaseClient'
 
@@ -24,7 +25,12 @@ import { extractResumeSkills } from './lib/resumeSkills'
 const mockFetch = vi.mocked(fetchRoleSkillProfile)
 const mockExtract = vi.mocked(extractResumeSkills)
 
-const STORAGE_KEY = 'lookingglass:v1:state'
+// specs/038b-skill-confirmation-checklist-ui.md bumped the schema to v2
+// (`lookingglass:v2:state`), adding two REQUIRED fields (`confirmedSkillKeys`,
+// `confirmedFingerprint`) — see `localPersistence.test.ts`'s "stale v1 blob discard" describe
+// block for the exact contract this file's seeded blobs must now match (both keys present, even
+// when `null`, or the whole blob is discarded).
+const STORAGE_KEY = 'lookingglass:v2:state'
 
 function makeRow(overrides: Partial<RoleSkillRow> = {}): RoleSkillRow {
   return {
@@ -65,6 +71,8 @@ describe('<App /> mount-time hydration from localStorage (spec 034)', () => {
       resumeText: 'I know PostgreSQL.',
       selectedRole: 'Backend',
       selectedSeniority: 'mid',
+      confirmedSkillKeys: null,
+      confirmedFingerprint: null,
     })
 
     render(<App />)
@@ -80,7 +88,13 @@ describe('<App /> mount-time hydration from localStorage (spec 034)', () => {
     mockFetch.mockResolvedValue([makeRow({ skill_name_raw: 'PostgreSQL', skill_key: 'postgresql' })])
     mockExtract.mockReturnValue([])
 
-    seedStorage({ resumeText: '', selectedRole: 'Backend', selectedSeniority: '' })
+    seedStorage({
+      resumeText: '',
+      selectedRole: 'Backend',
+      selectedSeniority: '',
+      confirmedSkillKeys: null,
+      confirmedFingerprint: null,
+    })
 
     render(<App />)
 
@@ -110,6 +124,8 @@ describe('<App /> mount-time hydration from localStorage (spec 034)', () => {
       resumeText: 'I know PostgreSQL.',
       selectedRole: 'Backend',
       selectedSeniority: '',
+      confirmedSkillKeys: null,
+      confirmedFingerprint: null,
     })
 
     render(<App />)
@@ -119,6 +135,14 @@ describe('<App /> mount-time hydration from localStorage (spec 034)', () => {
       expect(mockExtract).toHaveBeenCalledWith('I know PostgreSQL.', ['PostgreSQL', 'gRPC'])
     })
 
+    // spec 038b: this seeded blob's confirmedFingerprint is absent (never confirmed pre-038b), so
+    // per the SPEC's rehydration rule ("fingerprint mismatch/absent → fall back to submitResume's
+    // existing (now checklist-first) behavior") mount-time hydration correctly stages the
+    // confirmation checklist rather than auto-computing the gap — confirm it, exactly as a real
+    // user would, before the have/gap table this test asserts on exists.
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Confirm skills' }))
+
     const table = await screen.findByRole('table')
     const postgresRow = within(table).getByRole('rowheader', { name: 'PostgreSQL' }).closest('tr')!
     expect(within(postgresRow).getByText('Already have')).toBeInTheDocument()
@@ -127,7 +151,13 @@ describe('<App /> mount-time hydration from localStorage (spec 034)', () => {
   })
 
   it('rehydrates resume text alone (no role) into the textarea; the role picker stays idle', async () => {
-    seedStorage({ resumeText: 'Some resume text with no role picked yet.', selectedRole: '', selectedSeniority: '' })
+    seedStorage({
+      resumeText: 'Some resume text with no role picked yet.',
+      selectedRole: '',
+      selectedSeniority: '',
+      confirmedSkillKeys: null,
+      confirmedFingerprint: null,
+    })
 
     render(<App />)
 
@@ -156,6 +186,8 @@ describe('<App /> hydration discards an invalid persisted blob back to idle (spe
       resumeText: 'Some resume text',
       selectedRole: 'Astronaut',
       selectedSeniority: 'mid',
+      confirmedSkillKeys: null,
+      confirmedFingerprint: null,
     })
 
     render(<App />)
@@ -174,6 +206,8 @@ describe('<App /> hydration discards an invalid persisted blob back to idle (spe
       resumeText: 'Some resume text',
       selectedRole: 'Backend',
       selectedSeniority: 'junior',
+      confirmedSkillKeys: null,
+      confirmedFingerprint: null,
     })
 
     render(<App />)

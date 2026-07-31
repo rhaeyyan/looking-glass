@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { ROLES } from './lib/roles'
-import { savePersistedState, loadPersistedState, clearPersistedState } from './lib/localPersistence'
+import {
+  savePersistedState,
+  loadPersistedState,
+  clearPersistedState,
+  type ConfirmedFingerprint,
+} from './lib/localPersistence'
 import { useRolePanel, type UseRolePanelResult } from './lib/useRolePanel'
 import { type SeniorityLevel } from './lib/seniorityFraming'
 import { RoleResultsPanel } from './components/matrix/RoleResultsPanel'
+import { SkillConfirmationChecklist } from './components/matrix/SkillConfirmationChecklist'
 
 type Theme = 'light' | 'dark'
 
@@ -98,6 +104,20 @@ function App() {
     () => persistedOnMount?.selectedSeniority ?? '',
   )
 
+  // spec 038b: the user's own explicit confirm-step choice — captured verbatim at the moment the
+  // checklist's "Confirm skills" fires (see handleConfirmSkills below), never re-derived from
+  // `panels[0].haveSkillKeys` afterward (that would couple persistence to a derived pipeline
+  // output). Seeded from `persistedOnMount` exactly like resumeText/selectedSeniority above.
+  // Never proactively nulled on a resumeText/role edit — `loadPersistedState()`'s own
+  // fingerprint-mismatch check already discards a stale pair on the NEXT load, so App.tsx does not
+  // need to duplicate that staleness logic here.
+  const [confirmedSkillKeys, setConfirmedSkillKeys] = useState<string[] | null>(
+    () => persistedOnMount?.confirmedSkillKeys ?? null,
+  )
+  const [confirmedFingerprint, setConfirmedFingerprint] = useState<ConfirmedFingerprint | null>(
+    () => persistedOnMount?.confirmedFingerprint ?? null,
+  )
+
   // Theme is applied to the document root so the design system's `:root[data-theme]` overrides win
   // over the `prefers-color-scheme` default in both directions.
   useEffect(() => {
@@ -110,9 +130,17 @@ function App() {
   // result). Safe under StrictMode's double-invoked effects: the initial values already come from
   // `persistedOnMount` above, so a duplicate write is idempotent (same value twice), not a wipe.
   // spec 036: only slot 0's role is persisted — slots 1/2 and compareMode are session-only.
+  // spec 038b: confirmedSkillKeys/confirmedFingerprint round-trip alongside them — a confirmed set
+  // is treated as user input (like resumeText), not cached score.
   useEffect(() => {
-    savePersistedState({ resumeText, selectedRole: roleSlots[0], selectedSeniority })
-  }, [resumeText, roleSlots, selectedSeniority])
+    savePersistedState({
+      resumeText,
+      selectedRole: roleSlots[0],
+      selectedSeniority,
+      confirmedSkillKeys,
+      confirmedFingerprint,
+    })
+  }, [resumeText, roleSlots, selectedSeniority, confirmedSkillKeys, confirmedFingerprint])
 
   // spec 036: the ONE two-call pattern every slot-role change goes through — `setRoleSlots` for
   // the controlled `<select>`'s value, `panels[slot].loadRole` for the side-effecting refetch.
@@ -154,21 +182,42 @@ function App() {
 
     // spec 036: one shared resume paste fans out to every ACTIVE slot's own panel instance — each
     // computes its own have/gap split independently (no cross-role aggregate is ever computed).
-    panels[0].submitResumeAutoConfirm(resumeText)
+    // spec 038b: single-panel mode (compareMode === false) is the ONLY call site that changes —
+    // panel 0 now stages a confirmation draft (submitResume) instead of computing the gap
+    // immediately, so the checklist can render before computeSkillGap ever runs. Compare mode's
+    // panels — INCLUDING panel 0 while compareMode is true — keep the one-shot
+    // submitResumeAutoConfirm path unchanged; compare mode's own confirmation UX is a separate,
+    // not-yet-specced extension (see spec 038b's Tipping Point).
     if (compareMode) {
+      panels[0].submitResumeAutoConfirm(resumeText)
       panels[1].submitResumeAutoConfirm(resumeText)
       if (showThirdSlot) {
         panels[2].submitResumeAutoConfirm(resumeText)
       }
+    } else {
+      panels[0].submitResume(resumeText)
     }
+  }
+
+  // spec 038b: the checklist's "Confirm skills" action — hands the user's edited checked set to
+  // the real gap computation (confirmSkills) AND captures it, verbatim, as the newly-confirmed
+  // persisted set/fingerprint. Captured explicitly here (not re-derived from
+  // panels[0].haveSkillKeys after the fact) per the SPEC's "a confirmed set is treated as user
+  // input, not cached score" line — explicit capture of what the user just checked is more direct
+  // than coupling persistence to a derived pipeline output.
+  function handleConfirmSkills(checkedSkillKeys: Set<string>) {
+    panels[0].confirmSkills(checkedSkillKeys)
+    setConfirmedSkillKeys([...checkedSkillKeys])
+    setConfirmedFingerprint({ resumeText, role: roleSlots[0] })
   }
 
   // Mount-time hydration (spec 034): resumeText/selectedRole/selectedSeniority are already seeded
   // from `persistedOnMount` above (synchronously, at first render), and `useRolePanel`'s own
   // role-keyed effect already fires the restored role's fetch at mount (its initial argument is
   // `roleSlots[0]`, seeded the same way). This effect only handles the one side effect hydration
-  // additionally needs: once that fetch settles, re-running the gap pipeline via the same
-  // `panels[0].submitResumeAutoConfirm` path `handleResumeSubmit` uses, if resumeText was also restored.
+  // additionally needs: once that fetch settles, re-running the extraction-only pipeline via the
+  // same `panels[0].submitResume` path `handleResumeSubmit` uses (spec 038b: staging, not
+  // computing — the second effect below finishes the job), if resumeText was also restored.
   // Guarded by a ref (not just the dependency array) so this only ever fires once, even across
   // React 18 StrictMode's dev-only double-invocation of effects. Slots 1/2 are never persisted
   // (spec 036), so they have nothing to hydrate.
@@ -183,7 +232,7 @@ function App() {
     if (panels[0].status === 'success') {
       didRunMountSubmit.current = true
       if (persistedOnMount.resumeText.trim() !== '') {
-        panels[0].submitResumeAutoConfirm(persistedOnMount.resumeText)
+        panels[0].submitResume(persistedOnMount.resumeText)
       }
     } else if (panels[0].status === 'error') {
       didRunMountSubmit.current = true
@@ -191,11 +240,40 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panels[0].status])
 
+  // spec 038b: the second half of mount-time hydration — `confirmSkills` needs
+  // `panels[0].pendingConfirmation` to actually be populated first, which only happens
+  // asynchronously after the effect above's `submitResume` call commits and this component
+  // re-renders (`useRolePanel.confirmSkills` closes over `pendingConfirmation` via
+  // `useCallback([pendingConfirmation])`, so calling it synchronously right after `submitResume`
+  // would still see the stale pre-submitResume value). Watches for `pendingConfirmation` becoming
+  // defined and, only the first time and only if a confirmed set actually survived
+  // `loadPersistedState()`'s own fingerprint-mismatch check (already resolved before
+  // `persistedOnMount` exists here — App.tsx does not re-check the fingerprint itself), replays it
+  // via `confirmSkills` — skipping the checklist entirely on an exact-match reload. A `null`
+  // confirmedSkillKeys (never confirmed, or a mismatch already discarded it) does nothing further:
+  // the checklist simply stays on screen for the user to confirm manually, which is the correct
+  // "fall back to checklist-first behavior." Ref-guarded exactly like `didRunMountSubmit` above, so
+  // a later, user-driven resubmission's own fresh `pendingConfirmation` is never mistaken for the
+  // mount-time draft and auto-confirmed against a stale persisted set.
+  const didRunMountConfirm = useRef(false)
+  useEffect(() => {
+    if (didRunMountConfirm.current) return
+    if (panels[0].pendingConfirmation === undefined) return
+    didRunMountConfirm.current = true
+    if (persistedOnMount?.confirmedSkillKeys != null) {
+      panels[0].confirmSkills(new Set(persistedOnMount.confirmedSkillKeys))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panels[0].pendingConfirmation])
+
   function handleClearSavedData() {
     clearPersistedState()
     setResumeText('')
     setRoleSlots((prev) => ['', prev[1], prev[2]])
     setSelectedSeniority('')
+    setConfirmedSkillKeys(null)
+    setConfirmedFingerprint(null)
+    panels[0].cancelConfirmation()
     panels[0].loadRole('')
   }
 
@@ -429,18 +507,28 @@ function App() {
             <>
               {panels[0].status === 'idle' && <EmptyStateCard />}
               {panels[0].status === 'loading' && <LoadingSkeleton />}
-              {panels[0].status === 'success' && panels[0].rows.length > 0 && (
-                <RoleResultsPanel
-                  compareMode={false}
-                  role={roleSlots[0]}
-                  selectedSeniority={selectedSeniority}
-                  rows={panels[0].rows}
-                  haveSkillKeys={panels[0].haveSkillKeys}
-                  topGaps={panels[0].topGaps}
-                  selectedGroup={panels[0].selectedGroup}
-                  setSelectedGroup={panels[0].setSelectedGroup}
-                />
-              )}
+              {panels[0].status === 'success' &&
+                panels[0].rows.length > 0 &&
+                (panels[0].pendingConfirmation ? (
+                  <SkillConfirmationChecklist
+                    role={roleSlots[0]}
+                    rows={panels[0].pendingConfirmation.rows}
+                    autoDetectedKeys={panels[0].pendingConfirmation.autoDetectedKeys}
+                    onConfirm={handleConfirmSkills}
+                    onCancel={panels[0].cancelConfirmation}
+                  />
+                ) : (
+                  <RoleResultsPanel
+                    compareMode={false}
+                    role={roleSlots[0]}
+                    selectedSeniority={selectedSeniority}
+                    rows={panels[0].rows}
+                    haveSkillKeys={panels[0].haveSkillKeys}
+                    topGaps={panels[0].topGaps}
+                    selectedGroup={panels[0].selectedGroup}
+                    setSelectedGroup={panels[0].setSelectedGroup}
+                  />
+                ))}
             </>
           ) : (
             <div className="compare-grid">

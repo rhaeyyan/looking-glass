@@ -140,14 +140,31 @@
   (76 passed/9 skipped matches exactly) rather than trusting the report at face value — an earlier
   notification from that same dispatch arrived truncated mid-wait, a reminder to re-verify rather
   than assume "completed" means a full report actually landed.
-- **Next**: dispatch Redwood (`localPersistence.ts` v2 bump) + Magnolia (`SkillConfirmationChecklist.tsx`,
-  `App.tsx` panel-0 rewiring) to build spec 038b against the confirmed red (63 failed/76 passed/9
-  skipped — 7 harness-continuity sites + 038b's own 3 tests, all one root cause, meant to turn green
-  together in one pass, not chased individually). After 038b ships: recommendation #3 (deepen
-  weak-coverage-role data, UNKNOWN/SPIKE) is still unstarted, and the `/grill-me`-answered compare-mode
-  confirmation extension (one checklist per panel, sequentially) is unspecced. The
-  `scrollable-region-focusable` finding on `SkillLeverageTable` (found during spec 036's audit) is
-  a candidate for a small follow-up ticket whenever picked up.
+- Dispatched Redwood on `localPersistence.ts`'s v2 bump — 24/24 green
+  (`localPersistence.test.ts`), scoped correctly (didn't touch `App.tsx`, left it transiently
+  out of sync on purpose). Dispatched Magnolia on `SkillConfirmationChecklist.tsx` (new) +
+  `App.tsx`'s panel-0 rewiring (confirmation staged via `submitResume`, compare-mode panels
+  unchanged on `submitResumeAutoConfirm`, two-effect mount-rehydration chain to replay
+  `confirmSkills` post-reload without a synchronous-`useCallback`-staleness bug). Magnolia's own
+  oracle (`skill-confirmation.spec.ts`, both profiles) and the full e2e suite went green, but the
+  full vitest run surfaced 16 failures in test files outside its file allocation (`App.test.tsx`,
+  `App.colorTokens.test.tsx`, `App.persistence.test.tsx`) — correctly diagnosed as Cypress's domain
+  rather than fixed out-of-scope.
+- Dispatched Cypress to fix those 3 test files (mechanical retarget: click "Confirm skills" after
+  "Find my gaps" in single-panel-mode tests; bump `App.persistence.test.tsx`'s seed to the v2
+  key/shape) and audit spec 038b end-to-end. Cypress independently re-verified rather than trusting
+  Magnolia's report and caught one real gap the relay missed: one `App.persistence.test.tsx` test
+  still failed post-fix for a different reason (checklist-first mount behavior, not the v1/v2 key
+  mismatch) — fixed with the same click-through pattern. Also added
+  `SkillConfirmationChecklist.test.tsx` (16 tests) since no existing oracle actually axe-scanned the
+  checklist's own on-screen state. Combined audit **PASS** — 778/778 vitest, 139 passed/9
+  expected-skipped e2e, tsc/eslint clean, zero critical violations. Ready to commit.
+- **Next**: commit spec 038b (implementation + the 4 test-file fixes/additions together). After
+  that ships: recommendation #3 (deepen weak-coverage-role data, UNKNOWN/SPIKE) is still unstarted,
+  and the `/grill-me`-answered compare-mode confirmation extension (one checklist per panel,
+  sequentially) is unspecced. The `scrollable-region-focusable` finding on `SkillLeverageTable`
+  (spec 036's audit) and a focus-order pass on the new checklist's mount/confirm/cancel transitions
+  (Cypress's non-blocking recommendation this round) are both candidates for small follow-up tickets.
 
 ---
 

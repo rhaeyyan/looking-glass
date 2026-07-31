@@ -70,6 +70,9 @@ async function analyzeWithOneHaveOneGap() {
   await user.selectOptions(screen.getByLabelText(/target role/i), 'Backend')
   await user.type(screen.getByLabelText(/resume text/i), 'PostgreSQL expert')
   await user.click(screen.getByRole('button', { name: /find my gaps/i }))
+  // spec 038b: single-panel submit now stages a confirmation checklist first — confirm before the
+  // donut/legend this file's assertions read is ever rendered.
+  await user.click(await screen.findByRole('button', { name: 'Confirm skills' }))
 }
 
 // Since spec 007 merged the table/ladder, "Already have" / "Worth learning" / "Not scored yet"
