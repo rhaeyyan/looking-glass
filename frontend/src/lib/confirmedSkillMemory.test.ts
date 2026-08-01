@@ -96,9 +96,10 @@ describe('confirmedSkillMemory — recordConfirmedDecisions', () => {
     expect(afterRoleB.get('python')).toBe(false)
     // The prior call's own returned map is a separate, untouched snapshot (fresh Map each call).
     expect(afterRoleA.get('python')).toBe(true)
-    // Docker, decided under role A, survives untouched into role B's result — role B's rows never
-    // mention it, so it is neither re-decided nor dropped.
-    expect(afterRoleB.get('docker')).toBe(true)
+    // Docker, decided false under role A (it was in role A's `rows` but NOT in its
+    // `checkedSkillKeys`), survives untouched into role B's result — role B's rows never mention
+    // it, so it is neither re-decided nor dropped.
+    expect(afterRoleB.get('docker')).toBe(false)
     expect(afterRoleB.get('rust')).toBe(false)
   })
 
