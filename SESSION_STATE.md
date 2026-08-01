@@ -5,7 +5,12 @@
 > When this file exceeds 150 lines or contains more than 5 historical sessions, move older
 > entries to [ARCHIVED_SESSIONS.md](ARCHIVED_SESSIONS.md).
 
-## Current Session — 2026-07-31 (round 25: specs 039a/039b, leverage-table polish)
+## Current Session — 2026-08-01 (Documentation Update)
+
+- Added a Mermaid chart to the `README.md` Technical Notes section detailing the system architecture and execution flow.
+- Committed and pushed documentation update.
+
+## Previous Session — 2026-07-31 (round 25: specs 039a/039b, leverage-table polish)
 
 - Continued round 24's compare-mode "missing polish" backlog. Clarified 4 open items via
   AskUserQuestion before routing: the "confirm my skills" button was already shipped (specs

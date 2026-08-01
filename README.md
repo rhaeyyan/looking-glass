@@ -96,6 +96,38 @@ getting the top recommendation, is built, tested, and working end to end.
 
 ## Technical Notes & Methodology
 
+### System Architecture & Execution Flow
+
+```mermaid
+flowchart TB
+    subgraph Client [Frontend: React + TypeScript SPA on Vercel]
+        UI[User Interface]
+        Regex[Resume Skill Extraction<br/><i>Deterministic Regex</i>]
+        Matrix[Demand × Scarcity Matrix<br/><i>Gap Ranking</i>]
+        Narrator[Narrative Engine<br/><i>Deterministic Templates</i>]
+    end
+
+    subgraph Server [Backend: Supabase Postgres]
+        DB[(Core Database)]
+        Ingest[Data Ingestion<br/><i>Python / SQL</i>]
+        ScoreView[Arbitrage Score View<br/><i>Demand × Scarcity</i>]
+    end
+
+    %% Build time / Static
+    CSV[Kaggle CSVs: D1, D2, D3] -->|1. Ingest & Join| Ingest
+    Ingest --> DB
+    DB -->|2. Compute View| ScoreView
+
+    %% Runtime Flow
+    UI -->|3. Select Role| ScoreView
+    ScoreView -.->|Role Profile & Scores| Matrix
+    
+    UI -->|4. Paste Resume| Regex
+    Regex -->|Extracted Skills| Matrix
+    Matrix -->|Top Gap| Narrator
+    Narrator -->|5. Rationale| UI
+```
+
 ### How it was built
 
 [**Development Report**](DEVELOPMENT_REPORT.md) — the full build history from the first commit
