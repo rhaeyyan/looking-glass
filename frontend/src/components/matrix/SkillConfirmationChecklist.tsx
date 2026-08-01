@@ -6,8 +6,10 @@ import './matrix.css'
 // specs/038b-skill-confirmation-checklist-ui.md — the confirm/edit step between resume submission
 // and analyzed results (single-panel/`compareMode === false` only, per the SPEC's Constraints).
 // Pure presentation of `useRolePanel`'s `pendingConfirmation` draft: every row `rows` contains
-// renders as one checkbox, pre-checked per `autoDetectedKeys` (real deterministic extraction, spec
-// 006 — never re-derived or guessed here). The user's edits live as local component state until
+// renders as one checkbox, pre-checked per `initialCheckedKeys` — the caller may source this Set
+// from fresh deterministic extraction (spec 006) or from carried-over confirmed decisions for a
+// previously-visited role (spec 040b); this component deliberately does not know or care which, it
+// only pre-checks whichever keys it's handed. The user's edits live as local component state until
 // "Confirm skills" hands the live checked set to `onConfirm`; "Back" hands control to `onCancel`
 // with no set of its own. Zero score/gap/join computation happens in this file (Bounded-AI: pure
 // presentation of, and input-collection for, a user's own explicit choice, per the SPEC).
@@ -51,7 +53,7 @@ export interface SkillConfirmationChecklistProps {
   /** The target role this draft was extracted against — display only, never re-derives anything. */
   role: string
   rows: RoleSkillRow[]
-  autoDetectedKeys: Set<string>
+  initialCheckedKeys: Set<string>
   onConfirm: (checkedSkillKeys: Set<string>) => void
   onCancel: () => void
 }
@@ -59,7 +61,7 @@ export interface SkillConfirmationChecklistProps {
 export function SkillConfirmationChecklist({
   role,
   rows,
-  autoDetectedKeys,
+  initialCheckedKeys,
   onConfirm,
   onCancel,
 }: SkillConfirmationChecklistProps) {
@@ -74,7 +76,7 @@ export function SkillConfirmationChecklist({
   // "you're now looking at a new step", which nothing did before. `tabIndex={-1}` makes the
   // heading programmatically focusable without joining the normal Tab order permanently; the
   // empty dependency array fires this exactly once per real mount, never on a re-render triggered
-  // by unrelated prop changes (e.g. the `autoDetectedKeys` re-sync effect below, which can fire on
+  // by unrelated prop changes (e.g. the `initialCheckedKeys` re-sync effect below, which can fire on
   // an already-mounted instance when a resume is resubmitted while the checklist is still on
   // screen — that resync is deliberately NOT a fresh "new step" from the user's point of view, so
   // it must not re-steal focus).
@@ -84,14 +86,14 @@ export function SkillConfirmationChecklist({
   }, [])
 
   // Local edit buffer only — starts from the real extraction's auto-detected set and never
-  // mutates `autoDetectedKeys` itself. Re-synced whenever the caller hands this component a NEW
+  // mutates `initialCheckedKeys` itself. Re-synced whenever the caller hands this component a NEW
   // draft: `useRolePanel.submitResume` constructs a brand-new Set every call, so a resubmitted
   // resume while this checklist is still on screen starts its own fresh edit buffer rather than
   // carrying over stale toggles from the previous, now-superseded draft.
-  const [checkedKeys, setCheckedKeys] = useState<Set<string>>(() => new Set(autoDetectedKeys))
+  const [checkedKeys, setCheckedKeys] = useState<Set<string>>(() => new Set(initialCheckedKeys))
   useEffect(() => {
-    setCheckedKeys(new Set(autoDetectedKeys))
-  }, [autoDetectedKeys])
+    setCheckedKeys(new Set(initialCheckedKeys))
+  }, [initialCheckedKeys])
 
   function toggleRow(skillKey: string) {
     setCheckedKeys((prev) => {
