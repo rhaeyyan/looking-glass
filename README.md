@@ -99,24 +99,32 @@ getting the top recommendation, is built, tested, and working end to end.
 ### System Architecture & Execution Flow
 
 ```mermaid
-flowchart TB
-    subgraph Client [Frontend: React + TypeScript SPA on Vercel]
-        UI[User Interface]
-        Regex[Resume Skill Extraction<br/><i>Deterministic Regex</i>]
-        Matrix[Demand × Scarcity Matrix<br/><i>Gap Ranking</i>]
-        Narrator[Narrative Engine<br/><i>Deterministic Templates</i>]
-    end
+flowchart LR
+    %% Class Definitions
+    classDef frontend fill:#e0f7fa,stroke:#00838f,stroke-width:2px,color:#000
+    classDef backend fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,color:#000
+    classDef external fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#000
+
+    %% External Data
+    CSV[\Kaggle CSVs: D1, D2, D3\]:::external
 
     subgraph Server [Backend: Supabase Postgres]
-        DB[(Core Database)]
-        Ingest[Data Ingestion<br/><i>Python / SQL</i>]
-        ScoreView[Arbitrage Score View<br/><i>Demand × Scarcity</i>]
+        Ingest(Data Ingestion<br/><i>Python / SQL</i>):::backend
+        DB[(Core Database)]:::backend
+        ScoreView[(Arbitrage Score View<br/><i>Demand × Scarcity</i>)]:::backend
+    end
+
+    subgraph Client [Frontend: React + TypeScript SPA on Vercel]
+        UI([User Interface]):::frontend
+        Regex(Resume Skill Extraction<br/><i>Deterministic Regex</i>):::frontend
+        Matrix(Demand × Scarcity Matrix<br/><i>Gap Ranking</i>):::frontend
+        Narrator(Narrative Engine<br/><i>Deterministic Templates</i>):::frontend
     end
 
     %% Build time / Static
-    CSV[Kaggle CSVs: D1, D2, D3] -->|1. Ingest & Join| Ingest
-    Ingest --> DB
-    DB -->|2. Compute View| ScoreView
+    CSV == 1. Ingest & Join ==> Ingest
+    Ingest ==> DB
+    DB == 2. Compute View ==> ScoreView
 
     %% Runtime Flow
     UI -->|3. Select Role| ScoreView
@@ -125,7 +133,7 @@ flowchart TB
     UI -->|4. Paste Resume| Regex
     Regex -->|Extracted Skills| Matrix
     Matrix -->|Top Gap| Narrator
-    Narrator -->|5. Rationale| UI
+    Narrator -.->|5. Rationale| UI
 ```
 
 ### How it was built
