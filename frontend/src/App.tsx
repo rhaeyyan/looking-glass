@@ -251,14 +251,43 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panels[0].pendingConfirmation])
 
-  // spec 038c/039a: slot 1's own compare-mode-only checklist confirm — mirrors
+  // spec 038c/039a/040c: slot 1's own compare-mode-only checklist confirm — mirrors
   // handleConfirmSkills' gap-computation call exactly, but never persists (slot 1 is
   // session-only, never restored; Q2). Slot 0's compare-mode checklist reuses handleConfirmSkills
   // verbatim instead of this function — it is already correct for slot 0 regardless of
-  // compareMode.
+  // compareMode. spec 040c: also records into the shared confirmedSkillMemory, exactly like
+  // handleConfirmSkills does for slot 0 (040b) — this is the write half of same-batch cross-panel
+  // sharing (Intellectual Control).
   function handleConfirmSkillsCompare(slot: 1, checkedSkillKeys: Set<string>) {
+    const rows = panels[slot].pendingConfirmation?.rows ?? panels[slot].rows
     panels[slot].confirmSkills(checkedSkillKeys)
+    setConfirmedSkillMemory((memory) => recordConfirmedDecisions(memory, rows, checkedSkillKeys))
   }
+
+  // spec 040c: slot 1's twin of the slot-0 layout effect above, with ONE deliberate addition — it
+  // ALSO depends on panels[0].pendingConfirmation, and short-circuits unless slot 0 has already
+  // cleared its own pendingConfirmation (i.e. it is genuinely slot 1's turn). This is what lets a
+  // same-batch submission's slot-0 confirmation retroactively benefit slot 1 BEFORE slot 1's
+  // checklist is shown, without ever re-evaluating (and yanking) an already-shown slot-1 checklist
+  // later (see specs/040c-compare-mode-skill-carryover.md's Intellectual Control). MUST be
+  // useLayoutEffect for the same pre-paint reason as slot 0's.
+  useLayoutEffect(() => {
+    const pending = panels[1].pendingConfirmation
+    if (!pending) {
+      setChecklistInitialKeys((prev) => (prev[1] === undefined ? prev : [prev[0], undefined]))
+      return
+    }
+    if (panels[0].pendingConfirmation !== undefined) return // not slot 1's turn yet
+    if (isRoleFullyCovered(confirmedSkillMemory, pending.rows)) {
+      handleConfirmSkillsCompare(1, deriveCheckedKeysFromMemory(confirmedSkillMemory, pending.rows))
+    } else {
+      setChecklistInitialKeys((prev) => [
+        prev[0],
+        mergeInitialCheckedKeys(confirmedSkillMemory, pending.rows, pending.autoDetectedKeys),
+      ])
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panels[1].pendingConfirmation, panels[0].pendingConfirmation])
 
   // spec 038c (Q3): "Back" on slot N abandons N's own staged draft AND every later active slot's
   // still-staged draft — never an earlier, already-confirmed slot, and never a bare single-slot
@@ -617,7 +646,9 @@ function App() {
                       <SkillConfirmationChecklist
                         role={roleSlots[slot]}
                         rows={panels[slot].pendingConfirmation.rows}
-                        initialCheckedKeys={panels[slot].pendingConfirmation.autoDetectedKeys}
+                        initialCheckedKeys={
+                          checklistInitialKeys[slot] ?? panels[slot].pendingConfirmation.autoDetectedKeys
+                        }
                         onConfirm={
                           slot === 0
                             ? handleConfirmSkills
