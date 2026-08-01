@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ROLES } from './lib/roles'
 import {
   savePersistedState,
@@ -10,6 +10,13 @@ import { useRolePanel, type UseRolePanelResult } from './lib/useRolePanel'
 import { type SeniorityLevel } from './lib/seniorityFraming'
 import { RoleResultsPanel } from './components/matrix/RoleResultsPanel'
 import { SkillConfirmationChecklist } from './components/matrix/SkillConfirmationChecklist'
+import {
+  type ConfirmedSkillMemory,
+  recordConfirmedDecisions,
+  isRoleFullyCovered,
+  deriveCheckedKeysFromMemory,
+  mergeInitialCheckedKeys,
+} from './lib/confirmedSkillMemory'
 
 type Theme = 'light' | 'dark'
 
@@ -115,6 +122,20 @@ function App() {
     () => persistedOnMount?.confirmedFingerprint ?? null,
   )
 
+  // spec 040b: session-only, cross-role, cross-panel record of confirmed skill decisions — NEVER
+  // read/written by savePersistedState/loadPersistedState (Edge Cases: full page reload is the only
+  // reset). Starts empty on every mount, regardless of what localStorage restores.
+  const [confirmedSkillMemory, setConfirmedSkillMemory] = useState<ConfirmedSkillMemory>(
+    () => new Map(),
+  )
+  // spec 040b: the checklist's pre-check Set for each slot, cached so its OBJECT IDENTITY is stable
+  // across unrelated App re-renders while a given pendingConfirmation is outstanding — see
+  // Intellectual Control in specs/040b-single-panel-skill-carryover.md. A 2-element tuple,
+  // index-matched to roleSlots/panels, so 040c's slot-1 addition is purely additive.
+  const [checklistInitialKeys, setChecklistInitialKeys] = useState<
+    [Set<string> | undefined, Set<string> | undefined]
+  >([undefined, undefined])
+
   // Theme is applied to the document root so the design system's `:root[data-theme]` overrides win
   // over the `prefers-color-scheme` default in both directions.
   useEffect(() => {
@@ -196,10 +217,39 @@ function App() {
   // input, not cached score" line — explicit capture of what the user just checked is more direct
   // than coupling persistence to a derived pipeline output.
   function handleConfirmSkills(checkedSkillKeys: Set<string>) {
+    // spec 040b: captured BEFORE confirmSkills, mirroring 038a's own rationale for reading
+    // pendingConfirmation.rows rather than the live rows state — this is the role's FULL
+    // vocabulary the checklist represented, not just the checked subset.
+    const rows = panels[0].pendingConfirmation?.rows ?? panels[0].rows
     panels[0].confirmSkills(checkedSkillKeys)
+    setConfirmedSkillMemory((memory) => recordConfirmedDecisions(memory, rows, checkedSkillKeys))
     setConfirmedSkillKeys([...checkedSkillKeys])
     setConfirmedFingerprint({ resumeText, role: roleSlots[0] })
   }
+
+  // spec 040b: fires exactly once per NEW pendingConfirmation instance for slot 0 — deliberately
+  // depends ONLY on panels[0].pendingConfirmation's identity, NOT on confirmedSkillMemory, so a
+  // later, unrelated memory update never re-fires this and yanks an already-open, possibly
+  // mid-edit checklist (see specs/040b-single-panel-skill-carryover.md's Intellectual Control).
+  // MUST be useLayoutEffect, not useEffect: a fully-covered role must never paint its checklist
+  // for even one frame — useLayoutEffect runs synchronously after DOM mutations, before paint, so
+  // the auto-confirm-and-skip below is genuinely invisible, not just fast.
+  useLayoutEffect(() => {
+    const pending = panels[0].pendingConfirmation
+    if (!pending) {
+      setChecklistInitialKeys((prev) => (prev[0] === undefined ? prev : [undefined, prev[1]]))
+      return
+    }
+    if (isRoleFullyCovered(confirmedSkillMemory, pending.rows)) {
+      handleConfirmSkills(deriveCheckedKeysFromMemory(confirmedSkillMemory, pending.rows))
+    } else {
+      setChecklistInitialKeys((prev) => [
+        mergeInitialCheckedKeys(confirmedSkillMemory, pending.rows, pending.autoDetectedKeys),
+        prev[1],
+      ])
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panels[0].pendingConfirmation])
 
   // spec 038c/039a: slot 1's own compare-mode-only checklist confirm — mirrors
   // handleConfirmSkills' gap-computation call exactly, but never persists (slot 1 is
@@ -532,7 +582,9 @@ function App() {
                   <SkillConfirmationChecklist
                     role={roleSlots[0]}
                     rows={panels[0].pendingConfirmation.rows}
-                    autoDetectedKeys={panels[0].pendingConfirmation.autoDetectedKeys}
+                    initialCheckedKeys={
+                      checklistInitialKeys[0] ?? panels[0].pendingConfirmation.autoDetectedKeys
+                    }
                     onConfirm={handleConfirmSkills}
                     onCancel={panels[0].cancelConfirmation}
                   />
@@ -565,7 +617,7 @@ function App() {
                       <SkillConfirmationChecklist
                         role={roleSlots[slot]}
                         rows={panels[slot].pendingConfirmation.rows}
-                        autoDetectedKeys={panels[slot].pendingConfirmation.autoDetectedKeys}
+                        initialCheckedKeys={panels[slot].pendingConfirmation.autoDetectedKeys}
                         onConfirm={
                           slot === 0
                             ? handleConfirmSkills
