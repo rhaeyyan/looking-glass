@@ -54,7 +54,7 @@ describe('<SkillConfirmationChecklist /> render + pre-checked state', () => {
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        initialCheckedKeys={AUTO_DETECTED_KEYS}
         onConfirm={() => {}}
         onCancel={() => {}}
       />,
@@ -74,7 +74,7 @@ describe('<SkillConfirmationChecklist /> render + pre-checked state', () => {
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        initialCheckedKeys={AUTO_DETECTED_KEYS}
         onConfirm={() => {}}
         onCancel={() => {}}
       />,
@@ -92,7 +92,7 @@ describe('<SkillConfirmationChecklist /> render + pre-checked state', () => {
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        initialCheckedKeys={AUTO_DETECTED_KEYS}
         onConfirm={() => {}}
         onCancel={() => {}}
       />,
@@ -110,7 +110,7 @@ describe('<SkillConfirmationChecklist /> edit + confirm/cancel behavior', () => 
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        initialCheckedKeys={AUTO_DETECTED_KEYS}
         onConfirm={() => {}}
         onCancel={() => {}}
       />,
@@ -134,7 +134,7 @@ describe('<SkillConfirmationChecklist /> edit + confirm/cancel behavior', () => 
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        initialCheckedKeys={AUTO_DETECTED_KEYS}
         onConfirm={onConfirm}
         onCancel={() => {}}
       />,
@@ -162,7 +162,7 @@ describe('<SkillConfirmationChecklist /> edit + confirm/cancel behavior', () => 
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        initialCheckedKeys={AUTO_DETECTED_KEYS}
         onConfirm={onConfirm}
         onCancel={onCancel}
       />,
@@ -179,7 +179,7 @@ describe('<SkillConfirmationChecklist /> edit + confirm/cancel behavior', () => 
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={new Set(['postgresql'])}
+        initialCheckedKeys={new Set(['postgresql'])}
         onConfirm={() => {}}
         onCancel={() => {}}
       />,
@@ -191,7 +191,7 @@ describe('<SkillConfirmationChecklist /> edit + confirm/cancel behavior', () => 
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={new Set(['rust'])}
+        initialCheckedKeys={new Set(['rust'])}
         onConfirm={() => {}}
         onCancel={() => {}}
       />,
@@ -209,7 +209,7 @@ describe('<SkillConfirmationChecklist /> non-color-only encoding (WCAG 1.4.1)', 
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        initialCheckedKeys={AUTO_DETECTED_KEYS}
         onConfirm={() => {}}
         onCancel={() => {}}
       />,
@@ -228,7 +228,7 @@ describe('<SkillConfirmationChecklist /> non-color-only encoding (WCAG 1.4.1)', 
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        initialCheckedKeys={AUTO_DETECTED_KEYS}
         onConfirm={() => {}}
         onCancel={() => {}}
       />,
@@ -246,7 +246,7 @@ describe('<SkillConfirmationChecklist /> keyboard operability', () => {
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        initialCheckedKeys={AUTO_DETECTED_KEYS}
         onConfirm={() => {}}
         onCancel={() => {}}
       />,
@@ -277,7 +277,7 @@ describe('<SkillConfirmationChecklist /> keyboard operability', () => {
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        initialCheckedKeys={AUTO_DETECTED_KEYS}
         onConfirm={() => {}}
         onCancel={() => {}}
       />,
@@ -297,7 +297,7 @@ describe('<SkillConfirmationChecklist /> keyboard operability', () => {
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        initialCheckedKeys={AUTO_DETECTED_KEYS}
         onConfirm={onConfirm}
         onCancel={() => {}}
       />,
@@ -316,7 +316,7 @@ describe('<SkillConfirmationChecklist /> keyboard operability', () => {
         <SkillConfirmationChecklist
           role={TARGET_ROLE}
           rows={ROWS}
-          autoDetectedKeys={AUTO_DETECTED_KEYS}
+          initialCheckedKeys={AUTO_DETECTED_KEYS}
           onConfirm={() => {}}
           onCancel={() => {}}
         />
@@ -341,7 +341,7 @@ describe('<SkillConfirmationChecklist /> accessibility', () => {
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        initialCheckedKeys={AUTO_DETECTED_KEYS}
         onConfirm={() => {}}
         onCancel={() => {}}
       />,
@@ -356,7 +356,7 @@ describe('<SkillConfirmationChecklist /> accessibility', () => {
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        initialCheckedKeys={AUTO_DETECTED_KEYS}
         onConfirm={() => {}}
         onCancel={() => {}}
       />,
@@ -373,7 +373,7 @@ describe('<SkillConfirmationChecklist /> accessibility', () => {
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={new Set()}
+        initialCheckedKeys={new Set()}
         onConfirm={() => {}}
         onCancel={() => {}}
       />,
@@ -393,7 +393,7 @@ describe('<SkillConfirmationChecklist /> focus management on mount', () => {
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        initialCheckedKeys={AUTO_DETECTED_KEYS}
         onConfirm={() => {}}
         onCancel={() => {}}
       />,
@@ -411,7 +411,7 @@ describe('<SkillConfirmationChecklist /> focus management on mount', () => {
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={AUTO_DETECTED_KEYS}
+        initialCheckedKeys={AUTO_DETECTED_KEYS}
         onConfirm={() => {}}
         onCancel={() => {}}
       />,
@@ -430,7 +430,7 @@ describe('<SkillConfirmationChecklist /> focus management on mount', () => {
       <SkillConfirmationChecklist
         role={TARGET_ROLE}
         rows={ROWS}
-        autoDetectedKeys={new Set(['rust'])}
+        initialCheckedKeys={new Set(['rust'])}
         onConfirm={() => {}}
         onCancel={() => {}}
       />,

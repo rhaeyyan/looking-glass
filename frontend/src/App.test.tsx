@@ -557,18 +557,24 @@ describe('<App /> top-gap narration (spec 005)', () => {
     await user.click(await screen.findByRole('button', { name: 'Confirm skills' }))
     await screen.findByRole('region', { name: /Rust/i })
 
-    // Re-submit: the resume now shows Rust, so PostgreSQL becomes the new top gap.
+    // spec 040b (Edge Cases, "Permanent lock-in per visited role, deliberate"): confirming above
+    // with NOTHING checked recorded a `false` decision for every skill in Backend's full
+    // vocabulary (Rust + PostgreSQL — BACKEND_ROWS has only these two), so Backend is now 100%
+    // memory-covered. Re-submitting the SAME role therefore auto-skips the checklist entirely and
+    // reuses the carried-over (all-`false`) decisions, ignoring this fresh "Rust" mention — that is
+    // intended lock-in (not a stale-narration regression), so the top gap must stay Rust rather
+    // than swap to PostgreSQL the way a fresh extraction alone would produce.
     mockExtract.mockReturnValue(['Rust'])
     await user.clear(textarea)
     await user.type(textarea, 'I know Rust now')
     await user.click(screen.getByRole('button', { name: SUBMIT_BUTTON_NAME }))
-    await user.click(await screen.findByRole('button', { name: 'Confirm skills' }))
 
-    const postgresSection = await screen.findByRole('region', { name: /PostgreSQL/i })
-    expect(postgresSection).toBeInTheDocument()
-    // The stale Rust-named narration must be gone, not left stacked alongside the new one.
-    expect(screen.queryByRole('region', { name: /^Rust\b/i })).not.toBeInTheDocument()
-    expect(screen.getAllByRole('region', { name: /PostgreSQL/i })).toHaveLength(1)
+    const rustSection = await screen.findByRole('region', { name: /Rust/i })
+    expect(rustSection).toBeInTheDocument()
+    // No second checklist ever paints — the role-level auto-skip fires before paint.
+    expect(screen.queryByRole('button', { name: 'Confirm skills' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /PostgreSQL/i })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('region', { name: /Rust/i })).toHaveLength(1)
   })
 
   it('replaces (never stacks) the narration when switching to a different role and resubmitting', async () => {
