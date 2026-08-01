@@ -9,6 +9,7 @@
 
 - Added a Mermaid chart to the `README.md` Technical Notes section detailing the system architecture and execution flow.
 - Improved the Mermaid chart with LR orientation, distinct node shapes, color coding (classDef), and varied link styles for better readability.
+- Applied specific user-provided Mermaid styles, subgraph directions, and node syntax updates.
 - Committed and pushed documentation updates.
 
 ## Previous Session — 2026-07-31 (round 25: specs 039a/039b, leverage-table polish)
